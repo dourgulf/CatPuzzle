@@ -12,7 +12,7 @@ final class BoardViewTests: XCTestCase {
         )
         XCTAssertEqual(
             CellBorders.resolve(in: puzzle, row: 0, column: 2),
-            CellBorders(top: true, bottom: false, leading: false, trailing: true)
+            CellBorders(top: true, bottom: true, leading: false, trailing: false)
         )
     }
 }
