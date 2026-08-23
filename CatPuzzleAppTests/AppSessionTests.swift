@@ -38,6 +38,7 @@ final class AppSessionTests: XCTestCase {
             .cat
         )
         XCTAssertEqual(session.gameViewModel?.canUndo, false)
+        XCTAssertEqual(session.gameViewModel?.mistakeCount, 0)
     }
 
     func testStartingNextLevelCreatesAndSavesEmptyActiveGame() {
@@ -52,6 +53,7 @@ final class AppSessionTests: XCTestCase {
             store.progress.activeGame?.states,
             emptySavedStates()
         )
+        XCTAssertEqual(store.progress.activeGame?.mistakeCount, 0)
     }
 
     func testCellChangeAutosavesUpdatedState() {
@@ -112,6 +114,7 @@ final class AppSessionTests: XCTestCase {
         XCTAssertEqual(session.gameViewModel?.puzzle.states, emptyCellStates())
         XCTAssertEqual(store.progress.activeGame?.states, emptySavedStates())
         XCTAssertEqual(session.gameViewModel?.canUndo, false)
+        XCTAssertEqual(session.gameViewModel?.mistakeCount, 0)
     }
 
     func testCompletingLevelClearsActiveGameAndRecordsCompletion() {
@@ -188,6 +191,25 @@ final class AppSessionTests: XCTestCase {
         XCTAssertNil(store.progress.activeGame)
     }
 
+    func testNegativePersistedMistakeCountIsDiscarded() {
+        let store = InMemoryGameProgressStore(
+            progress: GameProgress(
+                activeGame: SavedGame(
+                    levelID: "meadow",
+                    states: emptySavedStates(),
+                    mistakeCount: -1
+                ),
+                completedLevelIDs: []
+            )
+        )
+
+        let session = AppSession(progressStore: store)
+
+        XCTAssertEqual(session.destination, .readyForNextLevel)
+        XCTAssertEqual(session.nextLevel?.id, "meadow")
+        XCTAssertNil(store.progress.activeGame)
+    }
+
     func testCorruptStoredJSONFallsBackToFirstLevelWithoutCrashing() {
         let suiteName = "CatPuzzleTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -200,6 +222,57 @@ final class AppSessionTests: XCTestCase {
 
         XCTAssertEqual(session.destination, .readyForNextLevel)
         XCTAssertEqual(session.nextLevel?.id, "meadow")
+    }
+
+    func testIllegalPlacementAutosavesMistakeCount() {
+        let store = InMemoryGameProgressStore()
+        let session = startedSession(store: store)
+        session.gameViewModel?.toggleCat(atRow: 0, column: 0)
+
+        session.gameViewModel?.toggleCat(atRow: 0, column: 4)
+
+        XCTAssertEqual(store.progress.activeGame?.mistakeCount, 1)
+        XCTAssertEqual(
+            store.progress.activeGame?.states[index(row: 0, column: 4)],
+            .empty
+        )
+    }
+
+    func testMistakeCountAndFailedStateRestoreAfterRelaunch() {
+        let store = InMemoryGameProgressStore()
+        let firstSession = startedSession(store: store)
+        firstSession.gameViewModel?.toggleCat(atRow: 0, column: 0)
+        for _ in 0..<BuiltInLevels.meadow.maxMistakes {
+            firstSession.gameViewModel?.toggleCat(atRow: 0, column: 4)
+        }
+
+        let restoredSession = AppSession(progressStore: store)
+
+        XCTAssertEqual(
+            restoredSession.gameViewModel?.mistakeCount,
+            BuiltInLevels.meadow.maxMistakes
+        )
+        XCTAssertEqual(restoredSession.gameViewModel?.isFailed, true)
+        XCTAssertEqual(restoredSession.destination, .playing)
+        XCTAssertNotNil(store.progress.activeGame)
+        XCTAssertTrue(store.progress.completedLevelIDs.isEmpty)
+    }
+
+    func testRestartAfterFailureClearsPersistedMistakesAndBoard() {
+        let store = InMemoryGameProgressStore()
+        let session = startedSession(store: store)
+        session.gameViewModel?.toggleCat(atRow: 0, column: 0)
+        for _ in 0..<BuiltInLevels.meadow.maxMistakes {
+            session.gameViewModel?.toggleCat(atRow: 0, column: 4)
+        }
+
+        session.gameViewModel?.restart()
+
+        XCTAssertEqual(session.gameViewModel?.mistakeCount, 0)
+        XCTAssertEqual(session.gameViewModel?.isFailed, false)
+        XCTAssertEqual(store.progress.activeGame?.mistakeCount, 0)
+        XCTAssertEqual(store.progress.activeGame?.states, emptySavedStates())
+        XCTAssertTrue(store.progress.completedLevelIDs.isEmpty)
     }
 
     private func startedSession(

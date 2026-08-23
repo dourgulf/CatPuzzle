@@ -25,15 +25,22 @@ enum SavedCellState: String, Codable, Equatable {
 struct SavedGame: Codable, Equatable {
     let levelID: String
     let states: [SavedCellState]
+    let mistakeCount: Int
 
-    init(levelID: String, states: [SavedCellState]) {
+    init(
+        levelID: String,
+        states: [SavedCellState],
+        mistakeCount: Int = 0
+    ) {
         self.levelID = levelID
         self.states = states
+        self.mistakeCount = mistakeCount
     }
 
-    init(levelID: String, puzzle: Puzzle) {
+    init(levelID: String, puzzle: Puzzle, mistakeCount: Int) {
         self.levelID = levelID
         states = puzzle.states.map(SavedCellState.init)
+        self.mistakeCount = mistakeCount
     }
 
     func makePuzzle(for level: LevelDefinition) throws -> Puzzle {
@@ -50,7 +57,7 @@ struct SavedGame: Codable, Equatable {
             }
         return try Puzzle(
             size: level.size,
-            regionIDs: level.regionIDs,
+            colorIDs: level.colorIDs,
             states: restoredStates
         )
     }

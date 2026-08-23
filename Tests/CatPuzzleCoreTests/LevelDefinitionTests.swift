@@ -13,9 +13,11 @@ final class LevelDefinitionTests: XCTestCase {
             let puzzle = try level.makePuzzle()
 
             XCTAssertEqual(level.size, 6)
-            XCTAssertEqual(level.regionIDs.count, 6)
-            XCTAssertTrue(level.regionIDs.allSatisfy { $0.count == 6 })
-            XCTAssertEqual(Set(level.regionIDs.flatMap { $0 }).count, 6)
+            XCTAssertEqual(level.catCount, 6)
+            XCTAssertEqual(level.maxMistakes, 5)
+            XCTAssertEqual(level.colorIDs.count, 6)
+            XCTAssertTrue(level.colorIDs.allSatisfy { $0.count == 6 })
+            XCTAssertEqual(Set(level.colorIDs.flatMap { $0 }).count, 6)
             XCTAssertEqual(puzzle.size, 6)
             XCTAssertTrue(puzzle.states.allSatisfy { $0 == .empty })
         }
@@ -39,7 +41,34 @@ final class LevelDefinitionTests: XCTestCase {
                 )
             }
 
-            XCTAssertTrue(PuzzleValidator.isSolved(puzzle), fixture.level.id)
+            XCTAssertTrue(
+                PuzzleValidator.isSolved(
+                    puzzle,
+                    catCount: fixture.level.catCount
+                ),
+                fixture.level.id
+            )
         }
+    }
+
+    func testVariableSizeLevelCreatesMatchingPuzzle() throws {
+        let level = LevelDefinition(
+            id: "small",
+            size: 4,
+            catCount: 4,
+            maxMistakes: 3,
+            colorIDs: [
+                [0, 0, 0, 1],
+                [0, 1, 1, 1],
+                [2, 2, 2, 3],
+                [2, 3, 3, 3],
+            ]
+        )
+
+        let puzzle = try level.makePuzzle()
+
+        XCTAssertEqual(puzzle.size, 4)
+        XCTAssertEqual(puzzle.cells.count, 16)
+        XCTAssertEqual(puzzle.cell(atRow: 3, column: 3)?.colorID, 3)
     }
 }

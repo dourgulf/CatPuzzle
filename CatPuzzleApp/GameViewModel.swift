@@ -8,31 +8,41 @@ final class GameViewModel: ObservableObject {
     @Published private(set) var puzzle: Puzzle
     @Published private(set) var canUndo: Bool
     @Published private(set) var isSolved: Bool
+    @Published private(set) var isFailed: Bool
+    @Published private(set) var mistakeCount: Int
+    @Published private(set) var remainingMistakes: Int
     @Published private(set) var feedbackMessage: String?
 
+    var mistakeSummary: String {
+        "Mistakes: \(mistakeCount) / \(level.maxMistakes)"
+    }
+
     private var engine: GameEngine
-    private let onPuzzleChanged: (Puzzle) -> Void
+    private let onGameStateChanged: (GameState) -> Void
 
     convenience init(
         level: LevelDefinition = BuiltInLevels.meadow,
-        onPuzzleChanged: @escaping (Puzzle) -> Void = { _ in }
+        onGameStateChanged: @escaping (GameState) -> Void = { _ in }
     ) throws {
         try self.init(
             engine: GameEngine(level: level),
-            onPuzzleChanged: onPuzzleChanged
+            onGameStateChanged: onGameStateChanged
         )
     }
 
     init(
         engine: GameEngine,
-        onPuzzleChanged: @escaping (Puzzle) -> Void = { _ in }
+        onGameStateChanged: @escaping (GameState) -> Void = { _ in }
     ) {
         self.engine = engine
         self.level = engine.state.level
-        self.onPuzzleChanged = onPuzzleChanged
+        self.onGameStateChanged = onGameStateChanged
         puzzle = engine.state.puzzle
         canUndo = engine.canUndo
         isSolved = engine.state.isSolved
+        isFailed = engine.state.isFailed
+        mistakeCount = engine.state.mistakeCount
+        remainingMistakes = engine.state.remainingMistakes
         feedbackMessage = nil
     }
 
@@ -84,6 +94,9 @@ final class GameViewModel: ObservableObject {
             )
         } catch GameEngineError.illegalCatPlacement {
             feedbackMessage = "That cat conflicts with another cat."
+            synchronizeFromEngine(notifyChange: true)
+        } catch GameEngineError.gameAlreadyFailed {
+            feedbackMessage = "Restart to try again."
         } catch GameEngineError.invalidCell {
             feedbackMessage = "That cell is outside the board."
         } catch {
@@ -95,8 +108,11 @@ final class GameViewModel: ObservableObject {
         puzzle = engine.state.puzzle
         canUndo = engine.canUndo
         isSolved = engine.state.isSolved
+        isFailed = engine.state.isFailed
+        mistakeCount = engine.state.mistakeCount
+        remainingMistakes = engine.state.remainingMistakes
         if notifyChange {
-            onPuzzleChanged(puzzle)
+            onGameStateChanged(engine.state)
         }
     }
 }

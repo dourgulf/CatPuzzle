@@ -42,7 +42,8 @@ final class AppSession: ObservableObject {
 
         progress.activeGame = SavedGame(
             levelID: level.id,
-            puzzle: engine.state.puzzle
+            puzzle: engine.state.puzzle,
+            mistakeCount: engine.state.mistakeCount
         )
         saveProgress()
         showGame(engine: engine)
@@ -64,7 +65,11 @@ final class AppSession: ObservableObject {
                 throw SavedGameError.levelMismatch
             }
             let puzzle = try savedGame.makePuzzle(for: level)
-            let engine = try GameEngine(level: level, puzzle: puzzle)
+            let engine = try GameEngine(
+                level: level,
+                puzzle: puzzle,
+                mistakeCount: savedGame.mistakeCount
+            )
 
             if engine.state.isSolved {
                 progress.completedLevelIDs.insert(level.id)
@@ -84,15 +89,15 @@ final class AppSession: ObservableObject {
     private func showGame(engine: GameEngine) {
         gameViewModel = GameViewModel(
             engine: engine,
-            onPuzzleChanged: { [weak self] puzzle in
-                self?.handlePuzzleChanged(puzzle)
+            onGameStateChanged: { [weak self] state in
+                self?.handleGameStateChanged(state)
             }
         )
         nextLevel = nil
         destination = .playing
     }
 
-    private func handlePuzzleChanged(_ puzzle: Puzzle) {
+    private func handleGameStateChanged(_ state: GameState) {
         guard let gameViewModel else { return }
 
         if gameViewModel.isSolved {
@@ -101,7 +106,8 @@ final class AppSession: ObservableObject {
         } else {
             progress.activeGame = SavedGame(
                 levelID: gameViewModel.level.id,
-                puzzle: puzzle
+                puzzle: state.puzzle,
+                mistakeCount: state.mistakeCount
             )
         }
         saveProgress()
