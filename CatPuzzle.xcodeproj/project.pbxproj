@@ -40,7 +40,7 @@
 		016B8CD49A35E29B173C9E01 /* AppSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSession.swift; sourceTree = "<group>"; };
 		03A1321E3F989487C0675038 /* CatPuzzle */ = {isa = PBXFileReference; lastKnownFileType = folder; name = CatPuzzle; path = .; sourceTree = SOURCE_ROOT; };
 		04FE7E0D5FCADE753517028D /* AppSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSessionTests.swift; sourceTree = "<group>"; };
-		1AAAF173B0537E1A0342F539 /* CatPuzzle.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CatPuzzle.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		1AAAF173B0537E1A0342F539 /* CatPuzzle.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CatPuzzle.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		359024E1CF371922D839ACD1 /* LevelProgression.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LevelProgression.swift; sourceTree = "<group>"; };
 		3C28896388C93775D820CC30 /* GameProgressTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameProgressTests.swift; sourceTree = "<group>"; };
 		452AF30018CE7484BA1B7F77 /* BoardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardView.swift; sourceTree = "<group>"; };
@@ -175,8 +175,6 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
-				TargetAttributes = {
-				};
 			};
 			buildConfigurationList = 6F640D07A3C203B295A26098 /* Build configuration list for PBXProject "CatPuzzle" */;
 			developmentRegion = en;
@@ -284,6 +282,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = 2A5Y5ZXK84;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -422,6 +421,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = 2A5Y5ZXK84;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
