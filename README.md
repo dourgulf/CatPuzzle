@@ -20,6 +20,14 @@ third-party dependencies.
 - `Puzzle` validates and stores the board layout and current player state.
 - `PuzzleValidator` performs side-effect-free placement, conflict, and solved
   state checks.
+- `LevelDefinition` describes a level using an identifier, size, and region ID
+  grid; `BuiltInLevels` contains three original 6×6 fixtures.
+- `GameState` exposes the current puzzle and solved state.
+- `GameEngine` owns cell transitions, validates every cat placement, and
+  supports undo and restart.
+
+Cell interaction cycles through `empty → excluded → cat → empty`. A rejected
+cat placement leaves both the board and undo history unchanged.
 
 The package accepts any square board size so later game modes can reuse the
 same model. Level data is responsible for supplying a valid region layout;
