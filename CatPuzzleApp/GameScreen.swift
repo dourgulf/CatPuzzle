@@ -20,6 +20,10 @@ struct GameScreen: View {
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
 
+                Text(viewModel.mistakeSummary)
+                    .font(.subheadline.weight(.semibold))
+                    .accessibilityIdentifier("mistake-count")
+
                 BoardView(
                     puzzle: viewModel.puzzle,
                     onToggleExcluded: viewModel.toggleExcluded,
@@ -47,6 +51,8 @@ struct GameScreen: View {
 
             if viewModel.isSolved {
                 solvedOverlay
+            } else if viewModel.isFailed {
+                failedOverlay
             }
         }
     }
@@ -78,6 +84,25 @@ struct GameScreen: View {
             Button("Continue", action: onContinue)
                 .buttonStyle(.borderedProminent)
                 .accessibilityIdentifier("continue-after-completion")
+        }
+        .padding(28)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+        .shadow(radius: 12)
+    }
+
+    private var failedOverlay: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "xmark.circle.fill")
+                .font(.system(size: 44))
+                .foregroundStyle(.red)
+            Text("Game Over")
+                .font(.title2.bold())
+                .accessibilityIdentifier("game-over-message")
+            Button("Restart") {
+                viewModel.restart()
+            }
+            .buttonStyle(.borderedProminent)
+            .accessibilityIdentifier("restart-after-failure")
         }
         .padding(28)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))

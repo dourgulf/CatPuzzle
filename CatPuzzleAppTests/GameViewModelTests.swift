@@ -11,6 +11,10 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.puzzle.size, 6)
         XCTAssertFalse(viewModel.canUndo)
         XCTAssertFalse(viewModel.isSolved)
+        XCTAssertFalse(viewModel.isFailed)
+        XCTAssertEqual(viewModel.mistakeCount, 0)
+        XCTAssertEqual(viewModel.remainingMistakes, 5)
+        XCTAssertEqual(viewModel.mistakeSummary, "Mistakes: 0 / 5")
     }
 
     func testSingleTapIntentTogglesExcludedState() throws {
@@ -51,6 +55,9 @@ final class GameViewModelTests: XCTestCase {
             viewModel.feedbackMessage,
             "That cat conflicts with another cat."
         )
+        XCTAssertEqual(viewModel.mistakeCount, 1)
+        XCTAssertEqual(viewModel.remainingMistakes, 4)
+        XCTAssertEqual(viewModel.mistakeSummary, "Mistakes: 1 / 5")
     }
 
     func testUndoRestoresPreviousPuzzle() throws {
@@ -73,6 +80,7 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.puzzle.states.allSatisfy { $0 == .empty })
         XCTAssertFalse(viewModel.canUndo)
         XCTAssertFalse(viewModel.isSolved)
+        XCTAssertEqual(viewModel.mistakeCount, 0)
     }
 
     func testSolvedStateReflectsCompletedMeadow() throws {
@@ -83,5 +91,26 @@ final class GameViewModelTests: XCTestCase {
         }
 
         XCTAssertTrue(viewModel.isSolved)
+    }
+
+    func testFailureStateIsExposedAfterMaximumMistakes() throws {
+        let viewModel = try GameViewModel()
+        viewModel.toggleCat(atRow: 0, column: 0)
+
+        for _ in 0..<viewModel.level.maxMistakes {
+            viewModel.toggleCat(atRow: 0, column: 4)
+        }
+
+        XCTAssertTrue(viewModel.isFailed)
+        XCTAssertEqual(viewModel.remainingMistakes, 0)
+        XCTAssertEqual(
+            viewModel.puzzle.state(atRow: 0, column: 4),
+            .empty
+        )
+
+        viewModel.restart()
+
+        XCTAssertFalse(viewModel.isFailed)
+        XCTAssertEqual(viewModel.mistakeCount, 0)
     }
 }

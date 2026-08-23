@@ -19,13 +19,13 @@ struct CellBorders: Equatable {
 
         return CellBorders(
             top: row == 0
-                || puzzle.cell(atRow: row - 1, column: column)?.regionID != cell.regionID,
+                || puzzle.cell(atRow: row - 1, column: column)?.colorID != cell.colorID,
             bottom: row == puzzle.size - 1
-                || puzzle.cell(atRow: row + 1, column: column)?.regionID != cell.regionID,
+                || puzzle.cell(atRow: row + 1, column: column)?.colorID != cell.colorID,
             leading: column == 0
-                || puzzle.cell(atRow: row, column: column - 1)?.regionID != cell.regionID,
+                || puzzle.cell(atRow: row, column: column - 1)?.colorID != cell.colorID,
             trailing: column == puzzle.size - 1
-                || puzzle.cell(atRow: row, column: column + 1)?.regionID != cell.regionID
+                || puzzle.cell(atRow: row, column: column + 1)?.colorID != cell.colorID
         )
     }
 }
@@ -46,6 +46,10 @@ struct BoardView: View {
                         ForEach(0..<puzzle.size, id: \.self) { column in
                             CellView(
                                 state: puzzle.state(atRow: row, column: column) ?? .empty,
+                                colorID: puzzle.cell(
+                                    atRow: row,
+                                    column: column
+                                )?.colorID ?? 0,
                                 borders: CellBorders.resolve(
                                     in: puzzle,
                                     row: row,

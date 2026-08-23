@@ -7,8 +7,28 @@ final class GameEngineTests: XCTestCase {
 
         XCTAssertEqual(engine.state.level, BuiltInLevels.meadow)
         XCTAssertTrue(engine.state.puzzle.states.allSatisfy { $0 == .empty })
+        XCTAssertEqual(engine.state.mistakeCount, 0)
+        XCTAssertEqual(engine.state.remainingMistakes, 5)
         XCTAssertFalse(engine.state.isSolved)
+        XCTAssertFalse(engine.state.isFailed)
         XCTAssertFalse(engine.canUndo)
+    }
+
+    func testEngineRejectsSemanticallyInvalidLevel() {
+        let level = LevelDefinition(
+            id: "invalid",
+            size: 2,
+            catCount: 2,
+            maxMistakes: 0,
+            colorIDs: [[0, 0], [1, 1]]
+        )
+
+        XCTAssertThrowsError(try GameEngine(level: level)) { error in
+            XCTAssertEqual(
+                error as? LevelValidationError,
+                .invalidMaxMistakes
+            )
+        }
     }
 
     func testSetStateCanExcludeCellDirectly() throws {
@@ -69,9 +89,11 @@ final class GameEngineTests: XCTestCase {
         XCTAssertEqual(engine.state.puzzle, puzzleBeforeFailure)
         XCTAssertEqual(engine.state.puzzle.state(atRow: 0, column: 0), .cat)
         XCTAssertEqual(engine.state.puzzle.state(atRow: 0, column: 4), .excluded)
+        XCTAssertEqual(engine.state.mistakeCount, 1)
         XCTAssertTrue(engine.undo())
         XCTAssertEqual(engine.state.puzzle.state(atRow: 0, column: 4), .empty)
         XCTAssertEqual(engine.state.puzzle.state(atRow: 0, column: 0), .cat)
+        XCTAssertEqual(engine.state.mistakeCount, 1)
     }
 
     func testUndoRestoresSuccessfulMovesInReverseOrder() throws {
@@ -98,6 +120,7 @@ final class GameEngineTests: XCTestCase {
         engine.restart()
 
         XCTAssertTrue(engine.state.puzzle.states.allSatisfy { $0 == .empty })
+        XCTAssertEqual(engine.state.mistakeCount, 0)
         XCTAssertFalse(engine.state.isSolved)
         XCTAssertFalse(engine.canUndo)
         XCTAssertFalse(engine.undo())
@@ -140,10 +163,96 @@ final class GameEngineTests: XCTestCase {
         try savedPuzzle.setState(.excluded, atRow: 0, column: 0)
         try savedPuzzle.setState(.cat, atRow: 0, column: 1)
 
-        let engine = try GameEngine(level: level, puzzle: savedPuzzle)
+        let engine = try GameEngine(
+            level: level,
+            puzzle: savedPuzzle,
+            mistakeCount: 2
+        )
 
         XCTAssertEqual(engine.state.puzzle, savedPuzzle)
+        XCTAssertEqual(engine.state.mistakeCount, 2)
+        XCTAssertEqual(engine.state.remainingMistakes, 3)
         XCTAssertFalse(engine.canUndo)
+    }
+
+    func testIllegalPlacementsReachFailureWithoutChangingPuzzle() throws {
+        var engine = try GameEngine(level: BuiltInLevels.meadow)
+        try engine.setState(.cat, atRow: 0, column: 0)
+        let puzzleBeforeMistakes = engine.state.puzzle
+
+        for expectedCount in 1...BuiltInLevels.meadow.maxMistakes {
+            XCTAssertThrowsError(
+                try engine.setState(.cat, atRow: 0, column: 4)
+            ) { error in
+                XCTAssertEqual(
+                    error as? GameEngineError,
+                    .illegalCatPlacement
+                )
+            }
+            XCTAssertEqual(engine.state.mistakeCount, expectedCount)
+            XCTAssertEqual(engine.state.puzzle, puzzleBeforeMistakes)
+        }
+
+        XCTAssertTrue(engine.state.isFailed)
+        XCTAssertEqual(engine.state.remainingMistakes, 0)
+    }
+
+    func testFailedGameRejectsOperationsUntilRestart() throws {
+        let level = LevelDefinition(
+            id: "one-mistake",
+            size: 4,
+            catCount: 4,
+            maxMistakes: 1,
+            colorIDs: [
+                [0, 0, 0, 1],
+                [0, 1, 1, 1],
+                [2, 2, 2, 3],
+                [2, 3, 3, 3],
+            ]
+        )
+        var engine = try GameEngine(level: level)
+        try engine.setState(.cat, atRow: 0, column: 0)
+        XCTAssertThrowsError(
+            try engine.setState(.cat, atRow: 0, column: 3)
+        )
+
+        XCTAssertThrowsError(
+            try engine.setState(.excluded, atRow: 2, column: 2)
+        ) { error in
+            XCTAssertEqual(error as? GameEngineError, .gameAlreadyFailed)
+        }
+        XCTAssertFalse(engine.undo())
+
+        engine.restart()
+
+        XCTAssertFalse(engine.state.isFailed)
+        XCTAssertEqual(engine.state.mistakeCount, 0)
+        XCTAssertTrue(engine.state.puzzle.states.allSatisfy { $0 == .empty })
+    }
+
+    func testRestoredMistakeCountCanRestoreFailedGame() throws {
+        let level = BuiltInLevels.meadow
+        let puzzle = try level.makePuzzle()
+
+        let engine = try GameEngine(
+            level: level,
+            puzzle: puzzle,
+            mistakeCount: level.maxMistakes
+        )
+
+        XCTAssertTrue(engine.state.isFailed)
+        XCTAssertFalse(engine.canUndo)
+    }
+
+    func testNegativeRestoredMistakeCountIsRejected() throws {
+        let level = BuiltInLevels.meadow
+        let puzzle = try level.makePuzzle()
+
+        XCTAssertThrowsError(
+            try GameEngine(level: level, puzzle: puzzle, mistakeCount: -1)
+        ) { error in
+            XCTAssertEqual(error as? GameEngineError, .invalidMistakeCount)
+        }
     }
 
     func testRestartAfterRestoreUsesFreshEmptyLevel() throws {

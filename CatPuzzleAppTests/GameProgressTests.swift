@@ -32,7 +32,8 @@ final class GameProgressTests: XCTestCase {
         let progress = GameProgress(
             activeGame: SavedGame(
                 levelID: "river",
-                states: [.cat, .excluded, .empty]
+                states: [.cat, .excluded, .empty],
+                mistakeCount: 3
             ),
             completedLevelIDs: ["meadow"]
         )
@@ -43,6 +44,10 @@ final class GameProgressTests: XCTestCase {
         XCTAssertEqual(
             try store.loadProgress().activeGame?.states,
             [.cat, .excluded, .empty]
+        )
+        XCTAssertEqual(
+            try store.loadProgress().activeGame?.mistakeCount,
+            3
         )
     }
 

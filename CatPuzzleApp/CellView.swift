@@ -3,6 +3,7 @@ import SwiftUI
 
 struct CellView: View {
     let state: CellState
+    let colorID: Int
     let borders: CellBorders
     let row: Int
     let column: Int
@@ -12,14 +13,14 @@ struct CellView: View {
     var body: some View {
         marker
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(.systemBackground))
+            .background(cellColor.opacity(0.22))
             .contentShape(Rectangle())
             .overlay {
                 Rectangle()
                     .stroke(.secondary.opacity(0.35), lineWidth: 0.5)
             }
             .overlay {
-                RegionBorderShape(borders: borders)
+                ColorBorderShape(borders: borders)
                     .stroke(
                         .primary,
                         style: StrokeStyle(lineWidth: 3, lineCap: .square)
@@ -70,9 +71,17 @@ struct CellView: View {
         case .cat: "Cat"
         }
     }
+
+    private var cellColor: Color {
+        let colors: [Color] = [
+            .green, .blue, .orange, .purple, .pink, .cyan, .yellow, .mint,
+        ]
+        let index = Int(colorID.magnitude % UInt(colors.count))
+        return colors[index]
+    }
 }
 
-private struct RegionBorderShape: Shape {
+private struct ColorBorderShape: Shape {
     let borders: CellBorders
 
     func path(in rect: CGRect) -> Path {

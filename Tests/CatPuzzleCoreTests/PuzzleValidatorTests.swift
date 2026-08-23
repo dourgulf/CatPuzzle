@@ -22,7 +22,7 @@ final class PuzzleValidatorTests: XCTestCase {
         XCTAssertTrue(PuzzleValidator.hasColumnConflict(in: puzzle))
     }
 
-    func testCatCannotBePlacedInOccupiedRegion() throws {
+    func testCatCannotBePlacedInOccupiedColorEvenWhenCellsAreSeparated() throws {
         let placementPuzzle = try makePuzzle(states: makeStates(cats: [(1, 2)]))
         let conflictingPuzzle = try makePuzzle(
             states: makeStates(cats: [(0, 0), (1, 2)])
@@ -31,7 +31,7 @@ final class PuzzleValidatorTests: XCTestCase {
         XCTAssertFalse(
             PuzzleValidator.canPlaceCat(atRow: 0, column: 0, in: placementPuzzle)
         )
-        XCTAssertTrue(PuzzleValidator.hasRegionConflict(in: conflictingPuzzle))
+        XCTAssertTrue(PuzzleValidator.hasColorConflict(in: conflictingPuzzle))
     }
 
     func testHorizontalNeighborsConflict() throws {
@@ -61,7 +61,7 @@ final class PuzzleValidatorTests: XCTestCase {
             states: makeStates(cats: [(0, 1), (1, 3), (2, 5), (3, 0), (4, 2), (5, 4)])
         )
 
-        XCTAssertTrue(PuzzleValidator.isSolved(puzzle))
+        XCTAssertTrue(PuzzleValidator.isSolved(puzzle, catCount: 6))
     }
 
     func testIncompletePuzzleIsNotSolved() throws {
@@ -69,7 +69,7 @@ final class PuzzleValidatorTests: XCTestCase {
             states: makeStates(cats: [(0, 1), (1, 3), (2, 5), (3, 0), (4, 2)])
         )
 
-        XCTAssertFalse(PuzzleValidator.isSolved(puzzle))
+        XCTAssertFalse(PuzzleValidator.isSolved(puzzle, catCount: 6))
     }
 
     func testCatCannotBePlacedOutsideBoard() throws {
@@ -82,7 +82,7 @@ final class PuzzleValidatorTests: XCTestCase {
     private func makePuzzle(states: [[CellState]]? = nil) throws -> Puzzle {
         try Puzzle(
             size: 6,
-            regionIDs: [
+            colorIDs: [
                 [0, 0, 0, 1, 1, 1],
                 [0, 0, 0, 1, 1, 1],
                 [2, 2, 2, 3, 3, 3],

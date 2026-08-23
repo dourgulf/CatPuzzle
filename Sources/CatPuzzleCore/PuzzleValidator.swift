@@ -10,7 +10,7 @@ public enum PuzzleValidator {
         return !catCells(in: puzzle).contains {
             $0.row == row
                 || $0.column == column
-                || $0.regionID == targetCell.regionID
+                || $0.colorID == targetCell.colorID
                 || areAdjacent($0, targetCell)
         }
     }
@@ -27,8 +27,8 @@ public enum PuzzleValidator {
             .contains { $0.count > 1 }
     }
 
-    public static func hasRegionConflict(in puzzle: Puzzle) -> Bool {
-        Dictionary(grouping: catCells(in: puzzle), by: \.regionID)
+    public static func hasColorConflict(in puzzle: Puzzle) -> Bool {
+        Dictionary(grouping: catCells(in: puzzle), by: \.colorID)
             .values
             .contains { $0.count > 1 }
     }
@@ -44,17 +44,20 @@ public enum PuzzleValidator {
         return false
     }
 
-    public static func isSolved(_ puzzle: Puzzle) -> Bool {
+    public static func isSolved(
+        _ puzzle: Puzzle,
+        catCount: Int
+    ) -> Bool {
         let cats = catCells(in: puzzle)
-        let puzzleRegionIDs = Set(puzzle.cells.map(\.regionID))
-        let occupiedRegionIDs = Set(cats.map(\.regionID))
+        let puzzleColorIDs = Set(puzzle.cells.map(\.colorID))
+        let occupiedColorIDs = Set(cats.map(\.colorID))
 
-        return cats.count == puzzle.size
-            && puzzleRegionIDs.count == puzzle.size
-            && occupiedRegionIDs == puzzleRegionIDs
+        return cats.count == catCount
+            && puzzleColorIDs.count == catCount
+            && occupiedColorIDs == puzzleColorIDs
             && !hasRowConflict(in: puzzle)
             && !hasColumnConflict(in: puzzle)
-            && !hasRegionConflict(in: puzzle)
+            && !hasColorConflict(in: puzzle)
             && !hasAdjacentCats(in: puzzle)
     }
 
