@@ -20,3 +20,27 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             CODE_SIGNING_ALLOWED=NO \
             build
+      - name: Run app tests
+        run: |
+          RUNTIME_ID="$(
+            xcrun simctl list runtimes available -j |
+              jq -r '[.runtimes[] | select(.name | startswith("iOS "))] | max_by(.version | split(".") | map(tonumber)) | .identifier'
+          )"
+          SIMULATOR_UDID="$(
+            xcrun simctl list devices available -j |
+              jq --arg runtime "$RUNTIME_ID" -r '.devices[$runtime] | map(select(.name | startswith("iPhone"))) | first | .udid'
+          )"
+
+          if [[ -z "$RUNTIME_ID" || "$RUNTIME_ID" == "null" || -z "$SIMULATOR_UDID" || "$SIMULATOR_UDID" == "null" ]]; then
+            echo "No available iOS Simulator found."
+            exit 1
+          fi
+
+          xcrun simctl bootstatus "$SIMULATOR_UDID" -b
+          xcodebuild \
+            -project CatPuzzle.xcodeproj \
+            -scheme CatPuzzle \
+            -destination "platform=iOS Simulator,id=$SIMULATOR_UDID" \
+            -only-testing:CatPuzzleAppTests \
+            CODE_SIGNING_ALLOWED=NO \
+            test
