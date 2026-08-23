@@ -32,8 +32,9 @@ struct CellBorders: Equatable {
 
 struct BoardView: View {
     let puzzle: Puzzle
-    let onToggleExcluded: (Int, Int) -> Void
-    let onToggleCat: (Int, Int) -> Void
+    let previewStates: [CellPosition: CellState]
+    let onTap: (Int, Int) -> Void
+    let onToggleCatAccessibility: (Int, Int) -> Void
 
     var body: some View {
         GeometryReader { geometry in
@@ -45,7 +46,12 @@ struct BoardView: View {
                     HStack(spacing: 0) {
                         ForEach(0..<puzzle.size, id: \.self) { column in
                             CellView(
-                                state: puzzle.state(atRow: row, column: column) ?? .empty,
+                                state: previewStates[
+                                    CellPosition(row: row, column: column)
+                                ] ?? puzzle.state(
+                                    atRow: row,
+                                    column: column
+                                ) ?? .empty,
                                 colorID: puzzle.cell(
                                     atRow: row,
                                     column: column
@@ -57,11 +63,11 @@ struct BoardView: View {
                                 ),
                                 row: row,
                                 column: column,
-                                onToggleExcluded: {
-                                    onToggleExcluded(row, column)
+                                onTap: {
+                                    onTap(row, column)
                                 },
-                                onToggleCat: {
-                                    onToggleCat(row, column)
+                                onToggleCatAccessibility: {
+                                    onToggleCatAccessibility(row, column)
                                 }
                             )
                             .frame(width: cellSide, height: cellSide)
