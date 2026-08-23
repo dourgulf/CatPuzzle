@@ -2,21 +2,19 @@ import SwiftUI
 
 @main
 struct CatPuzzleApp: App {
-    @StateObject private var viewModel: GameViewModel
+    @StateObject private var session: AppSession
 
     init() {
-        let model: GameViewModel
-        do {
-            model = try GameViewModel()
-        } catch {
-            preconditionFailure("The built-in meadow level must be valid: \(error)")
-        }
-        _viewModel = StateObject(wrappedValue: model)
+        _session = StateObject(
+            wrappedValue: AppSession(
+                progressStore: UserDefaultsGameProgressStore()
+            )
+        )
     }
 
     var body: some Scene {
         WindowGroup {
-            GameScreen(viewModel: viewModel)
+            RootView(session: session)
         }
     }
 }

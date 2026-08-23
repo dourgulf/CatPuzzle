@@ -11,11 +11,25 @@ final class GameViewModel: ObservableObject {
     @Published private(set) var feedbackMessage: String?
 
     private var engine: GameEngine
+    private let onPuzzleChanged: (Puzzle) -> Void
 
-    init(level: LevelDefinition = BuiltInLevels.meadow) throws {
-        let engine = try GameEngine(level: level)
+    convenience init(
+        level: LevelDefinition = BuiltInLevels.meadow,
+        onPuzzleChanged: @escaping (Puzzle) -> Void = { _ in }
+    ) throws {
+        try self.init(
+            engine: GameEngine(level: level),
+            onPuzzleChanged: onPuzzleChanged
+        )
+    }
+
+    init(
+        engine: GameEngine,
+        onPuzzleChanged: @escaping (Puzzle) -> Void = { _ in }
+    ) {
         self.engine = engine
         self.level = engine.state.level
+        self.onPuzzleChanged = onPuzzleChanged
         puzzle = engine.state.puzzle
         canUndo = engine.canUndo
         isSolved = engine.state.isSolved
@@ -51,20 +65,23 @@ final class GameViewModel: ObservableObject {
     func undo() {
         guard engine.undo() else { return }
         feedbackMessage = nil
-        synchronizeFromEngine()
+        synchronizeFromEngine(notifyChange: true)
     }
 
     func restart() {
         engine.restart()
         feedbackMessage = nil
-        synchronizeFromEngine()
+        synchronizeFromEngine(notifyChange: true)
     }
 
     private func apply(_ state: CellState, atRow row: Int, column: Int) {
         do {
+            let previousPuzzle = engine.state.puzzle
             try engine.setState(state, atRow: row, column: column)
             feedbackMessage = nil
-            synchronizeFromEngine()
+            synchronizeFromEngine(
+                notifyChange: engine.state.puzzle != previousPuzzle
+            )
         } catch GameEngineError.illegalCatPlacement {
             feedbackMessage = "That cat conflicts with another cat."
         } catch GameEngineError.invalidCell {
@@ -74,9 +91,12 @@ final class GameViewModel: ObservableObject {
         }
     }
 
-    private func synchronizeFromEngine() {
+    private func synchronizeFromEngine(notifyChange: Bool) {
         puzzle = engine.state.puzzle
         canUndo = engine.canUndo
         isSolved = engine.state.isSolved
+        if notifyChange {
+            onPuzzleChanged(puzzle)
+        }
     }
 }

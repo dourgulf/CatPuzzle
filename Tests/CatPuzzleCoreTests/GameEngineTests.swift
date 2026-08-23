@@ -133,4 +133,51 @@ final class GameEngineTests: XCTestCase {
         XCTAssertEqual(engine.state.puzzle.state(atRow: 1, column: 1), .empty)
         XCTAssertFalse(engine.canUndo)
     }
+
+    func testEngineRestoresValidPuzzleWithoutUndoHistory() throws {
+        let level = BuiltInLevels.meadow
+        var savedPuzzle = try level.makePuzzle()
+        try savedPuzzle.setState(.excluded, atRow: 0, column: 0)
+        try savedPuzzle.setState(.cat, atRow: 0, column: 1)
+
+        let engine = try GameEngine(level: level, puzzle: savedPuzzle)
+
+        XCTAssertEqual(engine.state.puzzle, savedPuzzle)
+        XCTAssertFalse(engine.canUndo)
+    }
+
+    func testRestartAfterRestoreUsesFreshEmptyLevel() throws {
+        let level = BuiltInLevels.meadow
+        var savedPuzzle = try level.makePuzzle()
+        try savedPuzzle.setState(.excluded, atRow: 2, column: 2)
+        var engine = try GameEngine(level: level, puzzle: savedPuzzle)
+
+        engine.restart()
+
+        XCTAssertTrue(engine.state.puzzle.states.allSatisfy { $0 == .empty })
+        XCTAssertFalse(engine.canUndo)
+    }
+
+    func testEngineRejectsRestoredPuzzleFromDifferentLevel() throws {
+        let riverPuzzle = try BuiltInLevels.river.makePuzzle()
+
+        XCTAssertThrowsError(
+            try GameEngine(level: BuiltInLevels.meadow, puzzle: riverPuzzle)
+        ) { error in
+            XCTAssertEqual(error as? GameEngineError, .puzzleDoesNotMatchLevel)
+        }
+    }
+
+    func testEngineRejectsRestoredPuzzleWithRuleConflict() throws {
+        let level = BuiltInLevels.meadow
+        var savedPuzzle = try level.makePuzzle()
+        try savedPuzzle.setState(.cat, atRow: 0, column: 0)
+        try savedPuzzle.setState(.cat, atRow: 0, column: 4)
+
+        XCTAssertThrowsError(
+            try GameEngine(level: level, puzzle: savedPuzzle)
+        ) { error in
+            XCTAssertEqual(error as? GameEngineError, .invalidRestoredPuzzle)
+        }
+    }
 }

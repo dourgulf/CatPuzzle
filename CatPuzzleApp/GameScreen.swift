@@ -2,6 +2,7 @@ import SwiftUI
 
 struct GameScreen: View {
     @ObservedObject var viewModel: GameViewModel
+    let onContinue: () -> Void
 
     var body: some View {
         ZStack {
@@ -71,13 +72,15 @@ struct GameScreen: View {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 44))
                 .foregroundStyle(.green)
-            Text("Puzzle solved!")
+            Text("Level Complete")
                 .font(.title2.bold())
+                .accessibilityIdentifier("level-complete-message")
+            Button("Continue", action: onContinue)
+                .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("continue-after-completion")
         }
         .padding(28)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
         .shadow(radius: 12)
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("solved-overlay")
     }
 }

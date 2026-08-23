@@ -44,9 +44,12 @@ swift test
 ```
 
 Open `CatPuzzle.xcodeproj` in Xcode to build and run the iOS app. The app starts
-with the built-in Meadow level. Single-tap a cell to toggle an exclusion mark;
-double-tap to place or remove a cat. Undo and Restart are available below the
-board, and a completion overlay appears when the puzzle is solved.
+by offering the next unfinished built-in level. Once a level is started, every
+successful board change is saved as compact JSON in `UserDefaults`. Relaunching
+the app automatically resumes that board with fresh undo history. Single-tap a
+cell to toggle an exclusion mark; double-tap to place or remove a cat. Restart
+always returns to the empty level, and completing a level advances progress to
+the next fixture.
 
 The project file is generated from `project.yml` with
 [XcodeGen](https://github.com/yonaskolb/XcodeGen). After changing target or
