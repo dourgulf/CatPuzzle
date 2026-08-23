@@ -1,0 +1,14 @@
+name: Swift Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: macos-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Run core tests
+        run: swift test
