@@ -11,9 +11,18 @@
 		378DDAA4C21235D4BA867AFA /* GameScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C3A14156F40CDC5F819781D /* GameScreen.swift */; };
 		40E73C916EC8B760EF4821BE /* GameViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5DFA64C5983085816A2B051 /* GameViewModelTests.swift */; };
 		43838DAF0F4374355FF0413F /* CatPuzzleCore in Frameworks */ = {isa = PBXBuildFile; productRef = 66B89727DBD1C8449B53BAA5 /* CatPuzzleCore */; };
+		50859F75D2D48D2162DABD55 /* NextLevelScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AF778737EE6B1DBCED4D141 /* NextLevelScreen.swift */; };
+		5D7F2458E337A2A4EC31EB06 /* LevelProgression.swift in Sources */ = {isa = PBXBuildFile; fileRef = 359024E1CF371922D839ACD1 /* LevelProgression.swift */; };
+		6F542BA0A78A5F87ED5F3ACB /* GameProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5736732213168EFBF1569B70 /* GameProgress.swift */; };
 		7194BF384CAA2A41AB4B6405 /* BoardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 452AF30018CE7484BA1B7F77 /* BoardView.swift */; };
+		723C238077FB97EEFB0D2E0F /* GameProgressStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60948E5F6905F7174661F246 /* GameProgressStore.swift */; };
+		7843EADFD8218B9A0D4E791E /* AppSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 016B8CD49A35E29B173C9E01 /* AppSession.swift */; };
+		A466CD12878B729A7A555E91 /* AllLevelsCompleteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EBFFBA4747D918EC133276B /* AllLevelsCompleteView.swift */; };
 		A94CB5D90C5FC0056CE052F5 /* CatPuzzleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 545D10397B8681B21E643BCE /* CatPuzzleApp.swift */; };
+		B26AF74766674968CFF1C460 /* AppSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FE7E0D5FCADE753517028D /* AppSessionTests.swift */; };
+		C8C438165427EC33776E1F9F /* GameProgressTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C28896388C93775D820CC30 /* GameProgressTests.swift */; };
 		DE03D18DD205B82448E1A961 /* BoardViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B13CCAF096E9BA9016A32D0B /* BoardViewTests.swift */; };
+		ED15BAF9A2D9614E4E857A92 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB30A670056D345A82204A57 /* RootView.swift */; };
 		FB4426A15886909952E0E62D /* GameViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB97F24DAA1DF2F9D9609A78 /* GameViewModel.swift */; };
 /* End PBXBuildFile section */
 
@@ -28,15 +37,24 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		016B8CD49A35E29B173C9E01 /* AppSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSession.swift; sourceTree = "<group>"; };
 		03A1321E3F989487C0675038 /* CatPuzzle */ = {isa = PBXFileReference; lastKnownFileType = folder; name = CatPuzzle; path = .; sourceTree = SOURCE_ROOT; };
+		04FE7E0D5FCADE753517028D /* AppSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSessionTests.swift; sourceTree = "<group>"; };
 		1AAAF173B0537E1A0342F539 /* CatPuzzle.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CatPuzzle.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		359024E1CF371922D839ACD1 /* LevelProgression.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LevelProgression.swift; sourceTree = "<group>"; };
+		3C28896388C93775D820CC30 /* GameProgressTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameProgressTests.swift; sourceTree = "<group>"; };
 		452AF30018CE7484BA1B7F77 /* BoardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardView.swift; sourceTree = "<group>"; };
 		4890F6ACF8E2AA15AC1065D2 /* CellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CellView.swift; sourceTree = "<group>"; };
+		4EBFFBA4747D918EC133276B /* AllLevelsCompleteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AllLevelsCompleteView.swift; sourceTree = "<group>"; };
 		545D10397B8681B21E643BCE /* CatPuzzleApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatPuzzleApp.swift; sourceTree = "<group>"; };
+		5736732213168EFBF1569B70 /* GameProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameProgress.swift; sourceTree = "<group>"; };
+		60948E5F6905F7174661F246 /* GameProgressStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameProgressStore.swift; sourceTree = "<group>"; };
+		8AF778737EE6B1DBCED4D141 /* NextLevelScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NextLevelScreen.swift; sourceTree = "<group>"; };
 		98BFDEFB3AF48A7B82F7BD1F /* CatPuzzleAppTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = CatPuzzleAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		9C3A14156F40CDC5F819781D /* GameScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameScreen.swift; sourceTree = "<group>"; };
 		B13CCAF096E9BA9016A32D0B /* BoardViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardViewTests.swift; sourceTree = "<group>"; };
 		B5DFA64C5983085816A2B051 /* GameViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameViewModelTests.swift; sourceTree = "<group>"; };
+		EB30A670056D345A82204A57 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		EB97F24DAA1DF2F9D9609A78 /* GameViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameViewModel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -55,11 +73,18 @@
 		47356BC50501AF751DF4A240 /* CatPuzzleApp */ = {
 			isa = PBXGroup;
 			children = (
+				4EBFFBA4747D918EC133276B /* AllLevelsCompleteView.swift */,
+				016B8CD49A35E29B173C9E01 /* AppSession.swift */,
 				452AF30018CE7484BA1B7F77 /* BoardView.swift */,
 				545D10397B8681B21E643BCE /* CatPuzzleApp.swift */,
 				4890F6ACF8E2AA15AC1065D2 /* CellView.swift */,
+				5736732213168EFBF1569B70 /* GameProgress.swift */,
+				60948E5F6905F7174661F246 /* GameProgressStore.swift */,
 				9C3A14156F40CDC5F819781D /* GameScreen.swift */,
 				EB97F24DAA1DF2F9D9609A78 /* GameViewModel.swift */,
+				359024E1CF371922D839ACD1 /* LevelProgression.swift */,
+				8AF778737EE6B1DBCED4D141 /* NextLevelScreen.swift */,
+				EB30A670056D345A82204A57 /* RootView.swift */,
 			);
 			path = CatPuzzleApp;
 			sourceTree = "<group>";
@@ -84,7 +109,9 @@
 		BF1A001F3BA3EF4B37338726 /* CatPuzzleAppTests */ = {
 			isa = PBXGroup;
 			children = (
+				04FE7E0D5FCADE753517028D /* AppSessionTests.swift */,
 				B13CCAF096E9BA9016A32D0B /* BoardViewTests.swift */,
+				3C28896388C93775D820CC30 /* GameProgressTests.swift */,
 				B5DFA64C5983085816A2B051 /* GameViewModelTests.swift */,
 			);
 			path = CatPuzzleAppTests;
@@ -179,7 +206,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B26AF74766674968CFF1C460 /* AppSessionTests.swift in Sources */,
 				DE03D18DD205B82448E1A961 /* BoardViewTests.swift in Sources */,
+				C8C438165427EC33776E1F9F /* GameProgressTests.swift in Sources */,
 				40E73C916EC8B760EF4821BE /* GameViewModelTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -188,11 +217,18 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A466CD12878B729A7A555E91 /* AllLevelsCompleteView.swift in Sources */,
+				7843EADFD8218B9A0D4E791E /* AppSession.swift in Sources */,
 				7194BF384CAA2A41AB4B6405 /* BoardView.swift in Sources */,
 				A94CB5D90C5FC0056CE052F5 /* CatPuzzleApp.swift in Sources */,
 				10451F62935AF7116308039E /* CellView.swift in Sources */,
+				6F542BA0A78A5F87ED5F3ACB /* GameProgress.swift in Sources */,
+				723C238077FB97EEFB0D2E0F /* GameProgressStore.swift in Sources */,
 				378DDAA4C21235D4BA867AFA /* GameScreen.swift in Sources */,
 				FB4426A15886909952E0E62D /* GameViewModel.swift in Sources */,
+				5D7F2458E337A2A4EC31EB06 /* LevelProgression.swift in Sources */,
+				50859F75D2D48D2162DABD55 /* NextLevelScreen.swift in Sources */,
+				ED15BAF9A2D9614E4E857A92 /* RootView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

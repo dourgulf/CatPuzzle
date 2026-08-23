@@ -1,6 +1,8 @@
 public enum GameEngineError: Error, Equatable, Sendable {
     case invalidCell
     case illegalCatPlacement
+    case puzzleDoesNotMatchLevel
+    case invalidRestoredPuzzle
 }
 
 public struct GameEngine: Sendable {
@@ -16,6 +18,23 @@ public struct GameEngine: Sendable {
         let puzzle = try level.makePuzzle()
         state = GameState(level: level, puzzle: puzzle)
         initialPuzzle = puzzle
+    }
+
+    public init(level: LevelDefinition, puzzle: Puzzle) throws {
+        let freshPuzzle = try level.makePuzzle()
+        guard puzzle.size == freshPuzzle.size,
+              puzzle.cells == freshPuzzle.cells else {
+            throw GameEngineError.puzzleDoesNotMatchLevel
+        }
+        guard !PuzzleValidator.hasRowConflict(in: puzzle),
+              !PuzzleValidator.hasColumnConflict(in: puzzle),
+              !PuzzleValidator.hasRegionConflict(in: puzzle),
+              !PuzzleValidator.hasAdjacentCats(in: puzzle) else {
+            throw GameEngineError.invalidRestoredPuzzle
+        }
+
+        state = GameState(level: level, puzzle: puzzle)
+        initialPuzzle = freshPuzzle
     }
 
     public mutating func setState(
