@@ -3,12 +3,13 @@ import XCTest
 
 final class LevelDefinitionTests: XCTestCase {
     func testBuiltInLevelsCreateEmptySixBySixPuzzles() throws {
-        let levels = BuiltInLevels.all
+        let fixtures = BuiltInLevels.fixtures
 
-        XCTAssertEqual(levels.count, 3)
-        XCTAssertEqual(Set(levels.map(\.id)).count, 3)
+        XCTAssertEqual(fixtures.count, 3)
+        XCTAssertEqual(Set(fixtures.map { $0.level.id }).count, 3)
 
-        for level in levels {
+        for fixture in fixtures {
+            let level = fixture.level
             let puzzle = try level.makePuzzle()
 
             XCTAssertEqual(level.size, 6)
@@ -21,17 +22,24 @@ final class LevelDefinitionTests: XCTestCase {
     }
 
     func testBuiltInLevelsAcceptKnownValidSolution() throws {
-        let catPositions = [
-            (0, 1), (1, 3), (2, 5), (3, 0), (4, 2), (5, 4),
-        ]
+        let fixtures = BuiltInLevels.fixtures
+        let uniqueSolutions = Set(fixtures.map { Set($0.solution) })
 
-        for level in BuiltInLevels.all {
-            var puzzle = try level.makePuzzle()
-            for (row, column) in catPositions {
-                try puzzle.setState(.cat, atRow: row, column: column)
+        XCTAssertEqual(uniqueSolutions.count, fixtures.count)
+
+        for fixture in fixtures {
+            XCTAssertEqual(fixture.solution.count, fixture.level.size)
+            XCTAssertEqual(Set(fixture.solution).count, fixture.level.size)
+            var puzzle = try fixture.level.makePuzzle()
+            for position in fixture.solution {
+                try puzzle.setState(
+                    .cat,
+                    atRow: position.row,
+                    column: position.column
+                )
             }
 
-            XCTAssertTrue(PuzzleValidator.isSolved(puzzle), level.id)
+            XCTAssertTrue(PuzzleValidator.isSolved(puzzle), fixture.level.id)
         }
     }
 }

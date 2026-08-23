@@ -18,6 +18,34 @@ public struct GameEngine: Sendable {
         initialPuzzle = puzzle
     }
 
+    public mutating func setState(
+        _ newState: CellState,
+        atRow row: Int,
+        column: Int
+    ) throws {
+        guard let currentState = state.puzzle.state(
+            atRow: row,
+            column: column
+        ) else {
+            throw GameEngineError.invalidCell
+        }
+        guard currentState != newState else { return }
+
+        if newState == .cat,
+           !PuzzleValidator.canPlaceCat(
+               atRow: row,
+               column: column,
+               in: state.puzzle
+           ) {
+            throw GameEngineError.illegalCatPlacement
+        }
+
+        var updatedPuzzle = state.puzzle
+        try updatedPuzzle.setState(newState, atRow: row, column: column)
+        history.append(state.puzzle)
+        state.puzzle = updatedPuzzle
+    }
+
     @discardableResult
     public mutating func toggleCell(
         atRow row: Int,
@@ -40,19 +68,7 @@ public struct GameEngine: Sendable {
             nextState = .empty
         }
 
-        if nextState == .cat,
-           !PuzzleValidator.canPlaceCat(
-               atRow: row,
-               column: column,
-               in: state.puzzle
-           ) {
-            throw GameEngineError.illegalCatPlacement
-        }
-
-        var updatedPuzzle = state.puzzle
-        try updatedPuzzle.setState(nextState, atRow: row, column: column)
-        history.append(state.puzzle)
-        state.puzzle = updatedPuzzle
+        try setState(nextState, atRow: row, column: column)
         return nextState
     }
 

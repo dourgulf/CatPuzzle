@@ -21,13 +21,17 @@ third-party dependencies.
 - `PuzzleValidator` performs side-effect-free placement, conflict, and solved
   state checks.
 - `LevelDefinition` describes a level using an identifier, size, and region ID
-  grid; `BuiltInLevels` contains three original 6×6 fixtures.
+  grid; `BuiltInLevels` contains three original 6×6 `LevelFixture` values, each
+  paired with its own verified solution.
 - `GameState` exposes the current puzzle and solved state.
-- `GameEngine` owns cell transitions, validates every cat placement, and
-  supports undo and restart.
+- `GameEngine.setState` is the core domain operation. It validates every cat
+  placement and owns atomic state changes, undo history, and restart behavior.
 
-Cell interaction cycles through `empty → excluded → cat → empty`. A rejected
-cat placement leaves both the board and undo history unchanged.
+`GameEngine.toggleCell` remains a convenience adapter for the MVP interaction
+cycle `empty → excluded → cat → empty`; it delegates every change to
+`setState`. UI code may instead map separate gestures directly to explicit
+states. Setting a cell to its current state is a no-op and does not create undo
+history. Rejected operations leave both the board and history unchanged.
 
 The package accepts any square board size so later game modes can reuse the
 same model. Level data is responsible for supplying a valid region layout;
