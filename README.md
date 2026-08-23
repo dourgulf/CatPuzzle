@@ -1,8 +1,8 @@
 # CatPuzzle
 
-CatPuzzle is an original, logic-based iOS puzzle game in development. This
-repository currently contains the platform-independent Swift rules engine; it
-does not yet include an iOS user interface or a puzzle generator.
+CatPuzzle is an original, logic-based iOS puzzle game in development. The
+repository contains a platform-independent Swift rules engine and a playable
+SwiftUI MVP for iOS. It does not yet include a puzzle generator.
 
 ## Core rules
 
@@ -43,4 +43,20 @@ region contiguity is outside the first-phase validator scope.
 swift test
 ```
 
-GitHub Actions runs the same command for every push and pull request.
+Open `CatPuzzle.xcodeproj` in Xcode to build and run the iOS app. The app starts
+with the built-in Meadow level. Single-tap a cell to toggle an exclusion mark;
+double-tap to place or remove a cat. Undo and Restart are available below the
+board, and a completion overlay appears when the puzzle is solved.
+
+The project file is generated from `project.yml` with
+[XcodeGen](https://github.com/yonaskolb/XcodeGen). After changing target or
+project settings, regenerate it with:
+
+```bash
+xcodegen generate --spec project.yml
+```
+
+GitHub Actions runs the core tests and builds the iOS app for a generic iOS
+Simulator destination on every push and pull request. The app-level
+`GameViewModel` and board-border tests run through the shared `CatPuzzle` Xcode
+scheme.

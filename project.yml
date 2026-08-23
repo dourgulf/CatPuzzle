@@ -1,0 +1,50 @@
+name: CatPuzzle
+options:
+  bundleIdPrefix: com.dourgulf
+  deploymentTarget:
+    iOS: "17.0"
+
+packages:
+  CatPuzzleCore:
+    path: .
+
+targets:
+  CatPuzzle:
+    type: application
+    platform: iOS
+    sources:
+      - path: CatPuzzleApp
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.dourgulf.CatPuzzle
+        PRODUCT_NAME: CatPuzzle
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        SWIFT_VERSION: 5.0
+    dependencies:
+      - package: CatPuzzleCore
+        product: CatPuzzleCore
+
+  CatPuzzleAppTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: CatPuzzleAppTests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.dourgulf.CatPuzzleTests
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: 5.0
+    dependencies:
+      - target: CatPuzzle
+
+schemes:
+  CatPuzzle:
+    build:
+      targets:
+        CatPuzzle: all
+        CatPuzzleAppTests: [test]
+    test:
+      gatherCoverageData: true
+      targets:
+        - CatPuzzleAppTests

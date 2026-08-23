@@ -12,3 +12,11 @@ jobs:
         uses: actions/checkout@v4
       - name: Run core tests
         run: swift test
+      - name: Build iOS app
+        run: |
+          xcodebuild \
+            -project CatPuzzle.xcodeproj \
+            -scheme CatPuzzle \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            build
