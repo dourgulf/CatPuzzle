@@ -7,7 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0A1B2C3D4E5F60718293A4B5 /* PuzzleSound.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B2C3D4E5F60718293A4B5C6 /* PuzzleSound.swift */; };
 		10451F62935AF7116308039E /* CellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4890F6ACF8E2AA15AC1065D2 /* CellView.swift */; };
+		2C3D4E5F60718293A4B5C6D7 /* sfx_excluded_mark.wav in Resources */ = {isa = PBXBuildFile; fileRef = 3D4E5F60718293A4B5C6D7E8 /* sfx_excluded_mark.wav */; };
+		4E5F60718293A4B5C6D7E8F9 /* sfx_excluded_unmark.wav in Resources */ = {isa = PBXBuildFile; fileRef = 5F60718293A4B5C6D7E8F901 /* sfx_excluded_unmark.wav */; };
+		60718293A4B5C6D7E8F901A2 /* sfx_cat_mark.wav in Resources */ = {isa = PBXBuildFile; fileRef = 718293A4B5C6D7E8F901A2B3 /* sfx_cat_mark.wav */; };
+		8293A4B5C6D7E8F901A2B3C4 /* sfx_cat_unmark.wav in Resources */ = {isa = PBXBuildFile; fileRef = 93A4B5C6D7E8F901A2B3C4D5 /* sfx_cat_unmark.wav */; };
+		A4B5C6D7E8F901A2B3C4D5E6 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B5C6D7E8F901A2B3C4D5E6F7 /* AVFoundation.framework */; };
 		378DDAA4C21235D4BA867AFA /* GameScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C3A14156F40CDC5F819781D /* GameScreen.swift */; };
 		40E73C916EC8B760EF4821BE /* GameViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5DFA64C5983085816A2B051 /* GameViewModelTests.swift */; };
 		43838DAF0F4374355FF0413F /* CatPuzzleCore in Frameworks */ = {isa = PBXBuildFile; productRef = 66B89727DBD1C8449B53BAA5 /* CatPuzzleCore */; };
@@ -38,6 +44,12 @@
 
 /* Begin PBXFileReference section */
 		016B8CD49A35E29B173C9E01 /* AppSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSession.swift; sourceTree = "<group>"; };
+		1B2C3D4E5F60718293A4B5C6 /* PuzzleSound.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PuzzleSound.swift; sourceTree = "<group>"; };
+		3D4E5F60718293A4B5C6D7E8 /* sfx_excluded_mark.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = sfx_excluded_mark.wav; sourceTree = "<group>"; };
+		5F60718293A4B5C6D7E8F901 /* sfx_excluded_unmark.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = sfx_excluded_unmark.wav; sourceTree = "<group>"; };
+		718293A4B5C6D7E8F901A2B3 /* sfx_cat_mark.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = sfx_cat_mark.wav; sourceTree = "<group>"; };
+		93A4B5C6D7E8F901A2B3C4D5 /* sfx_cat_unmark.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = sfx_cat_unmark.wav; sourceTree = "<group>"; };
+		B5C6D7E8F901A2B3C4D5E6F7 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
 		03A1321E3F989487C0675038 /* CatPuzzle */ = {isa = PBXFileReference; lastKnownFileType = folder; name = CatPuzzle; path = .; sourceTree = SOURCE_ROOT; };
 		04FE7E0D5FCADE753517028D /* AppSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSessionTests.swift; sourceTree = "<group>"; };
 		1AAAF173B0537E1A0342F539 /* CatPuzzle.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CatPuzzle.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -63,6 +75,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A4B5C6D7E8F901A2B3C4D5E6 /* AVFoundation.framework in Frameworks */,
 				43838DAF0F4374355FF0413F /* CatPuzzleCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -84,9 +97,22 @@
 				EB97F24DAA1DF2F9D9609A78 /* GameViewModel.swift */,
 				359024E1CF371922D839ACD1 /* LevelProgression.swift */,
 				8AF778737EE6B1DBCED4D141 /* NextLevelScreen.swift */,
+				1B2C3D4E5F60718293A4B5C6 /* PuzzleSound.swift */,
 				EB30A670056D345A82204A57 /* RootView.swift */,
+				C6D7E8F901A2B3C4D5E6F708 /* Sounds */,
 			);
 			path = CatPuzzleApp;
+			sourceTree = "<group>";
+		};
+		C6D7E8F901A2B3C4D5E6F708 /* Sounds */ = {
+			isa = PBXGroup;
+			children = (
+				3D4E5F60718293A4B5C6D7E8 /* sfx_excluded_mark.wav */,
+				5F60718293A4B5C6D7E8F901 /* sfx_excluded_unmark.wav */,
+				718293A4B5C6D7E8F901A2B3 /* sfx_cat_mark.wav */,
+				93A4B5C6D7E8F901A2B3C4D5 /* sfx_cat_unmark.wav */,
+			);
+			path = Sounds;
 			sourceTree = "<group>";
 		};
 		646C281284D30E3154E6F772 /* Packages */ = {
@@ -122,9 +148,18 @@
 			children = (
 				47356BC50501AF751DF4A240 /* CatPuzzleApp */,
 				BF1A001F3BA3EF4B37338726 /* CatPuzzleAppTests */,
+				E8F901A2B3C4D5E6F708192A /* Frameworks */,
 				646C281284D30E3154E6F772 /* Packages */,
 				BDE6450504C9E54343F26EE6 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		E8F901A2B3C4D5E6F708192A /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				B5C6D7E8F901A2B3C4D5E6F7 /* AVFoundation.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -136,6 +171,7 @@
 			buildPhases = (
 				741D70575417521C2D7F846C /* Sources */,
 				616592C9EC54BC27EC230E20 /* Frameworks */,
+				D7E8F901A2B3C4D5E6F70819 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -201,6 +237,20 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		D7E8F901A2B3C4D5E6F70819 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2C3D4E5F60718293A4B5C6D7 /* sfx_excluded_mark.wav in Resources */,
+				4E5F60718293A4B5C6D7E8F9 /* sfx_excluded_unmark.wav in Resources */,
+				60718293A4B5C6D7E8F901A2 /* sfx_cat_mark.wav in Resources */,
+				8293A4B5C6D7E8F901A2B3C4 /* sfx_cat_unmark.wav in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		23B02B1D129C9CE55A971DBC /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -226,6 +276,7 @@
 				723C238077FB97EEFB0D2E0F /* GameProgressStore.swift in Sources */,
 				378DDAA4C21235D4BA867AFA /* GameScreen.swift in Sources */,
 				FB4426A15886909952E0E62D /* GameViewModel.swift in Sources */,
+				0A1B2C3D4E5F60718293A4B5 /* PuzzleSound.swift in Sources */,
 				5D7F2458E337A2A4EC31EB06 /* LevelProgression.swift in Sources */,
 				50859F75D2D48D2162DABD55 /* NextLevelScreen.swift in Sources */,
 				ED15BAF9A2D9614E4E857A92 /* RootView.swift in Sources */,
