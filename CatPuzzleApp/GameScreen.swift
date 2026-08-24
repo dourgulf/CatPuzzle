@@ -26,8 +26,9 @@ struct GameScreen: View {
 
                 BoardView(
                     puzzle: viewModel.puzzle,
-                    onToggleExcluded: viewModel.toggleExcluded,
-                    onToggleCat: viewModel.toggleCat
+                    previewStates: viewModel.previewStates,
+                    onTap: viewModel.handleCellTap,
+                    onToggleCatAccessibility: viewModel.toggleCat
                 )
                 .frame(maxWidth: .infinity)
                 .aspectRatio(1, contentMode: .fit)
