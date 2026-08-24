@@ -1,49 +1,106 @@
 import CatPuzzleCore
 import SwiftUI
 
-struct CellBorders: Equatable {
-    let top: Bool
-    let bottom: Bool
-    let leading: Bool
-    let trailing: Bool
+enum BoardDragMode: Equatable {
+    case exclude
+    case clear
+    case ignore
 
-    static func resolve(in puzzle: Puzzle, row: Int, column: Int) -> CellBorders {
-        guard let cell = puzzle.cell(atRow: row, column: column) else {
-            return CellBorders(
-                top: false,
-                bottom: false,
-                leading: false,
-                trailing: false
-            )
+    init(startingFrom state: CellState) {
+        switch state {
+        case .empty:
+            self = .exclude
+        case .excluded:
+            self = .clear
+        case .cat:
+            self = .ignore
+        }
+    }
+}
+
+struct BoardLayout {
+    let side: CGFloat
+    let size: Int
+    let padding: CGFloat
+    let spacing: CGFloat
+
+    var contentSide: CGFloat {
+        side - padding * 2
+    }
+
+    var cellSide: CGFloat {
+        let totalSpacing = spacing * CGFloat(size - 1)
+        return (contentSide - totalSpacing) / CGFloat(size)
+    }
+
+    func position(at location: CGPoint) -> CellPosition? {
+        let x = location.x - padding
+        let y = location.y - padding
+        guard x >= 0, y >= 0, x < contentSide, y < contentSide else {
+            return nil
         }
 
-        return CellBorders(
-            top: row == 0
-                || puzzle.cell(atRow: row - 1, column: column)?.colorID != cell.colorID,
-            bottom: row == puzzle.size - 1
-                || puzzle.cell(atRow: row + 1, column: column)?.colorID != cell.colorID,
-            leading: column == 0
-                || puzzle.cell(atRow: row, column: column - 1)?.colorID != cell.colorID,
-            trailing: column == puzzle.size - 1
-                || puzzle.cell(atRow: row, column: column + 1)?.colorID != cell.colorID
-        )
+        let stride = cellSide + spacing
+        let column = Int(x / stride)
+        let row = Int(y / stride)
+        guard row < size, column < size else { return nil }
+
+        let localX = x - CGFloat(column) * stride
+        let localY = y - CGFloat(row) * stride
+        guard localX <= cellSide, localY <= cellSide else { return nil }
+
+        return CellPosition(row: row, column: column)
+    }
+
+    func positions(from start: CGPoint, to end: CGPoint) -> [CellPosition] {
+        let distance = hypot(end.x - start.x, end.y - start.y)
+        let sampleStep = max(cellSide / 3, 1)
+        let sampleCount = max(Int(ceil(distance / sampleStep)), 1)
+        var result: [CellPosition] = []
+        var included: Set<CellPosition> = []
+
+        for index in 0...sampleCount {
+            let progress = CGFloat(index) / CGFloat(sampleCount)
+            let location = CGPoint(
+                x: start.x + (end.x - start.x) * progress,
+                y: start.y + (end.y - start.y) * progress
+            )
+            if let position = position(at: location),
+               included.insert(position).inserted {
+                result.append(position)
+            }
+        }
+
+        return result
     }
 }
 
 struct BoardView: View {
+    @State private var previousDragLocation: CGPoint?
+    @State private var dragVisitedPositions: Set<CellPosition> = []
+    @State private var dragMode: BoardDragMode?
+
     let puzzle: Puzzle
     let previewStates: [CellPosition: CellState]
     let onTap: (Int, Int) -> Void
+    let onDragSetExcluded: (Bool, Int, Int) -> Void
     let onToggleCatAccessibility: (Int, Int) -> Void
 
     var body: some View {
         GeometryReader { geometry in
             let side = min(geometry.size.width, geometry.size.height)
-            let cellSide = side / CGFloat(puzzle.size)
+            let boardPadding: CGFloat = 8
+            let spacing: CGFloat = 4
+            let layout = BoardLayout(
+                side: side,
+                size: puzzle.size,
+                padding: boardPadding,
+                spacing: spacing
+            )
 
-            VStack(spacing: 0) {
+            VStack(spacing: spacing) {
                 ForEach(0..<puzzle.size, id: \.self) { row in
-                    HStack(spacing: 0) {
+                    HStack(spacing: spacing) {
                         ForEach(0..<puzzle.size, id: \.self) { column in
                             CellView(
                                 state: previewStates[
@@ -56,11 +113,6 @@ struct BoardView: View {
                                     atRow: row,
                                     column: column
                                 )?.colorID ?? 0,
-                                borders: CellBorders.resolve(
-                                    in: puzzle,
-                                    row: row,
-                                    column: column
-                                ),
                                 row: row,
                                 column: column,
                                 onTap: {
@@ -70,12 +122,110 @@ struct BoardView: View {
                                     onToggleCatAccessibility(row, column)
                                 }
                             )
-                            .frame(width: cellSide, height: cellSide)
+                            .frame(width: layout.cellSide, height: layout.cellSide)
                         }
                     }
                 }
             }
-            .frame(width: side, height: side, alignment: .topLeading)
+            .frame(
+                width: layout.contentSide,
+                height: layout.contentSide,
+                alignment: .topLeading
+            )
+            .padding(boardPadding)
+            .background(
+                CatPuzzleTheme.surface,
+                in: RoundedRectangle(cornerRadius: 20, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .stroke(CatPuzzleTheme.divider, lineWidth: 1)
+            }
+            .shadow(
+                color: CatPuzzleTheme.textPrimary.opacity(0.08),
+                radius: 12,
+                y: 6
+            )
+            .frame(width: side, height: side)
+            .contentShape(Rectangle())
+            .gesture(boardGesture(layout: layout))
+        }
+    }
+
+    private func boardGesture(layout: BoardLayout) -> some Gesture {
+        DragGesture(minimumDistance: 0, coordinateSpace: .local)
+            .onChanged { value in
+                let movement = hypot(
+                    value.location.x - value.startLocation.x,
+                    value.location.y - value.startLocation.y
+                )
+                guard previousDragLocation != nil || movement >= 8 else {
+                    return
+                }
+
+                if dragMode == nil {
+                    dragMode = mode(
+                        at: value.startLocation,
+                        layout: layout
+                    )
+                }
+
+                markDragPositions(
+                    layout.positions(
+                        from: previousDragLocation ?? value.startLocation,
+                        to: value.location
+                    ),
+                    mode: dragMode ?? .ignore
+                )
+                previousDragLocation = value.location
+            }
+            .onEnded { value in
+                if let previousDragLocation {
+                    markDragPositions(
+                        layout.positions(
+                            from: previousDragLocation,
+                            to: value.location
+                        ),
+                        mode: dragMode ?? .ignore
+                    )
+                } else if let position = layout.position(at: value.startLocation) {
+                    onTap(position.row, position.column)
+                }
+
+                previousDragLocation = nil
+                dragVisitedPositions.removeAll()
+                dragMode = nil
+            }
+    }
+
+    private func mode(
+        at location: CGPoint,
+        layout: BoardLayout
+    ) -> BoardDragMode {
+        guard let position = layout.position(at: location),
+              let state = puzzle.state(
+                  atRow: position.row,
+                  column: position.column
+              ) else {
+            return .ignore
+        }
+        return BoardDragMode(startingFrom: state)
+    }
+
+    private func markDragPositions(
+        _ positions: [CellPosition],
+        mode: BoardDragMode
+    ) {
+        for position in positions
+        where dragVisitedPositions.insert(position).inserted {
+            switch mode {
+            case .exclude:
+                onDragSetExcluded(true, position.row, position.column)
+            case .clear:
+                onDragSetExcluded(false, position.row, position.column)
+            case .ignore:
+                break
+            }
         }
     }
 }

@@ -43,6 +43,36 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.puzzle.state(atRow: 0, column: 1), .empty)
     }
 
+    func testExcludeDragMarksCellsWithoutChangingCats() throws {
+        let viewModel = try GameViewModel()
+        viewModel.toggleCat(atRow: 0, column: 1)
+        viewModel.toggleExcluded(atRow: 0, column: 2)
+
+        viewModel.setExcludedDuringDrag(true, atRow: 0, column: 0)
+        viewModel.setExcludedDuringDrag(true, atRow: 0, column: 1)
+        viewModel.setExcludedDuringDrag(true, atRow: 0, column: 2)
+
+        XCTAssertEqual(viewModel.puzzle.state(atRow: 0, column: 0), .excluded)
+        XCTAssertEqual(viewModel.puzzle.state(atRow: 0, column: 1), .cat)
+        XCTAssertEqual(viewModel.puzzle.state(atRow: 0, column: 2), .excluded)
+    }
+
+    func testClearDragClearsExcludedWithoutChangingCats() throws {
+        let viewModel = try GameViewModel()
+        viewModel.toggleCat(atRow: 0, column: 1)
+        viewModel.toggleExcluded(atRow: 0, column: 2)
+
+        viewModel.setExcludedDuringDrag(false, atRow: 0, column: 0)
+        viewModel.setExcludedDuringDrag(false, atRow: 0, column: 1)
+        viewModel.setExcludedDuringDrag(false, atRow: 0, column: 2)
+
+        XCTAssertEqual(viewModel.puzzle.state(atRow: 0, column: 2), .empty)
+        XCTAssertEqual(viewModel.puzzle.state(atRow: 0, column: 1), .cat)
+
+        viewModel.undo()
+        XCTAssertEqual(viewModel.puzzle.state(atRow: 0, column: 2), .excluded)
+    }
+
     func testFirstRawTapShowsExcludedPreviewBeforeDomainCommit() throws {
         let viewModel = try GameViewModel(
             doubleTapInterval: .seconds(5)

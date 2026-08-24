@@ -126,6 +126,19 @@ final class GameViewModel: ObservableObject {
         applyCatToggle(atRow: row, column: column)
     }
 
+    func setExcludedDuringDrag(
+        _ excluded: Bool,
+        atRow row: Int,
+        column: Int
+    ) {
+        cancelPendingTaps()
+        guard let currentState = puzzle.state(atRow: row, column: column),
+              currentState != .cat else {
+            return
+        }
+        apply(excluded ? .excluded : .empty, atRow: row, column: column)
+    }
+
     func undo() {
         cancelPendingTaps()
         guard engine.undo() else { return }
