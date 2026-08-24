@@ -24,6 +24,7 @@ targets:
     dependencies:
       - package: CatPuzzleCore
         product: CatPuzzleCore
+      - sdk: AVFoundation.framework
 
   CatPuzzleAppTests:
     type: bundle.unit-test

@@ -55,16 +55,19 @@ final class GameViewModel: ObservableObject {
     private var tapInterpreter = CellTapInterpreter()
     private var pendingTapTasks: [CellPosition: Task<Void, Never>] = [:]
     private let doubleTapInterval: Duration
+    private let soundPlayer: any PuzzleSoundPlaying
     private let onGameStateChanged: (GameState) -> Void
 
     convenience init(
         level: LevelDefinition = BuiltInLevels.meadow,
         doubleTapInterval: Duration = .milliseconds(300),
+        soundPlayer: any PuzzleSoundPlaying = PuzzleSoundPlayer.shared,
         onGameStateChanged: @escaping (GameState) -> Void = { _ in }
     ) throws {
         try self.init(
             engine: GameEngine(level: level),
             doubleTapInterval: doubleTapInterval,
+            soundPlayer: soundPlayer,
             onGameStateChanged: onGameStateChanged
         )
     }
@@ -72,11 +75,13 @@ final class GameViewModel: ObservableObject {
     init(
         engine: GameEngine,
         doubleTapInterval: Duration = .milliseconds(300),
+        soundPlayer: any PuzzleSoundPlaying = PuzzleSoundPlayer.shared,
         onGameStateChanged: @escaping (GameState) -> Void = { _ in }
     ) {
         self.engine = engine
         self.level = engine.state.level
         self.doubleTapInterval = doubleTapInterval
+        self.soundPlayer = soundPlayer
         self.onGameStateChanged = onGameStateChanged
         puzzle = engine.state.puzzle
         canUndo = engine.canUndo
@@ -210,11 +215,17 @@ final class GameViewModel: ObservableObject {
     private func apply(_ state: CellState, atRow row: Int, column: Int) {
         do {
             let previousPuzzle = engine.state.puzzle
+            let previousCellState = previousPuzzle.state(atRow: row, column: column)
             try engine.setState(state, atRow: row, column: column)
             feedbackMessage = nil
-            synchronizeFromEngine(
-                notifyChange: engine.state.puzzle != previousPuzzle
-            )
+            let puzzleChanged = engine.state.puzzle != previousPuzzle
+            synchronizeFromEngine(notifyChange: puzzleChanged)
+            if puzzleChanged {
+                playCommittedTransitionSound(
+                    from: previousCellState,
+                    to: engine.state.puzzle.state(atRow: row, column: column)
+                )
+            }
             if isSolved || isFailed {
                 cancelPendingTaps()
             }
@@ -231,6 +242,21 @@ final class GameViewModel: ObservableObject {
         } catch {
             feedbackMessage = "Unable to update this cell."
         }
+    }
+
+    private func playCommittedTransitionSound(
+        from previous: CellState?,
+        to next: CellState?
+    ) {
+        guard let previous,
+              let next,
+              let sound = PuzzleSound.forCommittedTransition(
+                from: previous,
+                to: next
+              ) else {
+            return
+        }
+        soundPlayer.play(sound)
     }
 
     private func synchronizeFromEngine(notifyChange: Bool) {

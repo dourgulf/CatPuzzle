@@ -89,6 +89,7 @@ final class AppSession: ObservableObject {
     private func showGame(engine: GameEngine) {
         gameViewModel = GameViewModel(
             engine: engine,
+            soundPlayer: PuzzleSoundPlayer.shared,
             onGameStateChanged: { [weak self] state in
                 self?.handleGameStateChanged(state)
             }

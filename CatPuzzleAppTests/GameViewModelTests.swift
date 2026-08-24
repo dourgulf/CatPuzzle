@@ -218,6 +218,128 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.isFailed)
         XCTAssertEqual(viewModel.mistakeCount, 0)
     }
+
+    func testCommittedExcludedTogglePlaysDistinctMarkAndUnmarkSounds() throws {
+        let sounds = RecordingPuzzleSoundPlayer()
+        let viewModel = try GameViewModel(soundPlayer: sounds)
+
+        viewModel.toggleExcluded(atRow: 0, column: 0)
+        viewModel.toggleExcluded(atRow: 0, column: 0)
+
+        XCTAssertEqual(sounds.played, [.markExcluded, .unmarkExcluded])
+    }
+
+    func testCommittedCatTogglePlaysDistinctMarkAndUnmarkSounds() throws {
+        let sounds = RecordingPuzzleSoundPlayer()
+        let viewModel = try GameViewModel(soundPlayer: sounds)
+
+        viewModel.toggleCat(atRow: 0, column: 1)
+        viewModel.toggleCat(atRow: 0, column: 1)
+
+        XCTAssertEqual(sounds.played, [.markCat, .unmarkCat])
+    }
+
+    func testPreviewSingleTapDoesNotPlayUntilCommit() async throws {
+        let sounds = RecordingPuzzleSoundPlayer()
+        let viewModel = try GameViewModel(
+            doubleTapInterval: .milliseconds(10),
+            soundPlayer: sounds
+        )
+
+        viewModel.handleCellTap(atRow: 0, column: 0)
+
+        XCTAssertEqual(sounds.played, [])
+        XCTAssertEqual(viewModel.displayState(atRow: 0, column: 0), .excluded)
+
+        try await Task.sleep(for: .milliseconds(30))
+
+        XCTAssertEqual(sounds.played, [.markExcluded])
+    }
+
+    func testRawSingleTapUnmarkPlaysAfterCommit() async throws {
+        let sounds = RecordingPuzzleSoundPlayer()
+        let viewModel = try GameViewModel(
+            doubleTapInterval: .milliseconds(10),
+            soundPlayer: sounds
+        )
+        viewModel.toggleExcluded(atRow: 0, column: 0)
+        sounds.reset()
+
+        viewModel.handleCellTap(atRow: 0, column: 0)
+        XCTAssertEqual(sounds.played, [])
+
+        try await Task.sleep(for: .milliseconds(30))
+        XCTAssertEqual(sounds.played, [.unmarkExcluded])
+    }
+
+    func testRawDoubleTapPlaysOnlyCatMarkSound() throws {
+        let sounds = RecordingPuzzleSoundPlayer()
+        let viewModel = GameViewModel(
+            engine: try GameEngine(level: BuiltInLevels.meadow),
+            doubleTapInterval: .seconds(5),
+            soundPlayer: sounds
+        )
+
+        viewModel.handleCellTap(atRow: 0, column: 1)
+        viewModel.handleCellTap(atRow: 0, column: 1)
+
+        XCTAssertEqual(sounds.played, [.markCat])
+        XCTAssertEqual(viewModel.displayState(atRow: 0, column: 1), .cat)
+    }
+
+    func testRawDoubleTapOnCatPlaysUnmarkSound() throws {
+        let sounds = RecordingPuzzleSoundPlayer()
+        let viewModel = GameViewModel(
+            engine: try GameEngine(level: BuiltInLevels.meadow),
+            doubleTapInterval: .seconds(5),
+            soundPlayer: sounds
+        )
+        viewModel.toggleCat(atRow: 0, column: 1)
+        sounds.reset()
+
+        viewModel.handleCellTap(atRow: 0, column: 1)
+        viewModel.handleCellTap(atRow: 0, column: 1)
+
+        XCTAssertEqual(sounds.played, [.unmarkCat])
+        XCTAssertEqual(viewModel.displayState(atRow: 0, column: 1), .empty)
+    }
+
+    func testIllegalCatDoesNotPlayMarkSound() throws {
+        let sounds = RecordingPuzzleSoundPlayer()
+        let viewModel = try GameViewModel(soundPlayer: sounds)
+        viewModel.toggleCat(atRow: 0, column: 0)
+        sounds.reset()
+
+        viewModel.toggleCat(atRow: 0, column: 4)
+
+        XCTAssertEqual(sounds.played, [])
+    }
+
+    func testExcludedToggleOnCatIsSilent() throws {
+        let sounds = RecordingPuzzleSoundPlayer()
+        let viewModel = try GameViewModel(soundPlayer: sounds)
+        viewModel.toggleCat(atRow: 0, column: 0)
+        sounds.reset()
+
+        viewModel.toggleExcluded(atRow: 0, column: 0)
+
+        XCTAssertEqual(sounds.played, [])
+        XCTAssertEqual(viewModel.puzzle.state(atRow: 0, column: 0), .cat)
+    }
+
+    func testUndoAndRestartDoNotPlayMarkSounds() throws {
+        let sounds = RecordingPuzzleSoundPlayer()
+        let viewModel = try GameViewModel(soundPlayer: sounds)
+        viewModel.toggleExcluded(atRow: 2, column: 2)
+        sounds.reset()
+
+        viewModel.undo()
+        XCTAssertEqual(sounds.played, [])
+
+        viewModel.toggleExcluded(atRow: 2, column: 2)
+        viewModel.restart()
+        XCTAssertEqual(sounds.played, [.markExcluded])
+    }
 }
 
 final class CellTapInterpreterTests: XCTestCase {
@@ -278,5 +400,58 @@ final class CellTapInterpreterTests: XCTestCase {
 
         XCTAssertFalse(interpreter.commitSingle(at: first, token: firstToken))
         XCTAssertFalse(interpreter.commitSingle(at: second, token: secondToken))
+    }
+}
+
+final class PuzzleSoundTests: XCTestCase {
+    func testCommittedTransitionMappingIsDistinguishable() {
+        XCTAssertEqual(
+            PuzzleSound.forCommittedTransition(from: .empty, to: .excluded),
+            .markExcluded
+        )
+        XCTAssertEqual(
+            PuzzleSound.forCommittedTransition(from: .excluded, to: .empty),
+            .unmarkExcluded
+        )
+        XCTAssertEqual(
+            PuzzleSound.forCommittedTransition(from: .empty, to: .cat),
+            .markCat
+        )
+        XCTAssertEqual(
+            PuzzleSound.forCommittedTransition(from: .excluded, to: .cat),
+            .markCat
+        )
+        XCTAssertEqual(
+            PuzzleSound.forCommittedTransition(from: .cat, to: .empty),
+            .unmarkCat
+        )
+        XCTAssertNil(
+            PuzzleSound.forCommittedTransition(from: .cat, to: .excluded)
+        )
+        XCTAssertNil(
+            PuzzleSound.forCommittedTransition(from: .empty, to: .empty)
+        )
+    }
+
+    func testBundledSoundAssetsArePresent() {
+        let bundle = Bundle(for: PuzzleSoundPlayer.self)
+        for sound in PuzzleSound.allCases {
+            XCTAssertNotNil(
+                PuzzleSoundPlayer.resourceURL(for: sound, in: bundle),
+                "Missing bundled sound \(sound.resourceName).wav"
+            )
+        }
+    }
+}
+
+final class RecordingPuzzleSoundPlayer: PuzzleSoundPlaying {
+    private(set) var played: [PuzzleSound] = []
+
+    func play(_ sound: PuzzleSound) {
+        played.append(sound)
+    }
+
+    func reset() {
+        played.removeAll()
     }
 }
