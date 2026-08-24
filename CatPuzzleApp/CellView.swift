@@ -2,33 +2,45 @@ import CatPuzzleCore
 import SwiftUI
 
 struct CellView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let state: CellState
     let colorID: Int
-    let borders: CellBorders
     let row: Int
     let column: Int
     let onTap: () -> Void
     let onToggleCatAccessibility: () -> Void
 
     var body: some View {
-        marker
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(cellColor.opacity(0.22))
+        ZStack(alignment: .topLeading) {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(CatPuzzleTheme.groupColor(for: colorID))
+
+            Image(systemName: CatPuzzleTheme.groupSymbol(for: colorID))
+                .font(.system(size: 7, weight: .bold))
+                .foregroundStyle(
+                    CatPuzzleTheme.markerColor(for: colorID).opacity(0.45)
+                )
+                .padding(6)
+                .accessibilityHidden(true)
+
+            marker
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+            .animation(
+                reduceMotion ? nil : .easeOut(duration: 0.16),
+                value: state
+            )
             .contentShape(Rectangle())
             .overlay {
-                Rectangle()
-                    .stroke(.secondary.opacity(0.35), lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(.white.opacity(0.5), lineWidth: 1)
             }
-            .overlay {
-                ColorBorderShape(borders: borders)
-                    .stroke(
-                        .primary,
-                        style: StrokeStyle(lineWidth: 3, lineCap: .square)
-                    )
-            }
-            .gesture(TapGesture().onEnded(onTap))
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Row \(row + 1), Column \(column + 1)")
+            .accessibilityLabel(
+                "Row \(row + 1), Column \(column + 1), "
+                    + CatPuzzleTheme.groupName(for: colorID)
+            )
             .accessibilityValue(accessibilityValue)
             .accessibilityHint("Activate to mark excluded.")
             .accessibilityAddTraits(.isButton)
@@ -48,12 +60,19 @@ struct CellView: View {
             Color.clear
         case .excluded:
             Text("×")
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .font(.system(size: 40, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+                .transition(.scale.combined(with: .opacity))
         case .cat:
-            Image(systemName: "pawprint.fill")
-                .font(.title2)
-                .foregroundStyle(.orange)
+            ZStack {
+                Circle()
+                    .fill(CatPuzzleTheme.surface.opacity(0.94))
+                Image(systemName: "pawprint.fill")
+                    .font(.system(size: 23, weight: .semibold))
+                    .foregroundStyle(CatPuzzleTheme.textPrimary)
+            }
+            .padding(7)
+            .transition(.scale.combined(with: .opacity))
         }
     }
 
@@ -65,38 +84,4 @@ struct CellView: View {
         }
     }
 
-    private var cellColor: Color {
-        let colors: [Color] = [
-            .green, .blue, .orange, .purple, .pink, .cyan, .yellow, .mint,
-        ]
-        let index = Int(colorID.magnitude % UInt(colors.count))
-        return colors[index]
-    }
-}
-
-private struct ColorBorderShape: Shape {
-    let borders: CellBorders
-
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-
-        if borders.top {
-            path.move(to: CGPoint(x: rect.minX, y: rect.minY))
-            path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
-        }
-        if borders.bottom {
-            path.move(to: CGPoint(x: rect.minX, y: rect.maxY))
-            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
-        }
-        if borders.leading {
-            path.move(to: CGPoint(x: rect.minX, y: rect.minY))
-            path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
-        }
-        if borders.trailing {
-            path.move(to: CGPoint(x: rect.maxX, y: rect.minY))
-            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
-        }
-
-        return path
-    }
 }
