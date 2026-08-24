@@ -1,0 +1,148 @@
+public enum LogicalCellState: Equatable, Sendable {
+    case candidate
+    case excluded
+    case confirmedCat
+}
+
+public struct LogicalBoardSnapshot: Equatable, Sendable {
+    public let size: Int
+    public let states: [LogicalCellState]
+
+    public init(size: Int, states: [LogicalCellState]) {
+        self.size = size
+        self.states = states
+    }
+
+    public func state(atRow row: Int, column: Int) -> LogicalCellState? {
+        guard (0..<size).contains(row), (0..<size).contains(column) else {
+            return nil
+        }
+        let index = row * size + column
+        guard states.indices.contains(index) else { return nil }
+        return states[index]
+    }
+}
+
+public enum LogicalAction: Equatable, Sendable {
+    case placeCat(CellPosition)
+    case exclude(CellPosition)
+}
+
+public enum LogicalReason: Equatable, Sendable {
+    case onlyCandidateInRow(row: Int)
+    case onlyCandidateInColumn(column: Int)
+    case onlyCandidateForColor(colorID: Int)
+    case rowAlreadyHasCat(row: Int)
+    case columnAlreadyHasCat(column: Int)
+    case colorAlreadyHasCat(colorID: Int)
+    case adjacentToConfirmedCat(CellPosition)
+    case contradictionFromAssumption(assumed: CellPosition)
+}
+
+public struct LogicalStep: Equatable, Sendable {
+    public let action: LogicalAction
+    public let reason: LogicalReason
+
+    public init(action: LogicalAction, reason: LogicalReason) {
+        self.action = action
+        self.reason = reason
+    }
+}
+
+public enum LogicalAssumptionOutcome: Equatable, Sendable {
+    case contradiction
+    case solvedBranch
+    case inconclusive
+}
+
+public struct LogicalAssumption: Equatable, Sendable {
+    public let assumedCat: CellPosition
+    public let depth: Int
+    public let outcome: LogicalAssumptionOutcome
+
+    public init(
+        assumedCat: CellPosition,
+        depth: Int,
+        outcome: LogicalAssumptionOutcome
+    ) {
+        self.assumedCat = assumedCat
+        self.depth = depth
+        self.outcome = outcome
+    }
+}
+
+public struct LogicalSolveStatistics: Equatable, Sendable {
+    public let placedCats: Int
+    public let exclusions: Int
+    public let propagationSteps: Int
+    public let deductionRounds: Int
+    public let assumptionCount: Int
+    public let maxAssumptionDepth: Int
+
+    public init(
+        placedCats: Int,
+        exclusions: Int,
+        propagationSteps: Int,
+        deductionRounds: Int,
+        assumptionCount: Int,
+        maxAssumptionDepth: Int
+    ) {
+        self.placedCats = placedCats
+        self.exclusions = exclusions
+        self.propagationSteps = propagationSteps
+        self.deductionRounds = deductionRounds
+        self.assumptionCount = assumptionCount
+        self.maxAssumptionDepth = maxAssumptionDepth
+    }
+}
+
+public struct LogicalSolveReport: Equatable, Sendable {
+    public let steps: [LogicalStep]
+    public let assumptions: [LogicalAssumption]
+    public let finalBoard: LogicalBoardSnapshot
+    public let statistics: LogicalSolveStatistics
+
+    public init(
+        steps: [LogicalStep],
+        assumptions: [LogicalAssumption] = [],
+        finalBoard: LogicalBoardSnapshot,
+        statistics: LogicalSolveStatistics
+    ) {
+        self.steps = steps
+        self.assumptions = assumptions
+        self.finalBoard = finalBoard
+        self.statistics = statistics
+    }
+}
+
+public enum LogicalSolveResult: Equatable, Sendable {
+    case solved(LogicalSolveReport)
+    case stuck(LogicalSolveReport)
+    case contradiction(LogicalSolveReport)
+
+    public var report: LogicalSolveReport {
+        switch self {
+        case let .solved(report), let .stuck(report), let .contradiction(report):
+            return report
+        }
+    }
+
+    public var isSolved: Bool {
+        if case .solved = self { return true }
+        return false
+    }
+}
+
+public enum LogicalSolveMode: Equatable, Sendable {
+    case logicOnly
+    case challenge(maxAssumptionDepth: Int)
+
+    var assumptionDepth: Int {
+        switch self {
+        case .logicOnly:
+            return 0
+        case let .challenge(maxAssumptionDepth):
+            return max(0, maxAssumptionDepth)
+        }
+    }
+}

@@ -29,6 +29,16 @@ third-party dependencies.
 - `GameEngine.setState` is the core domain operation. It validates every cat
   placement and owns atomic board changes, mistake tracking, undo history, and
   restart behavior.
+- `PuzzleSolver` is the backtracking safety net for mathematical solvability
+  and uniqueness. `LogicalPuzzleSolver` separately models candidates and emits
+  deterministic, explainable placement/exclusion steps using row, column,
+  color, and confirmed-cat propagation rules.
+- `LogicalPuzzleSolver` supports `.logicOnly` for main levels and bounded
+  `.challenge(maxAssumptionDepth:)` proof by contradiction. Reports retain the
+  final candidate board, every accepted deduction, assumption outcomes, and
+  stable statistics. `PuzzleDifficultyAnalyzer` converts those reports into a
+  deterministic score and tier; any report that used assumptions is always
+  classified as `challenge`.
 
 `GameEngine.toggleCell` remains a convenience adapter for the MVP interaction
 cycle `empty → excluded → cat → empty`; it delegates every change to
@@ -40,8 +50,9 @@ allowed; Restart clears the board, history, and mistakes.
 
 The package accepts any square board size so later game modes can reuse the
 same model. `LevelValidator` checks dimensions, cat/color counts, and mistake
-configuration without imposing color connectivity. `PuzzleSolver` classifies
-valid levels using only their level definitions.
+configuration without imposing color connectivity. The three built-in levels
+are independently verified as both unique by `PuzzleSolver` and solvable with
+zero assumptions by `LogicalPuzzleSolver`.
 
 ## Run tests
 
