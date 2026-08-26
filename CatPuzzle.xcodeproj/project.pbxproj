@@ -22,6 +22,7 @@
 		723C238077FB97EEFB0D2E0F /* GameProgressStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60948E5F6905F7174661F246 /* GameProgressStore.swift */; };
 		7843EADFD8218B9A0D4E791E /* AppSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 016B8CD49A35E29B173C9E01 /* AppSession.swift */; };
 		78BABD65EC8C05801527232E /* README.txt in Resources */ = {isa = PBXBuildFile; fileRef = 54EC177381C04835EF3CE30B /* README.txt */; };
+		9B203FE0002125437D0B22E3 /* PlaytestLabScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B02DCA335B2C6D820408417 /* PlaytestLabScreen.swift */; };
 		A466CD12878B729A7A555E91 /* AllLevelsCompleteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EBFFBA4747D918EC133276B /* AllLevelsCompleteView.swift */; };
 		A94CB5D90C5FC0056CE052F5 /* CatPuzzleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 545D10397B8681B21E643BCE /* CatPuzzleApp.swift */; };
 		AD231919A62CE809CE5EBCF7 /* sfx_excluded_unmark.wav in Resources */ = {isa = PBXBuildFile; fileRef = 2D1AA59631DCE4267E282B58 /* sfx_excluded_unmark.wav */; };
@@ -51,7 +52,7 @@
 		03A1321E3F989487C0675038 /* CatPuzzle */ = {isa = PBXFileReference; lastKnownFileType = folder; name = CatPuzzle; path = .; sourceTree = SOURCE_ROOT; };
 		04FE7E0D5FCADE753517028D /* AppSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSessionTests.swift; sourceTree = "<group>"; };
 		0A49B14E12A5C105B0331A41 /* sfx_cat_mark.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = sfx_cat_mark.wav; sourceTree = "<group>"; };
-		1AAAF173B0537E1A0342F539 /* CatPuzzle.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CatPuzzle.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		1AAAF173B0537E1A0342F539 /* CatPuzzle.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CatPuzzle.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2D1AA59631DCE4267E282B58 /* sfx_excluded_unmark.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = sfx_excluded_unmark.wav; sourceTree = "<group>"; };
 		306A304622EE6D2E40C394EE /* sfx_heart_broken.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = sfx_heart_broken.wav; sourceTree = "<group>"; };
 		359024E1CF371922D839ACD1 /* LevelProgression.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LevelProgression.swift; sourceTree = "<group>"; };
@@ -59,6 +60,7 @@
 		40B3C76E7B8ACCAA608B77F1 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
 		452AF30018CE7484BA1B7F77 /* BoardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardView.swift; sourceTree = "<group>"; };
 		4890F6ACF8E2AA15AC1065D2 /* CellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CellView.swift; sourceTree = "<group>"; };
+		4B02DCA335B2C6D820408417 /* PlaytestLabScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaytestLabScreen.swift; sourceTree = "<group>"; };
 		4EBFFBA4747D918EC133276B /* AllLevelsCompleteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AllLevelsCompleteView.swift; sourceTree = "<group>"; };
 		545D10397B8681B21E643BCE /* CatPuzzleApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatPuzzleApp.swift; sourceTree = "<group>"; };
 		54EC177381C04835EF3CE30B /* README.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = README.txt; sourceTree = "<group>"; };
@@ -128,6 +130,7 @@
 				EB97F24DAA1DF2F9D9609A78 /* GameViewModel.swift */,
 				359024E1CF371922D839ACD1 /* LevelProgression.swift */,
 				8AF778737EE6B1DBCED4D141 /* NextLevelScreen.swift */,
+				4B02DCA335B2C6D820408417 /* PlaytestLabScreen.swift */,
 				90675660D0ABBC7AA0FBE806 /* PuzzleSound.swift */,
 				EB30A670056D345A82204A57 /* RootView.swift */,
 				10E30566DB2775E1B185A6D3 /* Sounds */,
@@ -223,6 +226,8 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
 			};
 			buildConfigurationList = 6F640D07A3C203B295A26098 /* Build configuration list for PBXProject "CatPuzzle" */;
 			developmentRegion = en;
@@ -292,6 +297,7 @@
 				FB4426A15886909952E0E62D /* GameViewModel.swift in Sources */,
 				5D7F2458E337A2A4EC31EB06 /* LevelProgression.swift in Sources */,
 				50859F75D2D48D2162DABD55 /* NextLevelScreen.swift in Sources */,
+				9B203FE0002125437D0B22E3 /* PlaytestLabScreen.swift in Sources */,
 				0DAF4B508994B65025D770AB /* PuzzleSound.swift in Sources */,
 				ED15BAF9A2D9614E4E857A92 /* RootView.swift in Sources */,
 			);
@@ -349,7 +355,6 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = 2A5Y5ZXK84;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -488,7 +493,6 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = 2A5Y5ZXK84;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
