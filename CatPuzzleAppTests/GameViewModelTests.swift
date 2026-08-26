@@ -269,7 +269,7 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertEqual(sounds.played, [.markCat, .unmarkCat])
     }
 
-    func testPreviewSingleTapDoesNotPlayUntilCommit() async throws {
+    func testPreviewSingleTapPlaysSoundImmediatelyAndNotAgainAtCommit() async throws {
         let sounds = RecordingPuzzleSoundPlayer()
         let viewModel = try GameViewModel(
             doubleTapInterval: .milliseconds(10),
@@ -278,15 +278,16 @@ final class GameViewModelTests: XCTestCase {
 
         viewModel.handleCellTap(atRow: 0, column: 0)
 
-        XCTAssertEqual(sounds.played, [])
+        XCTAssertEqual(sounds.played, [.markExcluded])
         XCTAssertEqual(viewModel.displayState(atRow: 0, column: 0), .excluded)
 
         try await Task.sleep(for: .milliseconds(30))
 
         XCTAssertEqual(sounds.played, [.markExcluded])
+        XCTAssertEqual(viewModel.puzzle.state(atRow: 0, column: 0), .excluded)
     }
 
-    func testRawSingleTapUnmarkPlaysAfterCommit() async throws {
+    func testRawSingleTapUnmarkPlaysImmediatelyAndNotAgainAtCommit() async throws {
         let sounds = RecordingPuzzleSoundPlayer()
         let viewModel = try GameViewModel(
             doubleTapInterval: .milliseconds(10),
@@ -296,13 +297,14 @@ final class GameViewModelTests: XCTestCase {
         sounds.reset()
 
         viewModel.handleCellTap(atRow: 0, column: 0)
-        XCTAssertEqual(sounds.played, [])
+        XCTAssertEqual(sounds.played, [.unmarkExcluded])
 
         try await Task.sleep(for: .milliseconds(30))
         XCTAssertEqual(sounds.played, [.unmarkExcluded])
+        XCTAssertEqual(viewModel.puzzle.state(atRow: 0, column: 0), .empty)
     }
 
-    func testRawDoubleTapPlaysOnlyCatMarkSound() throws {
+    func testRawDoubleTapStopsPreviewSoundAndPlaysCatMarkSound() throws {
         let sounds = RecordingPuzzleSoundPlayer()
         let viewModel = GameViewModel(
             engine: try GameEngine(level: BuiltInLevels.meadow),
@@ -313,11 +315,12 @@ final class GameViewModelTests: XCTestCase {
         viewModel.handleCellTap(atRow: 0, column: 1)
         viewModel.handleCellTap(atRow: 0, column: 1)
 
-        XCTAssertEqual(sounds.played, [.markCat])
+        XCTAssertEqual(sounds.played, [.markExcluded, .markCat])
+        XCTAssertEqual(sounds.stopped, [.markExcluded])
         XCTAssertEqual(viewModel.displayState(atRow: 0, column: 1), .cat)
     }
 
-    func testRawDoubleTapOnCatPlaysUnmarkSound() throws {
+    func testRawDoubleTapOnCatPlaysUnmarkSoundWithoutAPreview() throws {
         let sounds = RecordingPuzzleSoundPlayer()
         let viewModel = GameViewModel(
             engine: try GameEngine(level: BuiltInLevels.meadow),
@@ -331,6 +334,7 @@ final class GameViewModelTests: XCTestCase {
         viewModel.handleCellTap(atRow: 0, column: 1)
 
         XCTAssertEqual(sounds.played, [.unmarkCat])
+        XCTAssertEqual(sounds.stopped, [])
         XCTAssertEqual(viewModel.displayState(atRow: 0, column: 1), .empty)
     }
 
@@ -385,6 +389,21 @@ final class GameViewModelTests: XCTestCase {
         viewModel.toggleExcluded(atRow: 2, column: 2)
         viewModel.restart()
         XCTAssertEqual(sounds.played, [.markExcluded])
+    }
+
+    func testRestartStopsAnAlreadyPlayingPreviewSound() throws {
+        let sounds = RecordingPuzzleSoundPlayer()
+        let viewModel = try GameViewModel(
+            doubleTapInterval: .seconds(5),
+            soundPlayer: sounds
+        )
+
+        viewModel.handleCellTap(atRow: 0, column: 0)
+        XCTAssertEqual(sounds.played, [.markExcluded])
+
+        viewModel.restart()
+
+        XCTAssertEqual(sounds.stopped, [.markExcluded])
     }
 }
 
@@ -492,12 +511,18 @@ final class PuzzleSoundTests: XCTestCase {
 
 final class RecordingPuzzleSoundPlayer: PuzzleSoundPlaying {
     private(set) var played: [PuzzleSound] = []
+    private(set) var stopped: [PuzzleSound] = []
 
     func play(_ sound: PuzzleSound) {
         played.append(sound)
     }
 
+    func stop(_ sound: PuzzleSound) {
+        stopped.append(sound)
+    }
+
     func reset() {
         played.removeAll()
+        stopped.removeAll()
     }
 }

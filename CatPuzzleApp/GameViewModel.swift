@@ -54,6 +54,7 @@ final class GameViewModel: ObservableObject {
     private var engine: GameEngine
     private var tapInterpreter = CellTapInterpreter()
     private var pendingTapTasks: [CellPosition: Task<Void, Never>] = [:]
+    private var pendingPreviewSounds: [CellPosition: PuzzleSound] = [:]
     private let doubleTapInterval: Duration
     private let soundPlayer: any PuzzleSoundPlaying
     private let onGameStateChanged: (GameState) -> Void
@@ -108,10 +109,17 @@ final class GameViewModel: ObservableObject {
         switch tapInterpreter.registerTap(at: position) {
         case let .pendingSingle(token):
             previewStates[position] = excludedToggleResult(for: currentState)
+            if let sound = previewExcludedSound(for: currentState) {
+                soundPlayer.play(sound)
+                pendingPreviewSounds[position] = sound
+            }
             scheduleSingleTapCommit(at: position, token: token)
         case .doubleTap:
             pendingTapTasks.removeValue(forKey: position)?.cancel()
             previewStates.removeValue(forKey: position)
+            if let previewSound = pendingPreviewSounds.removeValue(forKey: position) {
+                soundPlayer.stop(previewSound)
+            }
             applyCatToggle(atRow: row, column: column)
         }
     }
@@ -153,7 +161,11 @@ final class GameViewModel: ObservableObject {
         synchronizeFromEngine(notifyChange: true)
     }
 
-    private func applyExcludedToggle(atRow row: Int, column: Int) {
+    private func applyExcludedToggle(
+        atRow row: Int,
+        column: Int,
+        playSound: Bool = true
+    ) {
         guard let currentState = puzzle.state(atRow: row, column: column) else {
             feedbackMessage = "That cell is outside the board."
             return
@@ -161,9 +173,9 @@ final class GameViewModel: ObservableObject {
 
         switch currentState {
         case .empty:
-            apply(.excluded, atRow: row, column: column)
+            apply(.excluded, atRow: row, column: column, playSound: playSound)
         case .excluded:
-            apply(.empty, atRow: row, column: column)
+            apply(.empty, atRow: row, column: column, playSound: playSound)
         case .cat:
             feedbackMessage = nil
         }
@@ -190,6 +202,17 @@ final class GameViewModel: ObservableObject {
         }
     }
 
+    private func previewExcludedSound(for state: CellState) -> PuzzleSound? {
+        switch state {
+        case .empty:
+            .markExcluded
+        case .excluded:
+            .unmarkExcluded
+        case .cat:
+            nil
+        }
+    }
+
     private func scheduleSingleTapCommit(
         at position: CellPosition,
         token: Int
@@ -213,7 +236,12 @@ final class GameViewModel: ObservableObject {
 
         pendingTapTasks.removeValue(forKey: position)
         previewStates.removeValue(forKey: position)
-        applyExcludedToggle(atRow: position.row, column: position.column)
+        let alreadyPlayedSound = pendingPreviewSounds.removeValue(forKey: position) != nil
+        applyExcludedToggle(
+            atRow: position.row,
+            column: position.column,
+            playSound: !alreadyPlayedSound
+        )
     }
 
     private func cancelPendingTaps() {
@@ -222,10 +250,19 @@ final class GameViewModel: ObservableObject {
         }
         pendingTapTasks.removeAll()
         previewStates.removeAll()
+        for sound in pendingPreviewSounds.values {
+            soundPlayer.stop(sound)
+        }
+        pendingPreviewSounds.removeAll()
         tapInterpreter.cancelAll()
     }
 
-    private func apply(_ state: CellState, atRow row: Int, column: Int) {
+    private func apply(
+        _ state: CellState,
+        atRow row: Int,
+        column: Int,
+        playSound: Bool = true
+    ) {
         do {
             let previousPuzzle = engine.state.puzzle
             let previousCellState = previousPuzzle.state(atRow: row, column: column)
@@ -233,7 +270,7 @@ final class GameViewModel: ObservableObject {
             feedbackMessage = nil
             let puzzleChanged = engine.state.puzzle != previousPuzzle
             synchronizeFromEngine(notifyChange: puzzleChanged)
-            if puzzleChanged {
+            if puzzleChanged, playSound {
                 playCommittedTransitionSound(
                     from: previousCellState,
                     to: engine.state.puzzle.state(atRow: row, column: column)

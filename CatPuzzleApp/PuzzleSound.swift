@@ -51,6 +51,7 @@ enum PuzzleSound: String, CaseIterable, Equatable, Sendable {
 
 protocol PuzzleSoundPlaying: AnyObject {
     func play(_ sound: PuzzleSound)
+    func stop(_ sound: PuzzleSound)
 }
 
 /// Plays short, original bundled WAV cues. Uses the ambient session so other
@@ -77,6 +78,12 @@ final class PuzzleSoundPlayer: PuzzleSoundPlaying {
         guard let player = players[sound] else { return }
         player.currentTime = 0
         player.play()
+    }
+
+    func stop(_ sound: PuzzleSound) {
+        guard let player = players[sound] else { return }
+        player.stop()
+        player.currentTime = 0
     }
 
     static func resourceURL(
