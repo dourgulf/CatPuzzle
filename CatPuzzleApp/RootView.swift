@@ -83,7 +83,7 @@ struct RootView: View {
     @State private var showPlaytestLab = false
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
+        ZStack {
             CatPuzzleTheme.background
                 .ignoresSafeArea()
 
@@ -105,10 +105,9 @@ struct RootView: View {
             case .allCompleted:
                 AllLevelsCompleteView()
             }
-
-            if session.destination != .playing {
-                playtestLabEntryButton
-            }
+        }
+        .overlay(alignment: .bottomTrailing) {
+            playtestLabEntryButton
         }
         .foregroundStyle(CatPuzzleTheme.textPrimary)
         .fontDesign(.rounded)
@@ -120,8 +119,14 @@ struct RootView: View {
     }
 
     /// Dev-only shortcut into `PlaytestLabScreen` for trying out
-    /// `PuzzleGenerator` candidates. Hidden while a level is actually being
-    /// played so it never sits on top of the board.
+    /// `PuzzleGenerator` candidates. Always visible — `AppSession` resumes
+    /// straight into `.playing` on launch whenever a `SavedGame` exists
+    /// (even a freshly-restarted, all-empty one), so hiding this during
+    /// `.playing` would make it unreachable most of the time in practice.
+    /// Placed bottom-trailing via `.overlay` (not the `ZStack`'s own
+    /// alignment) so it doesn't disturb the centering of screens like
+    /// `NextLevelScreen` that don't fill the frame themselves, and so it
+    /// clears `GameScreen`'s top-trailing mistake-count badge.
     private var playtestLabEntryButton: some View {
         Button {
             showPlaytestLab = true
