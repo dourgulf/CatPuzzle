@@ -51,4 +51,21 @@ final class BuiltInLogicalAnalysisTests: XCTestCase {
             XCTAssertEqual(difficulty.tier, expectedAnalysis.tier)
         }
     }
+
+    /// The three shipped levels are fully solvable with basic row/column/
+    /// color singles alone; the advanced locked-set / common-attack /
+    /// strong-link techniques added alongside this test are not required
+    /// (and must not spuriously fire) for any of them.
+    func testBuiltInLevelsDoNotNeedAdvancedTechniques() {
+        for fixture in BuiltInLevels.fixtures {
+            let result = LogicalPuzzleSolver.solve(level: fixture.level)
+            let statistics = result.report.statistics
+
+            XCTAssertTrue(result.isSolved, fixture.level.id)
+            XCTAssertEqual(statistics.lockedPairCount, 0, fixture.level.id)
+            XCTAssertEqual(statistics.lockedTripleCount, 0, fixture.level.id)
+            XCTAssertEqual(statistics.commonAttackCount, 0, fixture.level.id)
+            XCTAssertEqual(statistics.strongLinkDeductionCount, 0, fixture.level.id)
+        }
+    }
 }

@@ -23,9 +23,31 @@ final class PuzzleDifficultyAnalyzerTests: XCTestCase {
         XCTAssertNotEqual(PuzzleDifficultyAnalyzer.analyze(report).tier, .challenge)
     }
 
+    func testAdvancedTechniquesIncreaseScore() {
+        let baseline = report(assumptionCount: 0, maxAssumptionDepth: 0)
+        let withAdvanced = report(
+            assumptionCount: 0,
+            maxAssumptionDepth: 0,
+            lockedPairCount: 1,
+            lockedTripleCount: 1,
+            commonAttackCount: 1,
+            strongLinkDeductionCount: 1
+        )
+
+        let baseScore = PuzzleDifficultyAnalyzer.analyze(baseline).score
+        let advancedScore = PuzzleDifficultyAnalyzer.analyze(withAdvanced).score
+
+        // +4 (locked pair) + 7 (locked triple) + 5 (common attack) + 8 (strong link)
+        XCTAssertEqual(advancedScore - baseScore, 24)
+    }
+
     private func report(
         assumptionCount: Int,
-        maxAssumptionDepth: Int
+        maxAssumptionDepth: Int,
+        lockedPairCount: Int = 0,
+        lockedTripleCount: Int = 0,
+        commonAttackCount: Int = 0,
+        strongLinkDeductionCount: Int = 0
     ) -> LogicalSolveReport {
         LogicalSolveReport(
             steps: [],
@@ -36,7 +58,11 @@ final class PuzzleDifficultyAnalyzerTests: XCTestCase {
                 propagationSteps: 0,
                 deductionRounds: 1,
                 assumptionCount: assumptionCount,
-                maxAssumptionDepth: maxAssumptionDepth
+                maxAssumptionDepth: maxAssumptionDepth,
+                lockedPairCount: lockedPairCount,
+                lockedTripleCount: lockedTripleCount,
+                commonAttackCount: commonAttackCount,
+                strongLinkDeductionCount: strongLinkDeductionCount
             )
         )
     }

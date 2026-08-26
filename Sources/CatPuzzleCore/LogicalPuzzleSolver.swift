@@ -32,6 +32,32 @@ public enum LogicalPuzzleSolver {
     }
 }
 
+/// Ordered (source family, target family) pairs scanned by locked-set
+/// deduction. Both directions of each of the three unordered family pairs
+/// (Row/Column, Row/Color, Column/Color) are covered, and the order is
+/// fixed so repeated solves are deterministic.
+private let lockedSetFamilyPairs: [(ConstraintFamily, ConstraintFamily)] = [
+    (.row, .column),
+    (.column, .row),
+    (.row, .color),
+    (.color, .row),
+    (.column, .color),
+    (.color, .column),
+]
+
+private enum AdvancedDeductionKind {
+    case lockedPair
+    case lockedTriple
+    case commonAttack
+    case strongLink
+}
+
+private struct AdvancedDeductionEvent {
+    let reason: LogicalReason
+    let exclusions: [CellPosition]
+    let kind: AdvancedDeductionKind
+}
+
 private enum LogicalOutcome: Equatable {
     case solved
     case stuck
@@ -60,6 +86,10 @@ private struct LogicalSolveEngine {
     var deductionRounds = 0
     var assumptionCount = 0
     var reachedAssumptionDepth = 0
+    var lockedPairCount = 0
+    var lockedTripleCount = 0
+    var commonAttackCount = 0
+    var strongLinkDeductionCount = 0
 
     init(level: LevelDefinition, puzzle: Puzzle) {
         self.level = level
@@ -77,7 +107,11 @@ private struct LogicalSolveEngine {
                 propagationSteps: propagationSteps,
                 deductionRounds: deductionRounds,
                 assumptionCount: assumptionCount,
-                maxAssumptionDepth: reachedAssumptionDepth
+                maxAssumptionDepth: reachedAssumptionDepth,
+                lockedPairCount: lockedPairCount,
+                lockedTripleCount: lockedTripleCount,
+                commonAttackCount: commonAttackCount,
+                strongLinkDeductionCount: strongLinkDeductionCount
             )
         )
     }
@@ -101,6 +135,11 @@ private struct LogicalSolveEngine {
             if let deduction = nextDeduction() {
                 deductionRounds += 1
                 placeCat(at: deduction.position, reason: deduction.reason)
+                continue
+            }
+
+            if let event = nextAdvancedDeduction() {
+                apply(event)
                 continue
             }
 
@@ -250,6 +289,174 @@ private struct LogicalSolveEngine {
         }
 
         return nil
+    }
+
+    /// Applies a batch exclusion event: records one `LogicalStep` per
+    /// excluded position (all sharing the same explanatory reason) and
+    /// bumps the matching advanced-technique counter, but only if the
+    /// event actually removed at least one candidate — a no-op deduction
+    /// is not counted or recorded (see item XXI of the design brief).
+    private mutating func apply(_ event: AdvancedDeductionEvent) {
+        var appliedAny = false
+        for position in event.exclusions where board.exclude(at: position) {
+            steps.append(LogicalStep(action: .exclude(position), reason: event.reason))
+            exclusions += 1
+            appliedAny = true
+        }
+        guard appliedAny else { return }
+
+        switch event.kind {
+        case .lockedPair:
+            lockedPairCount += 1
+        case .lockedTriple:
+            lockedTripleCount += 1
+        case .commonAttack:
+            commonAttackCount += 1
+        case .strongLink:
+            strongLinkDeductionCount += 1
+        }
+    }
+
+    /// Scans, in a fixed deterministic order, for the next advanced
+    /// deduction: locked pairs, then locked triples, then common attack,
+    /// then strong-link common elimination (see item XVI priority order).
+    private func nextAdvancedDeduction() -> AdvancedDeductionEvent? {
+        if let event = nextLockedSetDeduction() { return event }
+        if let event = nextCommonAttackDeduction() { return event }
+        if let event = nextStrongLinkDeduction() { return event }
+        return nil
+    }
+
+    private func nextLockedSetDeduction() -> AdvancedDeductionEvent? {
+        for size in [2, 3] {
+            for (sourceFamily, targetFamily) in lockedSetFamilyPairs {
+                if let event = lockedSetDeduction(
+                    sourceFamily: sourceFamily,
+                    targetFamily: targetFamily,
+                    size: size
+                ) {
+                    return event
+                }
+            }
+        }
+        return nil
+    }
+
+    /// Generalized locked set (Hall set): if `size` constraints from
+    /// `sourceFamily` have candidates confined entirely within exactly
+    /// `size` constraints of `targetFamily`, those target constraints
+    /// must be filled by the source constraints' cats — so any other
+    /// candidate in those target constraints can be excluded.
+    private func lockedSetDeduction(
+        sourceFamily: ConstraintFamily,
+        targetFamily: ConstraintFamily,
+        size: Int
+    ) -> AdvancedDeductionEvent? {
+        let sources = board.unresolvedConstraints(for: sourceFamily)
+        guard sources.count >= size else { return nil }
+
+        for combo in Self.combinations(sources, size) {
+            let unionPositions = Set(combo.flatMap(\.candidates))
+            let targetKinds = Set(
+                unionPositions.map { board.constraintKind(for: $0, family: targetFamily) }
+            )
+            guard targetKinds.count == size else { continue }
+
+            let sortedTargets = targetKinds.sorted()
+            var affected: [CellPosition] = []
+            for targetKind in sortedTargets {
+                for position in board.candidates(for: targetKind)
+                where !unionPositions.contains(position) {
+                    affected.append(position)
+                }
+            }
+            guard !affected.isEmpty else { continue }
+
+            return AdvancedDeductionEvent(
+                reason: .lockedSet(
+                    sources: combo.map(\.kind).sorted(),
+                    targets: sortedTargets
+                ),
+                exclusions: affected.sorted(by: CandidateBoard.rowMajor),
+                kind: size == 2 ? .lockedPair : .lockedTriple
+            )
+        }
+        return nil
+    }
+
+    /// Common attack: an unresolved constraint's eventual cat must land on
+    /// one of its 3+ remaining candidates. Any other candidate conflicting
+    /// with every one of them can never be a cat. (The 2-candidate case is
+    /// handled separately as a strong link — see `nextStrongLinkDeduction`.)
+    private func nextCommonAttackDeduction() -> AdvancedDeductionEvent? {
+        for family in ConstraintFamily.allCases {
+            for constraint in board.unresolvedConstraints(for: family)
+            where constraint.candidates.count >= 3 {
+                for candidate in board.sortedCandidates
+                where !constraint.candidates.contains(candidate)
+                    && constraint.candidates.allSatisfy({ board.conflicts(candidate, $0) }) {
+                    return AdvancedDeductionEvent(
+                        reason: .commonAttack(
+                            constraint: constraint.kind,
+                            candidatePositions: constraint.candidates
+                        ),
+                        exclusions: [candidate],
+                        kind: .commonAttack
+                    )
+                }
+            }
+        }
+        return nil
+    }
+
+    /// Strong-link common elimination: when a constraint has exactly two
+    /// remaining candidates, exactly one of them must be the cat. Any
+    /// other candidate that conflicts with both can never be a cat.
+    private func nextStrongLinkDeduction() -> AdvancedDeductionEvent? {
+        for family in ConstraintFamily.allCases {
+            for constraint in board.unresolvedConstraints(for: family)
+            where constraint.candidates.count == 2 {
+                let link = StrongLink(
+                    constraint: constraint.kind,
+                    first: constraint.candidates[0],
+                    second: constraint.candidates[1]
+                )
+                for candidate in board.sortedCandidates
+                where candidate != link.first
+                    && candidate != link.second
+                    && board.conflicts(candidate, link.first)
+                    && board.conflicts(candidate, link.second) {
+                    return AdvancedDeductionEvent(
+                        reason: .strongLinkCommonElimination(link: link),
+                        exclusions: [candidate],
+                        kind: .strongLink
+                    )
+                }
+            }
+        }
+        return nil
+    }
+
+    /// Deterministic combinations of `items` taken `k` at a time, in the
+    /// order induced by `items`'s own order (which callers keep canonical).
+    private static func combinations<T>(_ items: [T], _ k: Int) -> [[T]] {
+        guard k > 0, k <= items.count else { return [] }
+        var result: [[T]] = []
+        var current: [T] = []
+        func combine(_ start: Int) {
+            if current.count == k {
+                result.append(current)
+                return
+            }
+            guard start < items.count else { return }
+            for index in start..<items.count {
+                current.append(items[index])
+                combine(index + 1)
+                current.removeLast()
+            }
+        }
+        combine(0)
+        return result
     }
 
     private var hasContradiction: Bool {
@@ -422,7 +629,72 @@ private struct CandidateBoard {
         }
     }
 
-    private static func rowMajor(
+    func constraintKind(for position: CellPosition, family: ConstraintFamily) -> ConstraintKind {
+        switch family {
+        case .row:
+            return .row(position.row)
+        case .column:
+            return .column(position.column)
+        case .color:
+            return .color(colorIDsByCell[position.row][position.column])
+        }
+    }
+
+    func allConstraintKinds(for family: ConstraintFamily) -> [ConstraintKind] {
+        switch family {
+        case .row:
+            return (0..<size).map { .row($0) }
+        case .column:
+            return (0..<size).map { .column($0) }
+        case .color:
+            return colorIDs.map { .color($0) }
+        }
+    }
+
+    func hasCat(for kind: ConstraintKind) -> Bool {
+        switch kind {
+        case let .row(row):
+            return hasCat(inRow: row)
+        case let .column(column):
+            return hasCat(inColumn: column)
+        case let .color(colorID):
+            return hasCat(forColor: colorID)
+        }
+    }
+
+    func candidates(for kind: ConstraintKind) -> [CellPosition] {
+        switch kind {
+        case let .row(row):
+            return candidates(inRow: row)
+        case let .column(column):
+            return candidates(inColumn: column)
+        case let .color(colorID):
+            return candidates(forColor: colorID)
+        }
+    }
+
+    /// All constraints of `family` that do not yet have a confirmed cat,
+    /// in canonical (index-ascending) order.
+    func unresolvedConstraints(for family: ConstraintFamily) -> [ExactlyOneConstraint] {
+        allConstraintKinds(for: family)
+            .filter { !hasCat(for: $0) }
+            .map { ExactlyOneConstraint(kind: $0, candidates: candidates(for: $0)) }
+    }
+
+    /// Whether two distinct positions can never both be cats: same row,
+    /// same column, same color, or 8-neighborhood adjacent.
+    func conflicts(_ first: CellPosition, _ second: CellPosition) -> Bool {
+        guard first != second else { return false }
+        if first.row == second.row || first.column == second.column {
+            return true
+        }
+        if colorIDsByCell[first.row][first.column] == colorIDsByCell[second.row][second.column] {
+            return true
+        }
+        return abs(first.row - second.row) <= 1 && abs(first.column - second.column) <= 1
+    }
+
+    static func rowMajor(
         _ lhs: CellPosition,
         _ rhs: CellPosition
     ) -> Bool {

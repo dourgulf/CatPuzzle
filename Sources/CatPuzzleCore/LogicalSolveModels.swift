@@ -37,6 +37,22 @@ public enum LogicalReason: Equatable, Sendable {
     case colorAlreadyHasCat(colorID: Int)
     case adjacentToConfirmedCat(CellPosition)
     case contradictionFromAssumption(assumed: CellPosition)
+
+    /// A generalized locked set (Hall set): the candidates of `sources`
+    /// fall entirely within `targets` (|sources| == |targets|), so any
+    /// candidate in `targets` that is not also a candidate of `sources`
+    /// can be excluded. `sources.count` distinguishes pair (2) vs triple (3).
+    case lockedSet(sources: [ConstraintKind], targets: [ConstraintKind])
+
+    /// `constraint` must eventually place its cat at one of
+    /// `candidatePositions`; the excluded position conflicts with every
+    /// one of them, so it can never be a cat.
+    case commonAttack(constraint: ConstraintKind, candidatePositions: [CellPosition])
+
+    /// `link` has exactly two candidates and exactly one of them must be
+    /// a cat; the excluded position conflicts with both, so it can never
+    /// be a cat.
+    case strongLinkCommonElimination(link: StrongLink)
 }
 
 public struct LogicalStep: Equatable, Sendable {
@@ -78,6 +94,10 @@ public struct LogicalSolveStatistics: Equatable, Sendable {
     public let deductionRounds: Int
     public let assumptionCount: Int
     public let maxAssumptionDepth: Int
+    public let lockedPairCount: Int
+    public let lockedTripleCount: Int
+    public let commonAttackCount: Int
+    public let strongLinkDeductionCount: Int
 
     public init(
         placedCats: Int,
@@ -85,7 +105,11 @@ public struct LogicalSolveStatistics: Equatable, Sendable {
         propagationSteps: Int,
         deductionRounds: Int,
         assumptionCount: Int,
-        maxAssumptionDepth: Int
+        maxAssumptionDepth: Int,
+        lockedPairCount: Int = 0,
+        lockedTripleCount: Int = 0,
+        commonAttackCount: Int = 0,
+        strongLinkDeductionCount: Int = 0
     ) {
         self.placedCats = placedCats
         self.exclusions = exclusions
@@ -93,6 +117,10 @@ public struct LogicalSolveStatistics: Equatable, Sendable {
         self.deductionRounds = deductionRounds
         self.assumptionCount = assumptionCount
         self.maxAssumptionDepth = maxAssumptionDepth
+        self.lockedPairCount = lockedPairCount
+        self.lockedTripleCount = lockedTripleCount
+        self.commonAttackCount = commonAttackCount
+        self.strongLinkDeductionCount = strongLinkDeductionCount
     }
 }
 
