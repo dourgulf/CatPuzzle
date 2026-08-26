@@ -80,9 +80,10 @@ enum CatPuzzleTheme {
 
 struct RootView: View {
     @ObservedObject var session: AppSession
+    @State private var showPlaytestLab = false
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .topTrailing) {
             CatPuzzleTheme.background
                 .ignoresSafeArea()
 
@@ -104,10 +105,36 @@ struct RootView: View {
             case .allCompleted:
                 AllLevelsCompleteView()
             }
+
+            if session.destination != .playing {
+                playtestLabEntryButton
+            }
         }
         .foregroundStyle(CatPuzzleTheme.textPrimary)
         .fontDesign(.rounded)
         .tint(CatPuzzleTheme.action)
         .preferredColorScheme(.light)
+        .sheet(isPresented: $showPlaytestLab) {
+            PlaytestLabScreen()
+        }
+    }
+
+    /// Dev-only shortcut into `PlaytestLabScreen` for trying out
+    /// `PuzzleGenerator` candidates. Hidden while a level is actually being
+    /// played so it never sits on top of the board.
+    private var playtestLabEntryButton: some View {
+        Button {
+            showPlaytestLab = true
+        } label: {
+            Image(systemName: "flask.fill")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(CatPuzzleTheme.textSecondary)
+                .padding(10)
+                .background(CatPuzzleTheme.surface, in: Circle())
+                .shadow(color: CatPuzzleTheme.textPrimary.opacity(0.10), radius: 8, y: 4)
+        }
+        .padding(16)
+        .accessibilityLabel("Puzzle Lab")
+        .accessibilityIdentifier("open-playtest-lab")
     }
 }
