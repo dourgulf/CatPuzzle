@@ -334,7 +334,7 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.displayState(atRow: 0, column: 1), .empty)
     }
 
-    func testIllegalCatDoesNotPlayMarkSound() throws {
+    func testIllegalCatPlaysCatPlacementFailedSound() throws {
         let sounds = RecordingPuzzleSoundPlayer()
         let viewModel = try GameViewModel(soundPlayer: sounds)
         viewModel.toggleCat(atRow: 0, column: 0)
@@ -342,7 +342,23 @@ final class GameViewModelTests: XCTestCase {
 
         viewModel.toggleCat(atRow: 0, column: 4)
 
-        XCTAssertEqual(sounds.played, [])
+        XCTAssertEqual(sounds.played, [.catPlacementFailed])
+    }
+
+    func testIllegalCatThatExhaustsMistakesPlaysGameOverSound() throws {
+        let sounds = RecordingPuzzleSoundPlayer()
+        let viewModel = try GameViewModel(soundPlayer: sounds)
+        viewModel.toggleCat(atRow: 0, column: 0)
+
+        for _ in 0..<(viewModel.level.maxMistakes - 1) {
+            viewModel.toggleCat(atRow: 0, column: 4)
+        }
+        sounds.reset()
+
+        viewModel.toggleCat(atRow: 0, column: 4)
+
+        XCTAssertTrue(viewModel.isFailed)
+        XCTAssertEqual(sounds.played, [.gameOver])
     }
 
     func testExcludedToggleOnCatIsSilent() throws {

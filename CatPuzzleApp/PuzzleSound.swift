@@ -7,6 +7,9 @@ enum PuzzleSound: String, CaseIterable, Equatable, Sendable {
     case unmarkExcluded
     case markCat
     case unmarkCat
+    case levelStart
+    case catPlacementFailed
+    case gameOver
 
     var resourceName: String {
         switch self {
@@ -18,6 +21,12 @@ enum PuzzleSound: String, CaseIterable, Equatable, Sendable {
             "sfx_cat_mark"
         case .unmarkCat:
             "sfx_cat_unmark"
+        case .levelStart:
+            "sfx_start"
+        case .catPlacementFailed:
+            "sfx_cat_failed"
+        case .gameOver:
+            "sfx_heart_broken"
         }
     }
 

@@ -245,6 +245,7 @@ final class GameViewModel: ObservableObject {
         } catch GameEngineError.illegalCatPlacement {
             feedbackMessage = "That cat conflicts with another cat."
             synchronizeFromEngine(notifyChange: true)
+            soundPlayer.play(isFailed ? .gameOver : .catPlacementFailed)
             if isFailed {
                 cancelPendingTaps()
             }

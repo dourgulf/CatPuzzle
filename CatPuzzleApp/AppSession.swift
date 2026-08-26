@@ -47,6 +47,7 @@ final class AppSession: ObservableObject {
         )
         saveProgress()
         showGame(engine: engine)
+        PuzzleSoundPlayer.shared.play(.levelStart)
     }
 
     func continueAfterCompletion() {
