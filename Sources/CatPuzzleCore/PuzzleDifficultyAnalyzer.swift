@@ -36,6 +36,10 @@ public enum PuzzleDifficultyAnalyzer {
             + statistics.deductionRounds * 2
             + statistics.propagationSteps
             + singleWeight
+            + statistics.lockedPairCount * 4
+            + statistics.lockedTripleCount * 7
+            + statistics.commonAttackCount * 5
+            + statistics.strongLinkDeductionCount * 8
             + statistics.assumptionCount * 20
             + assumptionDepthWeight(statistics.maxAssumptionDepth)
 
