@@ -41,6 +41,26 @@ final class AppSessionTests: XCTestCase {
         XCTAssertEqual(session.gameViewModel?.mistakeCount, 0)
     }
 
+    func testBlankActiveGameShowsHomeInsteadOfResuming() {
+        let store = InMemoryGameProgressStore(
+            progress: GameProgress(
+                activeGame: SavedGame(
+                    levelID: "meadow",
+                    states: emptySavedStates(),
+                    mistakeCount: 0
+                ),
+                completedLevelIDs: []
+            )
+        )
+
+        let session = AppSession(progressStore: store)
+
+        XCTAssertEqual(session.destination, .readyForNextLevel)
+        XCTAssertEqual(session.nextLevel?.id, "meadow")
+        XCTAssertNil(session.gameViewModel)
+        XCTAssertNil(store.progress.activeGame)
+    }
+
     func testStartingNextLevelCreatesAndSavesEmptyActiveGame() {
         let store = InMemoryGameProgressStore()
         let session = AppSession(progressStore: store)

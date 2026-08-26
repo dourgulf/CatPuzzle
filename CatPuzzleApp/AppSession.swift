@@ -77,6 +77,14 @@ final class AppSession: ObservableObject {
                 progress.activeGame = nil
                 saveProgress()
                 showNextDestination()
+            } else if Self.isBlank(savedGame) {
+                // No real progress to resume (e.g. restarted, then closed
+                // without touching the board again) — show the normal
+                // "ready to start" screen instead of jumping straight into
+                // an indistinguishable-from-fresh board.
+                progress.activeGame = nil
+                saveProgress()
+                showNextDestination()
             } else {
                 showGame(engine: engine)
             }
@@ -85,6 +93,11 @@ final class AppSession: ObservableObject {
             saveProgress()
             showNextDestination()
         }
+    }
+
+    private static func isBlank(_ savedGame: SavedGame) -> Bool {
+        savedGame.mistakeCount == 0
+            && savedGame.states.allSatisfy { $0 == .empty }
     }
 
     private func showGame(engine: GameEngine) {
