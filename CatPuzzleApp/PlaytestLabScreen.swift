@@ -1,22 +1,24 @@
 import SwiftUI
 import CatPuzzleCore
 
-/// Developer-only screen for playtesting `PuzzleGenerator` candidates.
-/// Fully self-contained: it never touches `AppSession`, `GameProgressStore`,
-/// or `BuiltInLevels` — generated puzzles are played in a scratch
-/// `GameViewModel` that nothing persists or counts toward progression.
+/// Developer-only surface for the offline constructive generator. Generated
+/// candidates are scratch levels and never affect player progress.
 struct PlaytestLabScreen: View {
     @Environment(\.dismiss) private var dismiss
 
+    let showsRegionIcons: Bool
+
     @State private var seedText = "1"
-    @State private var count = 10
+    @State private var count = 3
+    @State private var size = 8
+    @State private var difficulty: GeneratorDifficulty = .easy
+    @State private var profile: RegionGeometryProfile = .dominantBackground
     @State private var isChallenge = false
-    @State private var challengeDepth = 2
-    @State private var maxAttempts = 1000
     @State private var isGenerating = false
     @State private var errorMessage: String?
     @State private var candidates: [PlaytestCandidate] = []
-    @State private var statistics: PuzzleBatchStatistics?
+    @State private var statistics: ConstructiveBatchStatistics?
+    @State private var generationTask: Task<Void, Never>?
 
     var body: some View {
         NavigationStack {
@@ -41,26 +43,48 @@ struct PlaytestLabScreen: View {
                 }
             }
             .navigationDestination(for: PlaytestCandidate.self) { candidate in
-                PlaytestPlayView(puzzle: candidate.puzzle)
+                PlaytestPlayView(
+                    puzzle: candidate.puzzle,
+                    mode: isChallenge ? .challenge : .exploration,
+                    showsRegionIcons: showsRegionIcons
+                )
+            }
+            .onChange(of: difficulty) { _, newDifficulty in
+                if newDifficulty == .easy {
+                    profile = .dominantBackground
+                }
+            }
+            .onDisappear {
+                generationTask?.cancel()
+                generationTask = nil
             }
         }
     }
 
     private var configurationSection: some View {
-        Section("Batch") {
+        Section("Constructive batch") {
             TextField("Seed", text: $seedText)
                 .keyboardType(.numberPad)
                 .accessibilityIdentifier("playtest-seed-field")
-            Stepper("Count: \(count)", value: $count, in: 1...100)
-            Toggle("Challenge mode", isOn: $isChallenge)
-            if isChallenge {
-                Stepper("Max assumption depth: \(challengeDepth)", value: $challengeDepth, in: 1...5)
-            }
-            Stepper("Max attempts / puzzle: \(maxAttempts)", value: $maxAttempts, in: 100...5000, step: 100)
+            Stepper("Size: \(size)×\(size)", value: $size, in: 8...10)
+            Stepper("Count: \(count)", value: $count, in: 1...10)
 
-            Button {
-                generate()
-            } label: {
+            Picker("Difficulty", selection: $difficulty) {
+                ForEach(GeneratorDifficulty.allCases, id: \.self) {
+                    Text($0.displayName).tag($0)
+                }
+            }
+            Picker("Geometry", selection: $profile) {
+                ForEach(RegionGeometryProfile.allCases, id: \.self) { value in
+                    Text(value.displayName).tag(value)
+                }
+            }
+            .disabled(difficulty == .easy)
+
+            Toggle("Challenge Mode", isOn: $isChallenge)
+                .accessibilityIdentifier("playtest-challenge-mode-toggle")
+
+            Button(action: generate) {
                 if isGenerating {
                     HStack {
                         ProgressView()
@@ -75,21 +99,20 @@ struct PlaytestLabScreen: View {
         }
     }
 
-    private func statisticsSection(_ statistics: PuzzleBatchStatistics) -> some View {
+    private func statisticsSection(
+        _ statistics: ConstructiveBatchStatistics
+    ) -> some View {
         Section("Batch result") {
-            LabeledContent("Generated", value: "\(statistics.generatedCount) / \(statistics.requestedCount)")
-            LabeledContent("Total attempts", value: "\(statistics.totalAttempts)")
-            LabeledContent("Acceptance rate", value: String(format: "%.2f%%", statistics.acceptanceRate * 100))
-            if statistics.generatedCount < statistics.requestedCount {
-                Text(
-                    "Rejections — multiple: \(statistics.rejectedMultipleSolutions), " +
-                    "noSolution: \(statistics.rejectedNoSolution), " +
-                    "wrongSolution: \(statistics.rejectedWrongUniqueSolution), " +
-                    "logicStuck: \(statistics.rejectedLogicalStuck), " +
-                    "notChallenge: \(statistics.rejectedNotChallenge)"
-                )
-                .font(.caption)
-                .foregroundStyle(CatPuzzleTheme.textSecondary)
+            LabeledContent(
+                "Generated",
+                value: "\(statistics.generatedCount) / \(statistics.requestedCount)"
+            )
+            LabeledContent("Logical evaluations", value: "\(statistics.logicalEvaluations)")
+            LabeledContent("Boundary mutations", value: "\(statistics.boundaryMutations)")
+            if !statistics.failures.isEmpty {
+                Text(statistics.failures.joined(separator: "\n"))
+                    .font(.caption)
+                    .foregroundStyle(CatPuzzleTheme.textSecondary)
             }
         }
     }
@@ -110,59 +133,95 @@ struct PlaytestLabScreen: View {
             return
         }
 
+        generationTask?.cancel()
         errorMessage = nil
         isGenerating = true
         candidates = []
         statistics = nil
+        let requestCount = count
+        let requestSize = size
+        let requestDifficulty = difficulty
+        let requestProfile = profile
 
-        let mode: PuzzleGenerationMode = isChallenge
-            ? .challenge(maxAssumptionDepth: challengeDepth)
-            : .mainline
-        let request = PuzzleBatchGenerationRequest(
-            startSeed: seed,
-            count: count,
-            mode: mode,
-            maxAttemptsPerPuzzle: maxAttempts
-        )
+        generationTask = Task.detached(priority: .userInitiated) {
+            var generated: [ConstructiveGeneratedPuzzle] = []
+            var failures: [String] = []
+            var evaluations = 0
+            var mutations = 0
 
-        Task.detached(priority: .userInitiated) {
-            let result = PuzzleGenerator.generateBatch(request: request)
+            for offset in 0..<requestCount {
+                guard !Task<Never, Never>.isCancelled else { return }
+                let candidateSeed = seed &+ UInt64(offset)
+                let result = ConstructivePuzzleGenerator.generate(request: .init(
+                    size: requestSize,
+                    seed: candidateSeed,
+                    difficulty: requestDifficulty,
+                    profile: requestProfile
+                ), isCancelled: { Task<Never, Never>.isCancelled })
+                switch result {
+                case let .success(puzzle):
+                    generated.append(puzzle)
+                    evaluations += puzzle.work.logicalEvaluations
+                    mutations += puzzle.work.boundaryMutations
+                case let .failure(failure):
+                    evaluations += failure.work.logicalEvaluations
+                    mutations += failure.work.boundaryMutations
+                    failures.append(
+                        "Seed \(candidateSeed): \(failure.stage.rawValue) — \(failure.message)"
+                    )
+                }
+            }
+
+            guard !Task<Never, Never>.isCancelled else { return }
             await MainActor.run {
-                candidates = result.generated.map(PlaytestCandidate.init)
-                statistics = result.statistics
+                candidates = generated.map(PlaytestCandidate.init)
+                statistics = ConstructiveBatchStatistics(
+                    requestedCount: requestCount,
+                    generatedCount: generated.count,
+                    logicalEvaluations: evaluations,
+                    boundaryMutations: mutations,
+                    failures: failures
+                )
                 isGenerating = false
+                generationTask = nil
             }
         }
     }
 }
 
-/// Wraps a `GeneratedPuzzle` with a stable identity for SwiftUI navigation —
-/// `GeneratedPuzzle` itself is a plain value type with no identity of its own.
+private struct ConstructiveBatchStatistics {
+    let requestedCount: Int
+    let generatedCount: Int
+    let logicalEvaluations: Int
+    let boundaryMutations: Int
+    let failures: [String]
+}
+
 private struct PlaytestCandidate: Identifiable, Hashable {
     let id = UUID()
-    let puzzle: GeneratedPuzzle
+    let puzzle: ConstructiveGeneratedPuzzle
 
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
 }
 
 private struct PlaytestCandidateRow: View {
-    let puzzle: GeneratedPuzzle
+    let puzzle: ConstructiveGeneratedPuzzle
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text("Seed \(puzzle.generationMetadata.seed)")
+                Text("\(puzzle.level.size)×\(puzzle.level.size) · seed \(puzzle.seed)")
                     .font(.subheadline.weight(.semibold))
                 Spacer()
-                Text("\(puzzle.difficulty.score) · \(tierName)")
+                Text(puzzle.difficulty.displayName)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(CatPuzzleTheme.action)
             }
             Text(
-                "pair \(statistics.lockedPairCount) · triple \(statistics.lockedTripleCount) · " +
-                "attack \(statistics.commonAttackCount) · strongLink \(statistics.strongLinkDeductionCount) · " +
-                "assumptions \(statistics.assumptionCount)"
+                "\(puzzle.profile.displayName) · pair \(statistics.lockedPairCount) · "
+                    + "triple \(statistics.lockedTripleCount) · attack \(statistics.commonAttackCount) · "
+                    + "strongLink \(statistics.strongLinkDeductionCount)"
             )
             .font(.caption)
             .foregroundStyle(CatPuzzleTheme.textSecondary)
@@ -173,33 +232,62 @@ private struct PlaytestCandidateRow: View {
     private var statistics: LogicalSolveStatistics {
         puzzle.logicalReport.statistics
     }
-
-    private var tierName: String {
-        switch puzzle.difficulty.tier {
-        case .beginner: "beginner"
-        case .easy: "easy"
-        case .medium: "medium"
-        case .hard: "hard"
-        case .expert: "expert"
-        case .challenge: "challenge"
-        }
-    }
 }
 
-/// Plays a single generated candidate through the normal `GameScreen`,
-/// completely detached from `AppSession` — nothing here is persisted or
-/// counted toward level progression.
 private struct PlaytestPlayView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: GameViewModel
 
-    init(puzzle: GeneratedPuzzle) {
-        // `puzzle.level` already passed LevelValidator + a unique-solution
-        // check during generation, so this can never throw in practice.
-        _viewModel = StateObject(wrappedValue: try! GameViewModel(engine: GameEngine(level: puzzle.level)))
+    init(
+        puzzle: ConstructiveGeneratedPuzzle,
+        mode: GameplayMode,
+        showsRegionIcons: Bool
+    ) {
+        self.showsRegionIcons = showsRegionIcons
+        _viewModel = StateObject(
+            wrappedValue: try! PlaytestGameFactory.makeViewModel(
+                puzzle: puzzle,
+                mode: mode
+            )
+        )
     }
 
+    private let showsRegionIcons: Bool
+
     var body: some View {
-        GameScreen(viewModel: viewModel, onContinue: { dismiss() })
+        GameScreen(
+            viewModel: viewModel,
+            showsRegionIcons: showsRegionIcons,
+            onContinue: { dismiss() }
+        )
+    }
+}
+
+@MainActor
+enum PlaytestGameFactory {
+    static func makeViewModel(
+        puzzle: ConstructiveGeneratedPuzzle,
+        mode: GameplayMode
+    ) throws -> GameViewModel {
+        let fixture = LevelFixture(
+            level: puzzle.level,
+            solution: puzzle.solution
+        )
+        return GameViewModel(
+            engine: try GameEngine(fixture: fixture, mode: mode)
+        )
+    }
+}
+
+private extension GeneratorDifficulty {
+    var displayName: String { rawValue.capitalized }
+}
+
+private extension RegionGeometryProfile {
+    var displayName: String {
+        switch self {
+        case .dominantBackground: "Dominant"
+        case .balancedMosaic: "Balanced"
+        }
     }
 }

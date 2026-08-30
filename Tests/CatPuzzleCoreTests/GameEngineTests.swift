@@ -49,6 +49,108 @@ final class GameEngineTests: XCTestCase {
         XCTAssertTrue(engine.canUndo)
     }
 
+    func testExplorationAcceptsLegalCatOutsideUniqueSolutionAndAllowsUndo() throws {
+        let fixture = BuiltInLevels.meadowFixture
+        var engine = try GameEngine(
+            fixture: fixture,
+            mode: .exploration
+        )
+
+        try engine.setState(.cat, atRow: 0, column: 0)
+
+        XCTAssertEqual(
+            engine.state.puzzle.state(atRow: 0, column: 0),
+            .cat
+        )
+        XCTAssertEqual(engine.state.mistakeCount, 0)
+        XCTAssertTrue(engine.canUndo)
+        XCTAssertTrue(engine.undo())
+        XCTAssertEqual(
+            engine.state.puzzle.state(atRow: 0, column: 0),
+            .empty
+        )
+    }
+
+    func testChallengeRejectsCatOutsideUniqueSolutionAndCountsMistake() throws {
+        let fixture = BuiltInLevels.meadowFixture
+        var engine = try GameEngine(
+            fixture: fixture,
+            mode: .challenge
+        )
+
+        XCTAssertThrowsError(
+            try engine.setState(.cat, atRow: 0, column: 0)
+        ) { error in
+            XCTAssertEqual(
+                error as? GameEngineError,
+                .incorrectCatPlacement
+            )
+        }
+
+        XCTAssertEqual(
+            engine.state.puzzle.state(atRow: 0, column: 0),
+            .empty
+        )
+        XCTAssertEqual(engine.state.mistakeCount, 1)
+        XCTAssertFalse(engine.canUndo)
+        XCTAssertFalse(engine.undo())
+    }
+
+    func testChallengeAcceptsSolutionCatButNeverCreatesUndoHistory() throws {
+        let fixture = BuiltInLevels.meadowFixture
+        let position = fixture.solution[0]
+        var engine = try GameEngine(
+            fixture: fixture,
+            mode: .challenge
+        )
+
+        try engine.setState(
+            .cat,
+            atRow: position.row,
+            column: position.column
+        )
+        try engine.setState(.excluded, atRow: 2, column: 2)
+
+        XCTAssertEqual(
+            engine.state.puzzle.state(
+                atRow: position.row,
+                column: position.column
+            ),
+            .cat
+        )
+        XCTAssertFalse(engine.canUndo)
+        XCTAssertFalse(engine.undo())
+    }
+
+    func testChangingModeClearsHistoryAndAppliesNewPlacementPolicy() throws {
+        let fixture = BuiltInLevels.meadowFixture
+        var engine = try GameEngine(
+            fixture: fixture,
+            mode: .exploration
+        )
+        try engine.setState(.excluded, atRow: 2, column: 2)
+        XCTAssertTrue(engine.canUndo)
+
+        engine.setMode(.challenge)
+
+        XCTAssertEqual(engine.state.mode, .challenge)
+        XCTAssertFalse(engine.canUndo)
+        XCTAssertThrowsError(
+            try engine.setState(.cat, atRow: 0, column: 0)
+        ) { error in
+            XCTAssertEqual(
+                error as? GameEngineError,
+                .incorrectCatPlacement
+            )
+        }
+        XCTAssertEqual(engine.state.mistakeCount, 1)
+
+        engine.setMode(.exploration)
+        XCTAssertFalse(engine.canUndo)
+        try engine.setState(.cat, atRow: 0, column: 0)
+        XCTAssertTrue(engine.canUndo)
+    }
+
     func testSettingSameStateIsNoOpWithoutUndoHistory() throws {
         var engine = try GameEngine(level: BuiltInLevels.meadow)
         try engine.setState(.excluded, atRow: 2, column: 3)

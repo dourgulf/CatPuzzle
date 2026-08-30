@@ -18,6 +18,12 @@ enum BoardDragMode: Equatable {
     }
 }
 
+enum CellHintEmphasis: Equatable {
+    case normal
+    case dimmed
+    case result
+}
+
 struct BoardLayout {
     let side: CGFloat
     let size: Int
@@ -82,6 +88,8 @@ struct BoardView: View {
 
     let puzzle: Puzzle
     let previewStates: [CellPosition: CellState]
+    let showsRegionIcons: Bool
+    let hint: LogicalHint?
     let onTap: (Int, Int) -> Void
     let onDragSetExcluded: (Bool, Int, Int) -> Void
     let onToggleCatAccessibility: (Int, Int) -> Void
@@ -102,10 +110,14 @@ struct BoardView: View {
                 ForEach(0..<puzzle.size, id: \.self) { row in
                     HStack(spacing: spacing) {
                         ForEach(0..<puzzle.size, id: \.self) { column in
+                            let position = CellPosition(
+                                row: row,
+                                column: column
+                            )
+                            let hintState = hintState(at: position)
                             CellView(
-                                state: previewStates[
-                                    CellPosition(row: row, column: column)
-                                ] ?? puzzle.state(
+                                state: hintState ?? previewStates[position]
+                                    ?? puzzle.state(
                                     atRow: row,
                                     column: column
                                 ) ?? .empty,
@@ -115,6 +127,10 @@ struct BoardView: View {
                                 )?.regionID ?? 0,
                                 row: row,
                                 column: column,
+                                cellSide: layout.cellSide,
+                                showsRegionIcon: showsRegionIcons,
+                                hintEmphasis: hintEmphasis(at: position),
+                                allowsInteraction: hint == nil,
                                 onTap: {
                                     onTap(row, column)
                                 },
@@ -149,7 +165,30 @@ struct BoardView: View {
             .frame(width: side, height: side)
             .contentShape(Rectangle())
             .gesture(boardGesture(layout: layout))
+            .allowsHitTesting(hint == nil)
         }
+    }
+
+    private func hintState(at position: CellPosition) -> CellState? {
+        guard let action = hint?.actions.first(where: { action in
+            switch action {
+            case let .placeCat(target), let .exclude(target):
+                target == position
+            }
+        }) else {
+            return nil
+        }
+        switch action {
+        case .placeCat:
+            return .cat
+        case .exclude:
+            return .excluded
+        }
+    }
+
+    private func hintEmphasis(at position: CellPosition) -> CellHintEmphasis {
+        guard let hint else { return .normal }
+        return hint.positions.contains(position) ? .result : .dimmed
     }
 
     private func boardGesture(layout: BoardLayout) -> some Gesture {

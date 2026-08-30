@@ -74,6 +74,79 @@ final class AppSessionTests: XCTestCase {
             emptySavedStates()
         )
         XCTAssertEqual(store.progress.activeGame?.mistakeCount, 0)
+        XCTAssertEqual(store.progress.activeGame?.mode, .challenge)
+        XCTAssertEqual(session.gameViewModel?.mode, .challenge)
+    }
+
+    func testStartingExplorationPersistsModeAndRestoresIt() {
+        let store = InMemoryGameProgressStore()
+        let session = AppSession(progressStore: store)
+
+        session.setGameplayMode(.exploration)
+        session.startNextLevel()
+        session.gameViewModel?.toggleExcluded(atRow: 1, column: 2)
+
+        let restoredSession = AppSession(progressStore: store)
+
+        XCTAssertEqual(store.progress.activeGame?.mode, .exploration)
+        XCTAssertEqual(restoredSession.gameViewModel?.mode, .exploration)
+        restoredSession.gameViewModel?.toggleExcluded(atRow: 2, column: 2)
+        XCTAssertTrue(restoredSession.gameViewModel?.canUndo == true)
+    }
+
+    func testChallengeWrongCatAutosavesMistakeWithoutChangingCell() {
+        let store = InMemoryGameProgressStore()
+        let session = AppSession(progressStore: store)
+        session.startNextLevel()
+
+        session.gameViewModel?.toggleCat(atRow: 0, column: 0)
+
+        XCTAssertEqual(store.progress.activeGame?.mistakeCount, 1)
+        XCTAssertEqual(
+            store.progress.activeGame?.states[index(row: 0, column: 0)],
+            .empty
+        )
+        XCTAssertFalse(session.gameViewModel?.canUndo == true)
+    }
+
+    func testSettingsModeChangeUpdatesActiveGameAndPersistsPreference() {
+        let store = InMemoryGameProgressStore()
+        let session = AppSession(progressStore: store)
+        session.startNextLevel()
+
+        session.setGameplayMode(.exploration)
+        session.gameViewModel?.toggleExcluded(atRow: 2, column: 2)
+
+        XCTAssertEqual(session.gameplayMode, .exploration)
+        XCTAssertEqual(session.gameViewModel?.mode, .exploration)
+        XCTAssertTrue(session.gameViewModel?.canUndo == true)
+        XCTAssertEqual(store.progress.preferredMode, .exploration)
+        XCTAssertEqual(store.progress.activeGame?.mode, .exploration)
+    }
+
+    func testRegionIconsAreHiddenByDefaultAndPreferencePersists() {
+        let store = InMemoryGameProgressStore()
+        let session = AppSession(progressStore: store)
+
+        XCTAssertFalse(session.showsRegionIcons)
+
+        session.setShowsRegionIcons(true)
+        let restoredSession = AppSession(progressStore: store)
+
+        XCTAssertTrue(store.progress.showsRegionIcons)
+        XCTAssertTrue(restoredSession.showsRegionIcons)
+    }
+
+    func testSettingsRestartClearsCurrentBoardAndMistakes() {
+        let store = InMemoryGameProgressStore()
+        let session = startedSession(store: store)
+        session.gameViewModel?.toggleExcluded(atRow: 2, column: 2)
+
+        session.restartCurrentGame()
+
+        XCTAssertEqual(session.gameViewModel?.puzzle.states, emptyCellStates())
+        XCTAssertEqual(store.progress.activeGame?.states, emptySavedStates())
+        XCTAssertEqual(store.progress.activeGame?.mistakeCount, 0)
     }
 
     func testCellChangeAutosavesUpdatedState() {
@@ -299,6 +372,7 @@ final class AppSessionTests: XCTestCase {
         store: InMemoryGameProgressStore
     ) -> AppSession {
         let session = AppSession(progressStore: store)
+        session.setGameplayMode(.exploration)
         session.startNextLevel()
         return session
     }

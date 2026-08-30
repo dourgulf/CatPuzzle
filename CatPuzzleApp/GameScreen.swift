@@ -1,7 +1,9 @@
+import CatPuzzleCore
 import SwiftUI
 
 struct GameScreen: View {
     @ObservedObject var viewModel: GameViewModel
+    let showsRegionIcons: Bool
     let onContinue: () -> Void
 
     var body: some View {
@@ -14,6 +16,8 @@ struct GameScreen: View {
                     BoardView(
                         puzzle: viewModel.puzzle,
                         previewStates: viewModel.previewStates,
+                        showsRegionIcons: showsRegionIcons,
+                        hint: viewModel.hint,
                         onTap: viewModel.handleCellTap,
                         onDragSetExcluded: viewModel.setExcludedDuringDrag,
                         onToggleCatAccessibility: viewModel.toggleCat
@@ -21,35 +25,49 @@ struct GameScreen: View {
                     .frame(maxWidth: 430)
                     .aspectRatio(1, contentMode: .fit)
 
-                    Text("Tap to mark ×  ·  Double-tap to place a paw")
-                        .font(.footnote.weight(.medium))
-                        .foregroundStyle(CatPuzzleTheme.textSecondary)
-                        .multilineTextAlignment(.center)
+                    if let hint = viewModel.hint {
+                        HintPanel(
+                            description: HintDescription.text(for: hint),
+                            onApply: viewModel.applyHint,
+                            onCancel: viewModel.dismissHint
+                        )
+                    } else {
+                        Text("Tap to mark ×  ·  Double-tap to place a paw")
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(CatPuzzleTheme.textSecondary)
+                            .multilineTextAlignment(.center)
+                    }
 
                     feedback
 
                     HStack(spacing: 12) {
                         Button {
-                            viewModel.undo()
+                            viewModel.requestHint()
                         } label: {
-                            Label("Undo", systemImage: "arrow.uturn.backward")
+                            Label("Hint", systemImage: "lightbulb.fill")
                                 .font(.headline)
                                 .frame(maxWidth: .infinity, minHeight: 50)
                         }
-                        .buttonStyle(.borderedProminent)
                         .buttonBorderShape(.roundedRectangle(radius: 16))
-                        .disabled(!viewModel.canUndo)
-
-                        Button {
-                            viewModel.restart()
-                        } label: {
-                            Label("Restart", systemImage: "arrow.clockwise")
-                                .font(.headline)
-                                .frame(maxWidth: .infinity, minHeight: 50)
-                        }
                         .buttonStyle(.bordered)
-                        .buttonBorderShape(.roundedRectangle(radius: 16))
-                        .tint(CatPuzzleTheme.textPrimary)
+                        .disabled(viewModel.hint != nil)
+                        .accessibilityIdentifier("request-hint")
+
+                        if viewModel.allowsUndo {
+                            Button {
+                                viewModel.undo()
+                            } label: {
+                                Label(
+                                    "Undo",
+                                    systemImage: "arrow.uturn.backward"
+                                )
+                                .font(.headline)
+                                .frame(maxWidth: .infinity, minHeight: 50)
+                            }
+                            .buttonBorderShape(.roundedRectangle(radius: 16))
+                            .buttonStyle(.borderedProminent)
+                            .disabled(!viewModel.canUndo)
+                        }
                     }
                 }
                 .padding(.horizontal, 16)
@@ -63,6 +81,7 @@ struct GameScreen: View {
                 overlayBackdrop(content: failedOverlay)
             }
         }
+        .sensoryFeedback(.selection, trigger: viewModel.markerFeedbackSequence)
     }
 
     private var header: some View {
@@ -74,6 +93,10 @@ struct GameScreen: View {
                     .foregroundStyle(CatPuzzleTheme.textSecondary)
                 Text(viewModel.level.id.capitalized)
                     .font(.title2.bold())
+                Text(viewModel.mode == .exploration ? "EXPLORE" : "CHALLENGE")
+                    .font(.caption2.bold())
+                    .tracking(1.2)
+                    .foregroundStyle(CatPuzzleTheme.action)
             }
 
             Spacer()
@@ -93,6 +116,7 @@ struct GameScreen: View {
                 )
                 .accessibilityIdentifier("mistake-count")
         }
+        .padding(.trailing, 44)
     }
 
     private var ruleReminder: some View {
@@ -187,6 +211,86 @@ struct GameScreen: View {
             in: RoundedRectangle(cornerRadius: 24, style: .continuous)
         )
         .shadow(color: CatPuzzleTheme.textPrimary.opacity(0.16), radius: 20, y: 10)
+    }
+}
+
+private struct HintPanel: View {
+    let description: String
+    let onApply: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Logical Hint", systemImage: "lightbulb.fill")
+                .font(.headline)
+                .foregroundStyle(CatPuzzleTheme.action)
+            Text(description)
+                .font(.subheadline)
+                .foregroundStyle(CatPuzzleTheme.textSecondary)
+
+            HStack(spacing: 12) {
+                Button("Cancel", action: onCancel)
+                    .buttonStyle(.bordered)
+                    .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier("cancel-hint")
+                Button("Apply", action: onApply)
+                    .buttonStyle(.borderedProminent)
+                    .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier("apply-hint")
+            }
+        }
+        .padding(16)
+        .background(
+            CatPuzzleTheme.surface,
+            in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(CatPuzzleTheme.divider, lineWidth: 1)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("logical-hint-panel")
+    }
+}
+
+enum HintDescription {
+    static func text(for hint: LogicalHint) -> String {
+        switch hint.reason {
+        case let .onlyCandidateInRow(row):
+            "Row \(row + 1) has only one possible cell left. Place a cat there."
+        case let .onlyCandidateInColumn(column):
+            "Column \(column + 1) has only one possible cell left. Place a cat there."
+        case let .onlyCandidateForRegion(regionID):
+            "Region \(regionID + 1) has only one possible cell left. Place a cat there."
+        case let .rowAlreadyHasCat(row):
+            "Row \(row + 1) already has its cat. Exclude the highlighted cells."
+        case let .columnAlreadyHasCat(column):
+            "Column \(column + 1) already has its cat. Exclude the highlighted cells."
+        case let .regionAlreadyHasCat(regionID):
+            "Region \(regionID + 1) already has its cat. Exclude the highlighted cells."
+        case .adjacentToConfirmedCat:
+            "Cats cannot touch, including diagonally. Exclude the highlighted cells."
+        case let .lockedSet(sources, targets):
+            "The cats in \(constraintList(sources)) are locked into \(constraintList(targets)). Exclude the highlighted cells."
+        case let .commonAttack(constraint, _):
+            "Every possible cat in \(constraintName(constraint)) conflicts with the highlighted cell. Exclude it."
+        case let .strongLinkCommonElimination(link):
+            "One of the two cells in \(constraintName(link.constraint)) must contain a cat. The highlighted cell conflicts with both."
+        case .contradictionFromAssumption:
+            "That candidate leads to a contradiction, so exclude the highlighted cell."
+        }
+    }
+
+    private static func constraintList(_ constraints: [ConstraintKind]) -> String {
+        constraints.map(constraintName).joined(separator: " and ")
+    }
+
+    private static func constraintName(_ constraint: ConstraintKind) -> String {
+        switch constraint {
+        case let .row(row): "row \(row + 1)"
+        case let .column(column): "column \(column + 1)"
+        case let .region(regionID): "region \(regionID + 1)"
+        }
     }
 }
 
