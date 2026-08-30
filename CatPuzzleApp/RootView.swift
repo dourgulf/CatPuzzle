@@ -33,7 +33,7 @@ enum CatPuzzleTheme {
         blue: 215.0 / 255.0
     )
 
-    private static let groupColors: [Color] = [
+    private static let regionColors: [Color] = [
         Color(red: 237.0 / 255.0, green: 134.0 / 255.0, blue: 213.0 / 255.0),
         Color(red: 56.0 / 255.0, green: 170.0 / 255.0, blue: 112.0 / 255.0),
         Color(red: 244.0 / 255.0, green: 207.0 / 255.0, blue: 104.0 / 255.0),
@@ -42,7 +42,7 @@ enum CatPuzzleTheme {
         Color(red: 137.0 / 255.0, green: 207.0 / 255.0, blue: 120.0 / 255.0),
     ]
 
-    private static let groupSymbols = [
+    private static let regionSymbols = [
         "circle.fill",
         "triangle.fill",
         "square.fill",
@@ -51,20 +51,20 @@ enum CatPuzzleTheme {
         "hexagon.fill",
     ]
 
-    static func groupColor(for colorID: Int) -> Color {
-        groupColors[normalizedIndex(for: colorID)]
+    static func regionColor(for regionID: Int) -> Color {
+        regionColors[normalizedIndex(for: regionID)]
     }
 
-    static func groupSymbol(for colorID: Int) -> String {
-        groupSymbols[normalizedIndex(for: colorID)]
+    static func regionSymbol(for regionID: Int) -> String {
+        regionSymbols[normalizedIndex(for: regionID)]
     }
 
-    static func groupName(for colorID: Int) -> String {
-        "Group \(normalizedIndex(for: colorID) + 1)"
+    static func regionName(for regionID: Int) -> String {
+        "Region \(normalizedIndex(for: regionID) + 1)"
     }
 
-    static func markerColor(for colorID: Int) -> Color {
-        switch normalizedIndex(for: colorID) {
+    static func markerColor(for regionID: Int) -> Color {
+        switch normalizedIndex(for: regionID) {
         case 3, 4:
             .white
         default:
@@ -72,9 +72,9 @@ enum CatPuzzleTheme {
         }
     }
 
-    private static func normalizedIndex(for colorID: Int) -> Int {
-        let count = groupColors.count
-        return ((colorID % count) + count) % count
+    private static func normalizedIndex(for regionID: Int) -> Int {
+        let count = regionColors.count
+        return ((regionID % count) + count) % count
     }
 }
 

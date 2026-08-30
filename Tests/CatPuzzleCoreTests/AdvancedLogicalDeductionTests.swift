@@ -2,24 +2,24 @@ import XCTest
 @testable import CatPuzzleCore
 
 /// Regression coverage for the advanced deterministic deductions added on
-/// top of the basic row/column/color singles: generalized locked sets
-/// (Hall sets, K=2/3, both directions across Row/Column/Color), common
+/// top of the basic row/column/Region singles: generalized locked sets
+/// (Hall sets, K=2/3, both directions across Row/Column/Region), common
 /// attack, and strong-link common elimination.
 final class AdvancedLogicalDeductionTests: XCTestCase {
     // MARK: - Locked pair (K = 2)
 
     /// Rows 2 and 3 have been reduced (by prior exclusions) so their only
-    /// remaining candidates are colors 2 and 3. That is a locked pair in
-    /// the Row -> Color direction: rows {2, 3} must be filled entirely by
-    /// colors {2, 3}, so any other color-2/color-3 candidate elsewhere
+    /// remaining candidates are Regions 2 and 3. That is a locked pair in
+    /// the Row -> Region direction: rows {2, 3} must be filled entirely by
+    /// Regions {2, 3}, so any other Region-2/Region-3 candidate elsewhere
     /// (here, in rows 0 and 1) can be excluded.
-    func testLockedPairExcludesOtherColorCandidatesWhenRowsAreConfinedToTwoColors() throws {
+    func testLockedPairExcludesOtherRegionCandidatesWhenRowsAreConfinedToTwoRegions() throws {
         let level = LevelDefinition(
-            id: "locked-pair-row-color",
+            id: "locked-pair-row-region",
             size: 4,
             catCount: 4,
             maxMistakes: 5,
-            colorIDs: [
+            regionIDs: [
                 [0, 1, 2, 3],
                 [0, 1, 2, 3],
                 [2, 3, 0, 1],
@@ -36,7 +36,7 @@ final class AdvancedLogicalDeductionTests: XCTestCase {
         let result = LogicalPuzzleSolver.solve(level: level, puzzle: puzzle)
 
         let sources: [ConstraintKind] = [.row(2), .row(3)]
-        let targets: [ConstraintKind] = [.color(2), .color(3)]
+        let targets: [ConstraintKind] = [.region(2), .region(3)]
         XCTAssertTrue(result.report.steps.contains(
             LogicalStep(
                 action: .exclude(CellPosition(row: 0, column: 2)),
@@ -57,7 +57,7 @@ final class AdvancedLogicalDeductionTests: XCTestCase {
     /// rows {0, 1}, so the other rows' candidates in those columns can be
     /// excluded.
     func testLockedPairExcludesOtherRowCandidatesWhenRowsAreConfinedToTwoColumns() throws {
-        let level = rowColoredLevel(id: "locked-pair-row-column")
+        let level = rowRegionLevel(id: "locked-pair-row-column")
         let puzzle = try puzzle(for: level, candidates: positions([
             (0, 0), (0, 1),
             (1, 0), (1, 1),
@@ -84,16 +84,16 @@ final class AdvancedLogicalDeductionTests: XCTestCase {
         XCTAssertEqual(result.report.statistics.lockedPairCount, 1)
     }
 
-    /// Columns 2 and 3 only have candidates of colors 2 and 3: a locked
-    /// pair in the Column -> Color direction, excluding those colors'
+    /// Columns 2 and 3 only have candidates of Regions 2 and 3: a locked
+    /// pair in the Column -> Region direction, excluding those Regions'
     /// other candidates (here, in columns 0 and 1).
-    func testLockedPairExcludesOtherColorCandidatesWhenColumnsAreConfinedToTwoColors() throws {
+    func testLockedPairExcludesOtherRegionCandidatesWhenColumnsAreConfinedToTwoRegions() throws {
         let level = LevelDefinition(
-            id: "locked-pair-column-color",
+            id: "locked-pair-column-region",
             size: 4,
             catCount: 4,
             maxMistakes: 5,
-            colorIDs: (0..<4).map { row in (0..<4).map { column in (row + column) % 4 } }
+            regionIDs: (0..<4).map { row in (0..<4).map { column in (row + column) % 4 } }
         )
         let puzzle = try puzzle(for: level, candidates: positions([
             (0, 0), (0, 1), (0, 2), (0, 3),
@@ -105,7 +105,7 @@ final class AdvancedLogicalDeductionTests: XCTestCase {
         let result = LogicalPuzzleSolver.solve(level: level, puzzle: puzzle)
 
         let sources: [ConstraintKind] = [.column(2), .column(3)]
-        let targets: [ConstraintKind] = [.color(2), .color(3)]
+        let targets: [ConstraintKind] = [.region(2), .region(3)]
         XCTAssertTrue(result.report.steps.contains(
             LogicalStep(
                 action: .exclude(CellPosition(row: 1, column: 1)),
@@ -121,7 +121,7 @@ final class AdvancedLogicalDeductionTests: XCTestCase {
     /// Row -> Column direction, excluding rows 3-5's candidates in those
     /// same three columns.
     func testLockedTripleExcludesOtherRowCandidatesWhenRowsAreConfinedToThreeColumns() throws {
-        let level = rowColoredLevel(id: "locked-triple-row-column", size: 6)
+        let level = rowRegionLevel(id: "locked-triple-row-column", size: 6)
         let puzzle = try puzzle(for: level, candidates: positions([
             (0, 0), (0, 1), (0, 2),
             (1, 0), (1, 1), (1, 2),
@@ -155,7 +155,7 @@ final class AdvancedLogicalDeductionTests: XCTestCase {
     /// whichever of them ends up being row 1's cat, (2, 1) can never be
     /// one too.
     func testCommonAttackExcludesCandidateConflictingWithEveryRemainingRowCandidate() throws {
-        let level = rowColoredLevel(id: "common-attack")
+        let level = rowRegionLevel(id: "common-attack")
         let puzzle = try puzzle(for: level, candidates: positions([
             (0, 0), (0, 3),
             (1, 0), (1, 1), (1, 2),
@@ -187,7 +187,7 @@ final class AdvancedLogicalDeductionTests: XCTestCase {
     /// strong link. (0, 1) is 8-adjacent to both, so no matter which of
     /// the two ends up being row 1's cat, (0, 1) can never be a cat.
     func testStrongLinkExcludesCandidateConflictingWithBothLinkMembers() throws {
-        let level = rowColoredLevel(id: "strong-link")
+        let level = rowRegionLevel(id: "strong-link")
         let puzzle = try puzzle(for: level, candidates: positions([
             (0, 0), (0, 1), (0, 3),
             (1, 0), (1, 2),
@@ -213,7 +213,7 @@ final class AdvancedLogicalDeductionTests: XCTestCase {
     // MARK: - Determinism / no-op guard
 
     func testAdvancedDeductionsAreDeterministic() throws {
-        let level = rowColoredLevel(id: "advanced-deterministic")
+        let level = rowRegionLevel(id: "advanced-deterministic")
         let puzzle = try puzzle(for: level, candidates: positions([
             (0, 0), (0, 3),
             (1, 0), (1, 1), (1, 2),
@@ -231,10 +231,10 @@ final class AdvancedLogicalDeductionTests: XCTestCase {
     /// source union remains in the target constraints) must not be
     /// recorded as a deduction or counted in statistics.
     func testLockedSetWithNoNewExclusionsIsNotCounted() throws {
-        // colorIDs[row] == row uniformly, so every (row, color) locked-set
-        // candidacy is a complete no-op: a color's full candidate set is
+        // regionIDs[row] == row uniformly, so every (row, Region) locked-set
+        // candidacy is a complete no-op: a Region's full candidate set is
         // always identical to its same-indexed row's candidate set.
-        let level = rowColoredLevel(id: "no-op-locked-set")
+        let level = rowRegionLevel(id: "no-op-locked-set")
         let result = LogicalPuzzleSolver.solve(level: level)
 
         XCTAssertFalse(result.report.steps.contains {
@@ -247,13 +247,13 @@ final class AdvancedLogicalDeductionTests: XCTestCase {
 
     // MARK: - Helpers
 
-    private func rowColoredLevel(id: String, size: Int = 4) -> LevelDefinition {
+    private func rowRegionLevel(id: String, size: Int = 4) -> LevelDefinition {
         LevelDefinition(
             id: id,
             size: size,
             catCount: size,
             maxMistakes: 5,
-            colorIDs: (0..<size).map { row in Array(repeating: row, count: size) }
+            regionIDs: (0..<size).map { row in Array(repeating: row, count: size) }
         )
     }
 
@@ -268,7 +268,7 @@ final class AdvancedLogicalDeductionTests: XCTestCase {
                     : CellState.excluded
             }
         }
-        return try Puzzle(size: level.size, colorIDs: level.colorIDs, states: states)
+        return try Puzzle(size: level.size, regionIDs: level.regionIDs, states: states)
     }
 
     private func positions(_ values: [(Int, Int)]) -> Set<CellPosition> {

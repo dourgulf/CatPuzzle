@@ -24,7 +24,7 @@ public enum PuzzleDifficultyAnalyzer {
             switch step.reason {
             case .onlyCandidateInRow, .onlyCandidateInColumn:
                 score += 1
-            case .onlyCandidateForColor:
+            case .onlyCandidateForRegion:
                 score += 2
             default:
                 break

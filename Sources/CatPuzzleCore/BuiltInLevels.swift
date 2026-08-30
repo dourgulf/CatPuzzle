@@ -5,7 +5,7 @@ public enum BuiltInLevels {
             size: 6,
             catCount: 6,
             maxMistakes: 5,
-            colorIDs: [
+            regionIDs: [
                 [2, 4, 1, 1, 1, 4],
                 [1, 1, 1, 0, 1, 1],
                 [2, 2, 1, 1, 1, 3],
@@ -30,7 +30,7 @@ public enum BuiltInLevels {
             size: 6,
             catCount: 6,
             maxMistakes: 5,
-            colorIDs: [
+            regionIDs: [
                 [2, 1, 3, 3, 3, 2],
                 [3, 1, 3, 4, 4, 2],
                 [1, 1, 1, 4, 5, 2],
@@ -55,7 +55,7 @@ public enum BuiltInLevels {
             size: 6,
             catCount: 6,
             maxMistakes: 5,
-            colorIDs: [
+            regionIDs: [
                 [5, 2, 5, 3, 1, 4],
                 [5, 2, 4, 3, 1, 4],
                 [4, 2, 3, 3, 1, 3],

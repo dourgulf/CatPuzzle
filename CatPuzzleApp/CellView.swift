@@ -5,7 +5,7 @@ struct CellView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     let state: CellState
-    let colorID: Int
+    let regionID: Int
     let row: Int
     let column: Int
     let onTap: () -> Void
@@ -14,12 +14,12 @@ struct CellView: View {
     var body: some View {
         ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(CatPuzzleTheme.groupColor(for: colorID))
+                .fill(CatPuzzleTheme.regionColor(for: regionID))
 
-            Image(systemName: CatPuzzleTheme.groupSymbol(for: colorID))
+            Image(systemName: CatPuzzleTheme.regionSymbol(for: regionID))
                 .font(.system(size: 7, weight: .bold))
                 .foregroundStyle(
-                    CatPuzzleTheme.markerColor(for: colorID).opacity(0.45)
+                    CatPuzzleTheme.markerColor(for: regionID).opacity(0.45)
                 )
                 .padding(6)
                 .accessibilityHidden(true)
@@ -39,7 +39,7 @@ struct CellView: View {
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(
                 "Row \(row + 1), Column \(column + 1), "
-                    + CatPuzzleTheme.groupName(for: colorID)
+                    + CatPuzzleTheme.regionName(for: regionID)
             )
             .accessibilityValue(accessibilityValue)
             .accessibilityHint("Activate to mark excluded.")

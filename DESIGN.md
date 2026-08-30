@@ -25,7 +25,7 @@ Use semantic tokens rather than colors embedded directly in views.
 | `warning` | `#FF704F` | Illegal placement and mistakes |
 | `divider` | `#E9DED7` | Quiet separators and cell grid |
 
-The six board groups use clear mid-value colors: pink `#ED86D5`, green `#38AA70`, yellow `#F4CF68`, blue `#5D83B4`, brown `#AE7654`, and lime `#89CF78`. Keep fills at full or near-full opacity; washed-out colors make the rules harder to read. Every group must also have a subtle visual symbol and an accessibility label because color alone cannot distinguish disconnected cells for all players.
+The six board Regions use clear mid-value colors: pink `#ED86D5`, green `#38AA70`, yellow `#F4CF68`, blue `#5D83B4`, brown `#AE7654`, and lime `#89CF78`. Keep fills at full or near-full opacity; washed-out colors make the rules harder to read. Every Region must also have a subtle visual symbol and an accessibility label because color alone cannot distinguish Regions for all players.
 
 ## Typography & Shape
 
@@ -47,9 +47,9 @@ Do not add score, timer, advertisements, power-ups, or a level list unless produ
 
 ## Cell States & Interaction
 
-- **Empty:** vivid group fill with no central mark.
+- **Empty:** vivid Region fill with no central mark.
 - **Excluded:** large high-contrast `×`, visually centered and readable without relying on opacity.
-- **Cat:** a single original cat/paw mark with strong separation from the group fill.
+- **Cat:** a single original cat/paw mark with strong separation from the Region fill.
 - **Illegal placement:** keep the cell unchanged; show brief warning feedback and update the mistake count.
 
 Single-tap feedback must appear immediately. A same-cell second tap within the app’s double-tap interval resolves to one cat operation, without leaving an exclusion or creating an extra Undo entry. Provide explicit accessibility actions for marking excluded and toggling a cat. Interactive targets must be at least 44×44 pt.
@@ -58,12 +58,12 @@ Dragging from an empty cell continuously marks cells as excluded. Dragging from 
 
 ## Motion & Accessibility
 
-Use 120–200 ms ease-out transitions for marks and overlays. Completion may use one restrained scale/fade animation. Respect Reduce Motion and avoid continuous animation. Maintain WCAG AA text contrast, never communicate status with color alone, and give every cell a row, column, group, and state accessibility description.
+Use 120–200 ms ease-out transitions for marks and overlays. Completion may use one restrained scale/fade animation. Respect Reduce Motion and avoid continuous animation. Maintain WCAG AA text contrast, never communicate status with color alone, and give every cell a row, column, Region, and state accessibility description.
 
 ## Review Checklist
 
 - The board remains legible at the smallest supported iPhone size.
-- All six groups, cell states, and primary actions are distinguishable.
+- All six Regions, cell states, and primary actions are distinguishable.
 - Dynamic Type and VoiceOver do not hide game state or controls.
 - Visible UI changes include light-mode screenshots in the pull request.
 - New visuals remain original and consistent with these semantic tokens.

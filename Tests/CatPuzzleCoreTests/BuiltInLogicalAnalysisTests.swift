@@ -53,7 +53,7 @@ final class BuiltInLogicalAnalysisTests: XCTestCase {
     }
 
     /// The three shipped levels are fully solvable with basic row/column/
-    /// color singles alone; the advanced locked-set / common-attack /
+    /// Region singles alone; the advanced locked-set / common-attack /
     /// strong-link techniques added alongside this test are not required
     /// (and must not spuriously fire) for any of them.
     func testBuiltInLevelsDoNotNeedAdvancedTechniques() {

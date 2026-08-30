@@ -2,7 +2,7 @@
 public enum ConstraintKind: Hashable, Sendable {
     case row(Int)
     case column(Int)
-    case color(Int)
+    case region(Int)
 }
 
 extension ConstraintKind: Comparable {
@@ -16,8 +16,8 @@ extension ConstraintKind: Comparable {
             return (0, row)
         case let .column(column):
             return (1, column)
-        case let .color(colorID):
-            return (2, colorID)
+        case let .region(regionID):
+            return (2, regionID)
         }
     }
 }
@@ -40,7 +40,7 @@ public struct StrongLink: Equatable, Hashable, Sendable {
 enum ConstraintFamily: CaseIterable {
     case row
     case column
-    case color
+    case region
 }
 
 /// An exactly-one constraint together with its currently open candidates.

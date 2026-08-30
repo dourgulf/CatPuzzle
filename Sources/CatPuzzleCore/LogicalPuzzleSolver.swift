@@ -34,15 +34,15 @@ public enum LogicalPuzzleSolver {
 
 /// Ordered (source family, target family) pairs scanned by locked-set
 /// deduction. Both directions of each of the three unordered family pairs
-/// (Row/Column, Row/Color, Column/Color) are covered, and the order is
+/// (Row/Column, Row/Region, Column/Region) are covered, and the order is
 /// fixed so repeated solves are deterministic.
 private let lockedSetFamilyPairs: [(ConstraintFamily, ConstraintFamily)] = [
     (.row, .column),
     (.column, .row),
-    (.row, .color),
-    (.color, .row),
-    (.column, .color),
-    (.color, .column),
+    (.row, .region),
+    (.region, .row),
+    (.column, .region),
+    (.region, .column),
 ]
 
 private enum AdvancedDeductionKind {
@@ -227,7 +227,7 @@ private struct LogicalSolveEngine {
 
     private mutating func propagateConstraints(from cat: CellPosition) {
         var eventExcludedCount = 0
-        let catColorID = level.colorIDs[cat.row][cat.column]
+        let catRegionID = level.regionIDs[cat.row][cat.column]
 
         for position in board.sortedCandidates {
             let reason: LogicalReason?
@@ -235,8 +235,8 @@ private struct LogicalSolveEngine {
                 reason = .rowAlreadyHasCat(row: cat.row)
             } else if position.column == cat.column {
                 reason = .columnAlreadyHasCat(column: cat.column)
-            } else if level.colorIDs[position.row][position.column] == catColorID {
-                reason = .colorAlreadyHasCat(colorID: catColorID)
+            } else if level.regionIDs[position.row][position.column] == catRegionID {
+                reason = .regionAlreadyHasCat(regionID: catRegionID)
             } else if areAdjacent(position, cat) {
                 reason = .adjacentToConfirmedCat(cat)
             } else {
@@ -278,12 +278,12 @@ private struct LogicalSolveEngine {
             }
         }
 
-        for colorID in board.colorIDs where !board.hasCat(forColor: colorID) {
-            let candidates = board.candidates(forColor: colorID)
+        for regionID in board.regionIDs where !board.hasCat(forRegion: regionID) {
+            let candidates = board.candidates(forRegion: regionID)
             if candidates.count == 1 {
                 return Deduction(
                     position: candidates[0],
-                    reason: .onlyCandidateForColor(colorID: colorID)
+                    reason: .onlyCandidateForRegion(regionID: regionID)
                 )
             }
         }
@@ -469,8 +469,8 @@ private struct LogicalSolveEngine {
                 let second = cats[secondIndex]
                 if first.row == second.row
                     || first.column == second.column
-                    || level.colorIDs[first.row][first.column]
-                        == level.colorIDs[second.row][second.column]
+                    || level.regionIDs[first.row][first.column]
+                        == level.regionIDs[second.row][second.column]
                     || areAdjacent(first, second) {
                     return true
                 }
@@ -486,9 +486,9 @@ private struct LogicalSolveEngine {
             && board.candidates(inColumn: column).isEmpty {
             return true
         }
-        for colorID in board.colorIDs
-        where !board.hasCat(forColor: colorID)
-            && board.candidates(forColor: colorID).isEmpty {
+        for regionID in board.regionIDs
+        where !board.hasCat(forRegion: regionID)
+            && board.candidates(forRegion: regionID).isEmpty {
             return true
         }
 
@@ -499,7 +499,7 @@ private struct LogicalSolveEngine {
         guard board.confirmedCats.count == level.catCount else { return false }
         return (0..<level.size).allSatisfy(board.hasCat(inRow:))
             && (0..<level.size).allSatisfy(board.hasCat(inColumn:))
-            && board.colorIDs.allSatisfy(board.hasCat(forColor:))
+            && board.regionIDs.allSatisfy(board.hasCat(forRegion:))
             && !hasContradiction
     }
 
@@ -532,14 +532,14 @@ private struct Deduction {
 
 private struct CandidateBoard {
     let size: Int
-    let colorIDsByCell: [[Int]]
+    let regionIDsByCell: [[Int]]
     var candidates: Set<CellPosition>
     var confirmedCats: Set<CellPosition>
     var excluded: Set<CellPosition>
 
     init(level: LevelDefinition, puzzle: Puzzle) {
         self.size = level.size
-        self.colorIDsByCell = level.colorIDs
+        self.regionIDsByCell = level.regionIDs
         self.candidates = []
         self.confirmedCats = []
         self.excluded = []
@@ -561,8 +561,8 @@ private struct CandidateBoard {
         }
     }
 
-    var colorIDs: [Int] {
-        Array(Set(colorIDsByCell.flatMap { $0 })).sorted()
+    var regionIDs: [Int] {
+        Array(Set(regionIDsByCell.flatMap { $0 })).sorted()
     }
 
     var sortedCandidates: [CellPosition] {
@@ -609,9 +609,9 @@ private struct CandidateBoard {
         confirmedCats.contains { $0.column == column }
     }
 
-    func hasCat(forColor colorID: Int) -> Bool {
+    func hasCat(forRegion regionID: Int) -> Bool {
         confirmedCats.contains {
-            colorIDsByCell[$0.row][$0.column] == colorID
+            regionIDsByCell[$0.row][$0.column] == regionID
         }
     }
 
@@ -623,9 +623,9 @@ private struct CandidateBoard {
         sortedCandidates.filter { $0.column == column }
     }
 
-    func candidates(forColor colorID: Int) -> [CellPosition] {
+    func candidates(forRegion regionID: Int) -> [CellPosition] {
         sortedCandidates.filter {
-            colorIDsByCell[$0.row][$0.column] == colorID
+            regionIDsByCell[$0.row][$0.column] == regionID
         }
     }
 
@@ -635,8 +635,8 @@ private struct CandidateBoard {
             return .row(position.row)
         case .column:
             return .column(position.column)
-        case .color:
-            return .color(colorIDsByCell[position.row][position.column])
+        case .region:
+            return .region(regionIDsByCell[position.row][position.column])
         }
     }
 
@@ -646,8 +646,8 @@ private struct CandidateBoard {
             return (0..<size).map { .row($0) }
         case .column:
             return (0..<size).map { .column($0) }
-        case .color:
-            return colorIDs.map { .color($0) }
+        case .region:
+            return regionIDs.map { .region($0) }
         }
     }
 
@@ -657,8 +657,8 @@ private struct CandidateBoard {
             return hasCat(inRow: row)
         case let .column(column):
             return hasCat(inColumn: column)
-        case let .color(colorID):
-            return hasCat(forColor: colorID)
+        case let .region(regionID):
+            return hasCat(forRegion: regionID)
         }
     }
 
@@ -668,8 +668,8 @@ private struct CandidateBoard {
             return candidates(inRow: row)
         case let .column(column):
             return candidates(inColumn: column)
-        case let .color(colorID):
-            return candidates(forColor: colorID)
+        case let .region(regionID):
+            return candidates(forRegion: regionID)
         }
     }
 
@@ -682,13 +682,13 @@ private struct CandidateBoard {
     }
 
     /// Whether two distinct positions can never both be cats: same row,
-    /// same column, same color, or 8-neighborhood adjacent.
+    /// same column, same Region, or 8-neighborhood adjacent.
     func conflicts(_ first: CellPosition, _ second: CellPosition) -> Bool {
         guard first != second else { return false }
         if first.row == second.row || first.column == second.column {
             return true
         }
-        if colorIDsByCell[first.row][first.column] == colorIDsByCell[second.row][second.column] {
+        if regionIDsByCell[first.row][first.column] == regionIDsByCell[second.row][second.column] {
             return true
         }
         return abs(first.row - second.row) <= 1 && abs(first.column - second.column) <= 1
@@ -708,7 +708,7 @@ private extension Puzzle {
             return false
         }
         return cells.allSatisfy {
-            $0.colorID == level.colorIDs[$0.row][$0.column]
+            $0.regionID == level.regionIDs[$0.row][$0.column]
         }
     }
 }

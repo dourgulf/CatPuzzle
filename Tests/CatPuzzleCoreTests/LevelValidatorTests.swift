@@ -3,26 +3,26 @@ import XCTest
 
 final class LevelValidatorTests: XCTestCase {
     func testRejectsInvalidSize() {
-        let level = makeLevel(size: 0, catCount: 0, colorIDs: [])
+        let level = makeLevel(size: 0, catCount: 0, regionIDs: [])
 
         assertValidationError(.invalidSize, for: level)
     }
 
-    func testRejectsInvalidColorDimensions() {
+    func testRejectsInvalidRegionDimensions() {
         let level = makeLevel(
             size: 2,
             catCount: 2,
-            colorIDs: [[0, 1]]
+            regionIDs: [[0, 1]]
         )
 
-        assertValidationError(.invalidColorDimensions, for: level)
+        assertValidationError(.invalidRegionDimensions, for: level)
     }
 
     func testRejectsNonPositiveCatCount() {
         let level = makeLevel(
             size: 2,
             catCount: 0,
-            colorIDs: [[0, 0], [1, 1]]
+            regionIDs: [[0, 0], [1, 1]]
         )
 
         assertValidationError(.invalidCatCount, for: level)
@@ -33,7 +33,7 @@ final class LevelValidatorTests: XCTestCase {
             size: 2,
             catCount: 2,
             maxMistakes: 0,
-            colorIDs: [[0, 0], [1, 1]]
+            regionIDs: [[0, 0], [1, 1]]
         )
 
         assertValidationError(.invalidMaxMistakes, for: level)
@@ -43,7 +43,7 @@ final class LevelValidatorTests: XCTestCase {
         let level = makeLevel(
             size: 3,
             catCount: 2,
-            colorIDs: [
+            regionIDs: [
                 [0, 0, 0],
                 [0, 1, 1],
                 [1, 1, 1],
@@ -53,25 +53,25 @@ final class LevelValidatorTests: XCTestCase {
         assertValidationError(.catCountMustEqualSize, for: level)
     }
 
-    func testRejectsColorCountThatDoesNotMatchCatCount() {
+    func testRejectsRegionCountThatDoesNotMatchCatCount() {
         let level = makeLevel(
             size: 3,
             catCount: 3,
-            colorIDs: [
+            regionIDs: [
                 [0, 0, 0],
                 [0, 1, 1],
                 [1, 1, 1],
             ]
         )
 
-        assertValidationError(.invalidColorCount, for: level)
+        assertValidationError(.invalidRegionCount, for: level)
     }
 
-    func testAcceptsDisconnectedColors() {
+    func testAcceptsDisconnectedRegions() {
         let level = makeLevel(
             size: 3,
             catCount: 3,
-            colorIDs: [
+            regionIDs: [
                 [0, 1, 0],
                 [2, 1, 2],
                 [0, 1, 2],
@@ -85,14 +85,14 @@ final class LevelValidatorTests: XCTestCase {
         size: Int,
         catCount: Int,
         maxMistakes: Int = 5,
-        colorIDs: [[Int]]
+        regionIDs: [[Int]]
     ) -> LevelDefinition {
         LevelDefinition(
             id: "test",
             size: size,
             catCount: catCount,
             maxMistakes: maxMistakes,
-            colorIDs: colorIDs
+            regionIDs: regionIDs
         )
     }
 

@@ -57,7 +57,7 @@ struct SavedGame: Codable, Equatable {
             }
         return try Puzzle(
             size: level.size,
-            colorIDs: level.colorIDs,
+            regionIDs: level.regionIDs,
             states: restoredStates
         )
     }

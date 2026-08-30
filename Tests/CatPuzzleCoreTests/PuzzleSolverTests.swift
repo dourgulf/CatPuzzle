@@ -29,11 +29,11 @@ final class PuzzleSolverTests: XCTestCase {
         }
     }
 
-    func testUnsolvableColorLevelReturnsNone() throws {
+    func testUnsolvableRegionLevelReturnsNone() throws {
         let level = makeLevel(
             id: "none",
             size: 4,
-            colorIDs: [
+            regionIDs: [
                 [1, 1, 2, 0],
                 [1, 3, 2, 0],
                 [1, 1, 1, 0],
@@ -49,7 +49,7 @@ final class PuzzleSolverTests: XCTestCase {
         let level = makeLevel(
             id: "multiple",
             size: 6,
-            colorIDs: (0..<6).map { row in
+            regionIDs: (0..<6).map { row in
                 Array(repeating: row, count: 6)
             }
         )
@@ -59,11 +59,11 @@ final class PuzzleSolverTests: XCTestCase {
         XCTAssertEqual(PuzzleSolver.solutions(for: level, limit: 1).count, 1)
     }
 
-    func testSolverUsesColorConstraintForDisconnectedColors() {
+    func testSolverUsesRegionConstraintForDisconnectedRegions() {
         let level = makeLevel(
-            id: "disconnected-colors",
+            id: "disconnected-regions",
             size: 4,
-            colorIDs: [
+            regionIDs: [
                 [3, 0, 0, 2],
                 [0, 2, 3, 1],
                 [2, 1, 0, 1],
@@ -97,14 +97,14 @@ final class PuzzleSolverTests: XCTestCase {
     private func makeLevel(
         id: String,
         size: Int,
-        colorIDs: [[Int]]
+        regionIDs: [[Int]]
     ) -> LevelDefinition {
         LevelDefinition(
             id: id,
             size: size,
             catCount: size,
             maxMistakes: 5,
-            colorIDs: colorIDs
+            regionIDs: regionIDs
         )
     }
 }

@@ -24,7 +24,7 @@ func printUsageAndExit() -> Never {
       --mode mainline|challenge:<depth>   Acceptance mode (default mainline)
       --max-attempts <Int>     Max attempts per puzzle (default 500)
       --max-mistakes <Int>     maxMistakes on generated levels (default 5)
-      --bias <Double>          Nearby-color bias probability [0,1] (default: uniform, no bias)
+      --bias <Double>          Nearby-Region bias probability [0,1] (default: uniform, no bias)
       --json <path>            Write JSON results to path
     """)
     exit(1)
@@ -87,7 +87,7 @@ guard options.size == 6 else {
     exit(1)
 }
 
-let strategy: ColorAssignmentStrategy = options.bias.map { .biased(nearbySampleProbability: $0) } ?? .uniform
+let strategy: RegionAssignmentStrategy = options.bias.map { .biased(nearbySampleProbability: $0) } ?? .uniform
 
 let batchRequest = PuzzleBatchGenerationRequest(
     startSeed: options.seed,
@@ -96,7 +96,7 @@ let batchRequest = PuzzleBatchGenerationRequest(
     maxAttemptsPerPuzzle: options.maxAttempts,
     size: options.size,
     maxMistakes: options.maxMistakes,
-    colorAssignmentStrategy: strategy
+    regionAssignmentStrategy: strategy
 )
 
 let start = DispatchTime.now()
@@ -146,7 +146,7 @@ for (index, puzzle) in result.generated.enumerated() {
     print("commonAttack: \(stats.commonAttackCount)")
     print("strongLink: \(stats.strongLinkDeductionCount)")
     print("assumptions: \(stats.assumptionCount)")
-    print("colorIDs: \(puzzle.level.colorIDs)")
+    print("regionIDs: \(puzzle.level.regionIDs)")
     print("")
 }
 

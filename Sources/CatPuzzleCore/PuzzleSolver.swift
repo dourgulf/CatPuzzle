@@ -30,7 +30,7 @@ public enum PuzzleSolver {
         var foundSolutions: [[CellPosition]] = []
         var placements: [CellPosition] = []
         var usedColumns: Set<Int> = []
-        var usedColors: Set<Int> = []
+        var usedRegions: Set<Int> = []
 
         func search(row: Int) {
             guard foundSolutions.count < limit else { return }
@@ -48,9 +48,9 @@ public enum PuzzleSolver {
             for column in 0..<level.size {
                 guard foundSolutions.count < limit else { return }
 
-                let colorID = level.colorIDs[row][column]
+                let regionID = level.regionIDs[row][column]
                 guard !usedColumns.contains(column),
-                      !usedColors.contains(colorID),
+                      !usedRegions.contains(regionID),
                       isNotAdjacentToPreviousRow(column, placements: placements),
                       PuzzleValidator.canPlaceCat(
                           atRow: row,
@@ -64,11 +64,11 @@ public enum PuzzleSolver {
                 try? puzzle.setState(.cat, atRow: row, column: column)
                 placements.append(position)
                 usedColumns.insert(column)
-                usedColors.insert(colorID)
+                usedRegions.insert(regionID)
 
                 search(row: row + 1)
 
-                usedColors.remove(colorID)
+                usedRegions.remove(regionID)
                 usedColumns.remove(column)
                 placements.removeLast()
                 try? puzzle.setState(.empty, atRow: row, column: column)
