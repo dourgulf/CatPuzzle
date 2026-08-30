@@ -22,7 +22,7 @@ final class PuzzleValidatorTests: XCTestCase {
         XCTAssertTrue(PuzzleValidator.hasColumnConflict(in: puzzle))
     }
 
-    func testCatCannotBePlacedInOccupiedColorEvenWhenCellsAreSeparated() throws {
+    func testCatCannotBePlacedInOccupiedRegionEvenWhenCellsAreSeparated() throws {
         let placementPuzzle = try makePuzzle(states: makeStates(cats: [(1, 2)]))
         let conflictingPuzzle = try makePuzzle(
             states: makeStates(cats: [(0, 0), (1, 2)])
@@ -31,7 +31,7 @@ final class PuzzleValidatorTests: XCTestCase {
         XCTAssertFalse(
             PuzzleValidator.canPlaceCat(atRow: 0, column: 0, in: placementPuzzle)
         )
-        XCTAssertTrue(PuzzleValidator.hasColorConflict(in: conflictingPuzzle))
+        XCTAssertTrue(PuzzleValidator.hasRegionConflict(in: conflictingPuzzle))
     }
 
     func testHorizontalNeighborsConflict() throws {
@@ -82,7 +82,7 @@ final class PuzzleValidatorTests: XCTestCase {
     private func makePuzzle(states: [[CellState]]? = nil) throws -> Puzzle {
         try Puzzle(
             size: 6,
-            colorIDs: [
+            regionIDs: [
                 [0, 0, 0, 1, 1, 1],
                 [0, 0, 0, 1, 1, 1],
                 [2, 2, 2, 3, 3, 3],

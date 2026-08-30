@@ -109,10 +109,10 @@ struct BoardView: View {
                                     atRow: row,
                                     column: column
                                 ) ?? .empty,
-                                colorID: puzzle.cell(
+                                regionID: puzzle.cell(
                                     atRow: row,
                                     column: column
-                                )?.colorID ?? 0,
+                                )?.regionID ?? 0,
                                 row: row,
                                 column: column,
                                 onTap: {

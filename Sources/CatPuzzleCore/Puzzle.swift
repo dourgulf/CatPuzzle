@@ -1,7 +1,7 @@
 public struct Puzzle: Equatable, Sendable {
     public enum ValidationError: Error, Equatable {
         case invalidSize
-        case invalidColorDimensions
+        case invalidRegionDimensions
         case invalidStateDimensions
         case invalidCellCoordinate
     }
@@ -12,23 +12,23 @@ public struct Puzzle: Equatable, Sendable {
 
     public init(
         size: Int,
-        colorIDs: [[Int]],
+        regionIDs: [[Int]],
         states: [[CellState]]? = nil
     ) throws {
         guard size > 0 else {
             throw ValidationError.invalidSize
         }
-        guard Self.hasDimensions(size, rows: colorIDs) else {
-            throw ValidationError.invalidColorDimensions
+        guard Self.hasDimensions(size, rows: regionIDs) else {
+            throw ValidationError.invalidRegionDimensions
         }
         if let states, !Self.hasDimensions(size, rows: states) {
             throw ValidationError.invalidStateDimensions
         }
 
         self.size = size
-        self.cells = colorIDs.enumerated().flatMap { row, colorRow in
-            colorRow.enumerated().map { column, colorID in
-                Cell(row: row, column: column, colorID: colorID)
+        self.cells = regionIDs.enumerated().flatMap { row, regionRow in
+            regionRow.enumerated().map { column, regionID in
+                Cell(row: row, column: column, regionID: regionID)
             }
         }
         self.states = states?.flatMap { $0 }

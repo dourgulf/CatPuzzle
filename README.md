@@ -7,7 +7,8 @@ SwiftUI MVP for iOS. It does not yet include a puzzle generator.
 ## Core rules
 
 Boards are square and may vary in size. A valid solution has exactly one cat in
-each row, column, and color group. A color may appear in disconnected cells.
+each row, column, and Region. Region membership is a rule; its rendered color
+is presentation. Hand-authored levels may use disconnected Regions.
 Cats may not occupy horizontally, vertically, or diagonally adjacent cells.
 Levels explicitly configure their cat count and maximum allowed mistakes.
 
@@ -16,13 +17,13 @@ Levels explicitly configure their cat count and maximum allowed mistakes.
 `CatPuzzleCore` is a pure Swift Package with no UIKit, SwiftUI, SpriteKit, or
 third-party dependencies.
 
-- `Cell` identifies a board coordinate and its color group.
+- `Cell` identifies a board coordinate and its Region.
 - `CellState` represents an empty, excluded, or cat cell.
 - `Puzzle` validates and stores the board layout and current player state.
 - `PuzzleValidator` performs side-effect-free placement, conflict, and solved
   state checks.
 - `LevelDefinition` describes a level using an identifier, size, cat count,
-  maximum mistakes, and color ID grid; `BuiltInLevels` contains three original
+  maximum mistakes, and Region ID grid; `BuiltInLevels` contains three original
   6×6 `LevelFixture` values, each paired with its own verified solution.
 - `GameState` exposes the current puzzle, mistake count, and solved/failed
   states.
@@ -32,7 +33,7 @@ third-party dependencies.
 - `PuzzleSolver` is the backtracking safety net for mathematical solvability
   and uniqueness. `LogicalPuzzleSolver` separately models candidates and emits
   deterministic, explainable placement/exclusion steps using row, column,
-  color, and confirmed-cat propagation rules.
+  Region, and confirmed-cat propagation rules.
 - `LogicalPuzzleSolver` supports `.logicOnly` for main levels and bounded
   `.challenge(maxAssumptionDepth:)` proof by contradiction. Reports retain the
   final candidate board, every accepted deduction, assumption outcomes, and
@@ -49,8 +50,8 @@ not create undo history. After the mistake limit is reached, only Restart is
 allowed; Restart clears the board, history, and mistakes.
 
 The package accepts any square board size so later game modes can reuse the
-same model. `LevelValidator` checks dimensions, cat/color counts, and mistake
-configuration without imposing color connectivity. The three built-in levels
+same model. `LevelValidator` checks dimensions, cat/Region counts, and mistake
+configuration without imposing Region connectivity. The three built-in levels
 are independently verified as both unique by `PuzzleSolver` and solvable with
 zero assumptions by `LogicalPuzzleSolver`.
 

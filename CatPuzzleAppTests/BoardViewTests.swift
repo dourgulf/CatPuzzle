@@ -3,13 +3,13 @@ import XCTest
 import CatPuzzleCore
 
 final class BoardViewTests: XCTestCase {
-    func testGroupPresentationCyclesForArbitraryColorIDs() {
-        XCTAssertEqual(CatPuzzleTheme.groupSymbol(for: 0), "circle.fill")
-        XCTAssertEqual(CatPuzzleTheme.groupSymbol(for: 5), "hexagon.fill")
-        XCTAssertEqual(CatPuzzleTheme.groupSymbol(for: 6), "circle.fill")
-        XCTAssertEqual(CatPuzzleTheme.groupSymbol(for: -1), "hexagon.fill")
-        XCTAssertEqual(CatPuzzleTheme.groupName(for: 0), "Group 1")
-        XCTAssertEqual(CatPuzzleTheme.groupName(for: 7), "Group 2")
+    func testRegionPresentationCyclesForArbitraryRegionIDs() {
+        XCTAssertEqual(CatPuzzleTheme.regionSymbol(for: 0), "circle.fill")
+        XCTAssertEqual(CatPuzzleTheme.regionSymbol(for: 5), "hexagon.fill")
+        XCTAssertEqual(CatPuzzleTheme.regionSymbol(for: 6), "circle.fill")
+        XCTAssertEqual(CatPuzzleTheme.regionSymbol(for: -1), "hexagon.fill")
+        XCTAssertEqual(CatPuzzleTheme.regionName(for: 0), "Region 1")
+        XCTAssertEqual(CatPuzzleTheme.regionName(for: 7), "Region 2")
     }
 
     func testBoardLayoutMapsCellCentersAndRejectsGaps() {

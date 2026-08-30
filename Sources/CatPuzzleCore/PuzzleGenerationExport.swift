@@ -50,7 +50,7 @@ public struct GeneratedPuzzleExport: Codable, Equatable, Sendable {
     public let attempt: Int
     public let size: Int
     public let solution: [Int]
-    public let colorIDs: [[Int]]
+    public let regionIDs: [[Int]]
     public let difficulty: DifficultyExport
     public let statistics: LogicalStatisticsExport
 
@@ -59,7 +59,7 @@ public struct GeneratedPuzzleExport: Codable, Equatable, Sendable {
         attempt = puzzle.generationMetadata.attempt
         size = puzzle.level.size
         solution = puzzle.solution.sorted { $0.row < $1.row }.map(\.column)
-        colorIDs = puzzle.level.colorIDs
+        regionIDs = puzzle.level.regionIDs
         difficulty = DifficultyExport(puzzle.difficulty)
         statistics = LogicalStatisticsExport(puzzle.logicalReport.statistics)
     }

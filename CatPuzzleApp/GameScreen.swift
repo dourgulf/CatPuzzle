@@ -97,7 +97,7 @@ struct GameScreen: View {
 
     private var ruleReminder: some View {
         HStack(spacing: 4) {
-            RuleBadge(icon: "paintpalette.fill", text: "1 per color")
+            RuleBadge(icon: "paintpalette.fill", text: "1 per region")
             RuleBadge(icon: "rectangle.split.3x3.fill", text: "1 per row & column")
             RuleBadge(icon: "square.grid.3x3.fill", text: "No touching")
         }

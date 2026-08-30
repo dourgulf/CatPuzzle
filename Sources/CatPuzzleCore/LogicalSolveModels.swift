@@ -31,10 +31,10 @@ public enum LogicalAction: Equatable, Sendable {
 public enum LogicalReason: Equatable, Sendable {
     case onlyCandidateInRow(row: Int)
     case onlyCandidateInColumn(column: Int)
-    case onlyCandidateForColor(colorID: Int)
+    case onlyCandidateForRegion(regionID: Int)
     case rowAlreadyHasCat(row: Int)
     case columnAlreadyHasCat(column: Int)
-    case colorAlreadyHasCat(colorID: Int)
+    case regionAlreadyHasCat(regionID: Int)
     case adjacentToConfirmedCat(CellPosition)
     case contradictionFromAssumption(assumed: CellPosition)
 

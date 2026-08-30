@@ -1,5 +1,5 @@
 /// Research tool for producing candidate CatPuzzle levels: generate a
-/// legal solution, color the board around it, and run the same
+/// legal solution, assign board Regions around it, and run the same
 /// `PuzzleSolver` / `LogicalPuzzleSolver` / `PuzzleDifficultyAnalyzer`
 /// pipeline a human designer would use to sanity-check a hand-built level.
 ///
@@ -24,7 +24,7 @@ public enum PuzzleGenerator {
                 mode: request.mode,
                 maxAttempts: request.maxAttemptsPerPuzzle,
                 maxMistakes: request.maxMistakes,
-                colorAssignmentStrategy: request.colorAssignmentStrategy
+                regionAssignmentStrategy: request.regionAssignmentStrategy
             )
 
             let diagnostics = generateWithDiagnostics(request: puzzleRequest)
@@ -105,10 +105,10 @@ public enum PuzzleGenerator {
         rng: inout SeededRandomNumberGenerator
     ) -> CandidateOutcome {
         let solution = generateSolution(size: request.size, rng: &rng)
-        let colorIDs = assignColors(
+        let regionIDs = assignRegions(
             size: request.size,
             solution: solution,
-            strategy: request.colorAssignmentStrategy,
+            strategy: request.regionAssignmentStrategy,
             rng: &rng
         )
 
@@ -117,7 +117,7 @@ public enum PuzzleGenerator {
             size: request.size,
             catCount: request.size,
             maxMistakes: request.maxMistakes,
-            colorIDs: colorIDs
+            regionIDs: regionIDs
         )
 
         guard (try? LevelValidator.validate(level)) != nil else {
@@ -208,25 +208,25 @@ public enum PuzzleGenerator {
         return columnsByRow.enumerated().map { CellPosition(row: $0.offset, column: $0.element) }
     }
 
-    // MARK: - Color assignment
+    // MARK: - Region assignment
 
-    /// Each solution cat claims its row index as a unique color; every
-    /// other cell is then colored per `strategy`. Colors are pure grouping
-    /// labels here — no connectivity is enforced or checked (CLAUDE.md).
-    static func assignColors(
+    /// Each solution cat claims its row index as a unique Region; every
+    /// other cell is then assigned per `strategy`. The legacy prototype does
+    /// not enforce or check Region connectivity.
+    static func assignRegions(
         size: Int,
         solution: [CellPosition],
-        strategy: ColorAssignmentStrategy,
+        strategy: RegionAssignmentStrategy,
         rng: inout SeededRandomNumberGenerator
     ) -> [[Int]] {
-        var colorIDs = Array(repeating: Array(repeating: -1, count: size), count: size)
-        for (colorID, position) in solution.enumerated() {
-            colorIDs[position.row][position.column] = colorID
+        var regionIDs = Array(repeating: Array(repeating: -1, count: size), count: size)
+        for (regionID, position) in solution.enumerated() {
+            regionIDs[position.row][position.column] = regionID
         }
 
         for row in 0..<size {
-            for column in 0..<size where colorIDs[row][column] == -1 {
-                colorIDs[row][column] = pickColor(
+            for column in 0..<size where regionIDs[row][column] == -1 {
+                regionIDs[row][column] = pickRegion(
                     for: CellPosition(row: row, column: column),
                     size: size,
                     solution: solution,
@@ -235,14 +235,14 @@ public enum PuzzleGenerator {
                 )
             }
         }
-        return colorIDs
+        return regionIDs
     }
 
-    private static func pickColor(
+    private static func pickRegion(
         for position: CellPosition,
         size: Int,
         solution: [CellPosition],
-        strategy: ColorAssignmentStrategy,
+        strategy: RegionAssignmentStrategy,
         rng: inout SeededRandomNumberGenerator
     ) -> Int {
         switch strategy {
@@ -259,10 +259,10 @@ public enum PuzzleGenerator {
                 if lhs.row != rhs.row { return lhs.row < rhs.row }
                 return lhs.column < rhs.column
             }
-            guard let nearest, let colorID = solution.firstIndex(of: nearest) else {
+            guard let nearest, let regionID = solution.firstIndex(of: nearest) else {
                 return Int.random(in: 0..<size, using: &rng)
             }
-            return colorID
+            return regionID
         }
     }
 

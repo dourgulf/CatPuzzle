@@ -11,15 +11,14 @@ public enum PuzzleGenerationMode: Equatable, Sendable {
     case challenge(maxAssumptionDepth: Int)
 }
 
-/// How non-solution cells are colored once the six solution cats have
-/// claimed one color each. Colors are never required to be connected
-/// regions (see CLAUDE.md); this only controls how "clumpy" the coloring
-/// looks to a human player.
-public enum ColorAssignmentStrategy: Equatable, Sendable {
-    /// Every non-solution cell gets a uniformly random color.
+/// How non-solution cells are assigned once the solution cats have claimed
+/// one Region each. The legacy prototype does not require connected Regions;
+/// this strategy only controls how clustered its assignments appear.
+public enum RegionAssignmentStrategy: Equatable, Sendable {
+    /// Every non-solution cell gets a uniformly random Region.
     case uniform
     /// Each non-solution cell has `nearbySampleProbability` chance of
-    /// reusing the color of its nearest solution cat (Manhattan distance,
+    /// reusing the Region of its nearest solution cat (Manhattan distance,
     /// ties broken by row then column) instead of a uniform draw.
     case biased(nearbySampleProbability: Double)
 }
@@ -30,7 +29,7 @@ public struct PuzzleGenerationRequest: Sendable {
     public let mode: PuzzleGenerationMode
     public let maxAttempts: Int
     public let maxMistakes: Int
-    public let colorAssignmentStrategy: ColorAssignmentStrategy
+    public let regionAssignmentStrategy: RegionAssignmentStrategy
 
     public init(
         size: Int = 6,
@@ -38,14 +37,14 @@ public struct PuzzleGenerationRequest: Sendable {
         mode: PuzzleGenerationMode,
         maxAttempts: Int = 500,
         maxMistakes: Int = 5,
-        colorAssignmentStrategy: ColorAssignmentStrategy = .uniform
+        regionAssignmentStrategy: RegionAssignmentStrategy = .uniform
     ) {
         self.size = size
         self.seed = seed
         self.mode = mode
         self.maxAttempts = maxAttempts
         self.maxMistakes = maxMistakes
-        self.colorAssignmentStrategy = colorAssignmentStrategy
+        self.regionAssignmentStrategy = regionAssignmentStrategy
     }
 }
 
@@ -144,7 +143,7 @@ public struct PuzzleBatchGenerationRequest: Sendable {
     public let maxAttemptsPerPuzzle: Int
     public let size: Int
     public let maxMistakes: Int
-    public let colorAssignmentStrategy: ColorAssignmentStrategy
+    public let regionAssignmentStrategy: RegionAssignmentStrategy
 
     public init(
         startSeed: UInt64,
@@ -153,7 +152,7 @@ public struct PuzzleBatchGenerationRequest: Sendable {
         maxAttemptsPerPuzzle: Int = 500,
         size: Int = 6,
         maxMistakes: Int = 5,
-        colorAssignmentStrategy: ColorAssignmentStrategy = .uniform
+        regionAssignmentStrategy: RegionAssignmentStrategy = .uniform
     ) {
         self.startSeed = startSeed
         self.count = count
@@ -161,7 +160,7 @@ public struct PuzzleBatchGenerationRequest: Sendable {
         self.maxAttemptsPerPuzzle = maxAttemptsPerPuzzle
         self.size = size
         self.maxMistakes = maxMistakes
-        self.colorAssignmentStrategy = colorAssignmentStrategy
+        self.regionAssignmentStrategy = regionAssignmentStrategy
     }
 }
 

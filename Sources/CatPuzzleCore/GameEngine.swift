@@ -36,7 +36,7 @@ public struct GameEngine: Sendable {
         }
         guard !PuzzleValidator.hasRowConflict(in: puzzle),
               !PuzzleValidator.hasColumnConflict(in: puzzle),
-              !PuzzleValidator.hasColorConflict(in: puzzle),
+              !PuzzleValidator.hasRegionConflict(in: puzzle),
               !PuzzleValidator.hasAdjacentCats(in: puzzle) else {
             throw GameEngineError.invalidRestoredPuzzle
         }

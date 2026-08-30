@@ -31,7 +31,7 @@ final class PuzzleGeneratorTests: XCTestCase {
               case let .generated(puzzleB) = PuzzleGenerator.generate(request: requestB) else {
             return XCTFail("expected both seeds to generate a puzzle")
         }
-        XCTAssertNotEqual(puzzleA.level.colorIDs, puzzleB.level.colorIDs)
+        XCTAssertNotEqual(puzzleA.level.regionIDs, puzzleB.level.regionIDs)
     }
 
     // MARK: - Solution shape
@@ -51,12 +51,12 @@ final class PuzzleGeneratorTests: XCTestCase {
         }
     }
 
-    func testSolutionColorsAreUnique() {
+    func testSolutionRegionsAreUnique() {
         var rng = SeededRandomNumberGenerator(seed: 123)
         let solution = PuzzleGenerator.generateSolution(size: 6, rng: &rng)
-        let colorIDs = PuzzleGenerator.assignColors(size: 6, solution: solution, strategy: .uniform, rng: &rng)
-        let solutionColors = solution.map { colorIDs[$0.row][$0.column] }
-        XCTAssertEqual(Set(solutionColors).count, 6)
+        let regionIDs = PuzzleGenerator.assignRegions(size: 6, solution: solution, strategy: .uniform, rng: &rng)
+        let solutionRegions = solution.map { regionIDs[$0.row][$0.column] }
+        XCTAssertEqual(Set(solutionRegions).count, 6)
     }
 
     // MARK: - Acceptance pipeline
@@ -152,9 +152,13 @@ final class PuzzleGeneratorTests: XCTestCase {
 
         let encoder = JSONEncoder()
         let data = try encoder.encode(export)
+        let json = try XCTUnwrap(String(data: data, encoding: .utf8))
         let decoder = JSONDecoder()
         let decoded = try decoder.decode(PuzzleBatchExport.self, from: data)
 
+        XCTAssertFalse(export.puzzles.isEmpty)
+        XCTAssertTrue(json.contains("\"regionIDs\""))
+        XCTAssertFalse(json.contains("\"colorIDs\""))
         XCTAssertEqual(decoded, export)
     }
 }

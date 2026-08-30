@@ -20,7 +20,7 @@ final class GameEngineTests: XCTestCase {
             size: 2,
             catCount: 2,
             maxMistakes: 0,
-            colorIDs: [[0, 0], [1, 1]]
+            regionIDs: [[0, 0], [1, 1]]
         )
 
         XCTAssertThrowsError(try GameEngine(level: level)) { error in
@@ -203,7 +203,7 @@ final class GameEngineTests: XCTestCase {
             size: 4,
             catCount: 4,
             maxMistakes: 1,
-            colorIDs: [
+            regionIDs: [
                 [0, 0, 0, 1],
                 [0, 1, 1, 1],
                 [2, 2, 2, 3],

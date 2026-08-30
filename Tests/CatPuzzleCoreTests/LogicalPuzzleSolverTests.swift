@@ -3,7 +3,7 @@ import XCTest
 
 final class LogicalPuzzleSolverTests: XCTestCase {
     func testRowSinglePlacesCatWithReason() throws {
-        let level = rowColoredLevel(id: "row-single")
+        let level = rowRegionLevel(id: "row-single")
         let puzzle = try puzzle(
             for: level,
             candidates: positions([
@@ -25,7 +25,7 @@ final class LogicalPuzzleSolverTests: XCTestCase {
     }
 
     func testColumnSinglePlacesCatWithReason() throws {
-        let level = rowColoredLevel(id: "column-single")
+        let level = rowRegionLevel(id: "column-single")
         var candidates = allPositions(size: 4)
         candidates.remove(CellPosition(row: 0, column: 0))
         candidates.remove(CellPosition(row: 1, column: 0))
@@ -43,8 +43,8 @@ final class LogicalPuzzleSolverTests: XCTestCase {
         )
     }
 
-    func testColorSinglePlacesCatWithReason() throws {
-        let level = latinColoredLevel(id: "color-single")
+    func testRegionSinglePlacesCatWithReason() throws {
+        let level = latinRegionLevel(id: "region-single")
         var candidates = allPositions(size: 4)
         candidates.remove(CellPosition(row: 1, column: 3))
         candidates.remove(CellPosition(row: 2, column: 2))
@@ -57,7 +57,7 @@ final class LogicalPuzzleSolverTests: XCTestCase {
             firstPlacement(in: result),
             LogicalStep(
                 action: .placeCat(CellPosition(row: 0, column: 0)),
-                reason: .onlyCandidateForColor(colorID: 0)
+                reason: .onlyCandidateForRegion(regionID: 0)
             )
         )
     }
@@ -76,10 +76,10 @@ final class LogicalPuzzleSolverTests: XCTestCase {
         })
     }
 
-    func testConfirmedCatExcludesSameColor() throws {
+    func testConfirmedCatExcludesSameRegion() throws {
         let result = try propagatedResult()
         XCTAssertTrue(result.report.steps.contains {
-            $0.reason == .colorAlreadyHasCat(colorID: 0)
+            $0.reason == .regionAlreadyHasCat(regionID: 0)
         })
     }
 
@@ -109,7 +109,7 @@ final class LogicalPuzzleSolverTests: XCTestCase {
     }
 
     func testLogicOnlyReturnsStuckWhenNoSingleExists() {
-        let result = LogicalPuzzleSolver.solve(level: rowColoredLevel(id: "stuck"))
+        let result = LogicalPuzzleSolver.solve(level: rowRegionLevel(id: "stuck"))
 
         guard case .stuck = result else {
             return XCTFail("Expected logic-only solver to get stuck")
@@ -118,7 +118,7 @@ final class LogicalPuzzleSolverTests: XCTestCase {
     }
 
     func testContradictionIsDetectedWhenRowHasNoCandidate() throws {
-        let level = rowColoredLevel(id: "contradiction")
+        let level = rowRegionLevel(id: "contradiction")
         let candidates = allPositions(size: 4).filter { $0.row != 2 }
         let puzzle = try puzzle(for: level, candidates: Set(candidates))
 
@@ -130,7 +130,7 @@ final class LogicalPuzzleSolverTests: XCTestCase {
     }
 
     func testContradictionIsDetectedForConflictingConfirmedCats() throws {
-        let level = rowColoredLevel(id: "cat-conflict")
+        let level = rowRegionLevel(id: "cat-conflict")
         var puzzle = try level.makePuzzle()
         try puzzle.setState(.cat, atRow: 0, column: 0)
         try puzzle.setState(.cat, atRow: 1, column: 1)
@@ -173,7 +173,7 @@ final class LogicalPuzzleSolverTests: XCTestCase {
 
     func testDepthOneNeverEntersDepthTwo() {
         let result = LogicalPuzzleSolver.solve(
-            level: rowColoredLevel(id: "depth-limit"),
+            level: rowRegionLevel(id: "depth-limit"),
             mode: .challenge(maxAssumptionDepth: 1)
         )
 
@@ -186,7 +186,7 @@ final class LogicalPuzzleSolverTests: XCTestCase {
         // single assumption instead of two, so this only asserts the depth
         // cap itself is respected rather than pinning an exact depth.
         let result = LogicalPuzzleSolver.solve(
-            level: rowColoredLevel(id: "depth-two"),
+            level: rowRegionLevel(id: "depth-two"),
             mode: .challenge(maxAssumptionDepth: 2)
         )
 
@@ -224,7 +224,7 @@ final class LogicalPuzzleSolverTests: XCTestCase {
     }
 
     private func propagatedResult() throws -> LogicalSolveResult {
-        let level = latinColoredLevel(id: "propagation")
+        let level = latinRegionLevel(id: "propagation")
         var puzzle = try level.makePuzzle()
         try puzzle.setState(.cat, atRow: 0, column: 0)
         return LogicalPuzzleSolver.solve(level: level, puzzle: puzzle)
@@ -239,7 +239,7 @@ final class LogicalPuzzleSolverTests: XCTestCase {
             size: 5,
             catCount: 5,
             maxMistakes: 5,
-            colorIDs: (0..<5).map { row in (0..<5).map { column in (row + column) % 5 } }
+            regionIDs: (0..<5).map { row in (0..<5).map { column in (row + column) % 5 } }
         )
         let candidates = positions([
             (0, 1), (0, 2), (0, 3), (0, 4),
@@ -257,7 +257,7 @@ final class LogicalPuzzleSolverTests: XCTestCase {
             size: 4,
             catCount: 4,
             maxMistakes: 5,
-            colorIDs: [
+            regionIDs: [
                 [1, 0, 2, 3],
                 [2, 3, 2, 1],
                 [2, 3, 1, 1],
@@ -266,25 +266,25 @@ final class LogicalPuzzleSolverTests: XCTestCase {
         )
     }
 
-    private func rowColoredLevel(id: String) -> LevelDefinition {
+    private func rowRegionLevel(id: String) -> LevelDefinition {
         LevelDefinition(
             id: id,
             size: 4,
             catCount: 4,
             maxMistakes: 5,
-            colorIDs: (0..<4).map { row in
+            regionIDs: (0..<4).map { row in
                 Array(repeating: row, count: 4)
             }
         )
     }
 
-    private func latinColoredLevel(id: String) -> LevelDefinition {
+    private func latinRegionLevel(id: String) -> LevelDefinition {
         LevelDefinition(
             id: id,
             size: 4,
             catCount: 4,
             maxMistakes: 5,
-            colorIDs: (0..<4).map { row in
+            regionIDs: (0..<4).map { row in
                 (0..<4).map { column in (row + column) % 4 }
             }
         )
@@ -303,7 +303,7 @@ final class LogicalPuzzleSolverTests: XCTestCase {
         }
         return try Puzzle(
             size: level.size,
-            colorIDs: level.colorIDs,
+            regionIDs: level.regionIDs,
             states: states
         )
     }
