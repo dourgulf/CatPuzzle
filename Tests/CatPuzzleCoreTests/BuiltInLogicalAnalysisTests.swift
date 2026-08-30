@@ -28,9 +28,9 @@ final class BuiltInLogicalAnalysisTests: XCTestCase {
 
     func testBuiltInLevelsHaveExpectedLogicalAnalysis() {
         let expected: [String: (steps: Int, rounds: Int, score: Int, tier: DifficultyTier)] = [
-            "meadow": (36, 6, 32, .medium),
-            "river": (36, 6, 35, .medium),
-            "terraces": (36, 6, 37, .hard),
+            "meadow": (36, 6, 5, .easy),
+            "river": (36, 6, 6, .easy),
+            "terraces": (36, 6, 6, .easy),
         ]
 
         for fixture in BuiltInLevels.fixtures {

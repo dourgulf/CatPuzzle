@@ -10,9 +10,18 @@ struct CLIOptions {
     var seed: UInt64 = 1
     var mode: PuzzleGenerationMode = .mainline
     var maxAttempts = 500
+    var maxRepairAttempts = 300
     var maxMistakes = 5
-    var size = 6
-    var bias: Double?
+    // 8x8-10x10 is the generator's primary target; 6x6 remains fully
+    // supported (BuiltInLevels already ships hand-verified 6x6 fixtures,
+    // so the generator only needs to cover it for occasional playtesting).
+    var size = 9
+    // Empirically the best default for the 8-10 primary target: at size 9
+    // it reaches hard/medium tiers in ~15-180 attempts, versus plain
+    // uniform coloring needing hundreds of attempts just to find *any*
+    // mainline-solvable candidate (most of which still land on expert).
+    var colorStrategy: ColorAssignmentStrategy = .confinedColorPair(axis: .rows)
+    var targetTiers: Set<DifficultyTier> = []
     var jsonPath: String?
 }
 
@@ -23,11 +32,70 @@ func printUsageAndExit() -> Never {
       --seed <UInt64>          Starting seed (default 1)
       --mode mainline|challenge:<depth>   Acceptance mode (default mainline)
       --max-attempts <Int>     Max attempts per puzzle (default 500)
+      --max-repair-attempts <Int>  Max recolors tried per attempt to force
+                                a unique solution (default 300) — this is
+                                what makes 8-10 sized boards practical;
+                                see repairForUniqueSolution in PuzzleGenerator.
       --max-mistakes <Int>     maxMistakes on generated levels (default 5)
-      --bias <Double>          Nearby-color bias probability [0,1] (default: uniform, no bias)
+      --size <Int>             Board size (default 9; primary target is 8-10,
+                                6 remains supported for occasional playtesting)
+      --color-strategy <spec>  uniform | biased:<p> | singleton |
+                                confined-rows (default) | confined-columns
+                                See below for what each strategy does.
+      --tiers <list>           Comma-separated difficulty tiers to accept
+                                (beginner,easy,medium,hard,expert,challenge).
+                                Default: accept any tier.
       --json <path>            Write JSON results to path
+
+    Color strategies:
+      uniform            Every non-solution cell gets a uniformly random color.
+      biased:<p>          Each non-solution cell has probability p [0,1] of
+                          reusing its nearest solution cat's color.
+      singleton           One random color is confined to its own solution
+                          cell, giving an immediate onlyCandidateForColor
+                          foothold — aim for beginner/easy tiers.
+      confined-rows        Two random colors are confined to just the two
+                          rows their solution cats sit in, giving an
+                          immediate locked-pair foothold — aim for easy/
+                          medium tiers.
+      confined-columns     Same as confined-rows, but confines to columns.
+
+    Recommended for the 8-10 primary target: --tiers medium,hard along
+    with the default confined-rows strategy — this reaches an accepted
+    puzzle in tens to a couple hundred attempts, versus effectively never
+    with uniform coloring and no tier filter.
     """)
     exit(1)
+}
+
+func parseColorStrategy(_ raw: String) -> ColorAssignmentStrategy? {
+    switch raw {
+    case "uniform":
+        return .uniform
+    case "singleton":
+        return .singletonColor
+    case "confined-rows":
+        return .confinedColorPair(axis: .rows)
+    case "confined-columns":
+        return .confinedColorPair(axis: .columns)
+    default:
+        guard raw.hasPrefix("biased:"), let probability = Double(raw.dropFirst("biased:".count)) else {
+            return nil
+        }
+        return .biased(nearbySampleProbability: probability)
+    }
+}
+
+func parseTier(_ raw: String) -> DifficultyTier? {
+    switch raw {
+    case "beginner": return .beginner
+    case "easy": return .easy
+    case "medium": return .medium
+    case "hard": return .hard
+    case "expert": return .expert
+    case "challenge": return .challenge
+    default: return nil
+    }
 }
 
 func parseArguments(_ arguments: [String]) -> CLIOptions {
@@ -59,15 +127,23 @@ func parseArguments(_ arguments: [String]) -> CLIOptions {
         case "--max-attempts":
             guard let value = Int(nextValue()) else { printUsageAndExit() }
             options.maxAttempts = value
+        case "--max-repair-attempts":
+            guard let value = Int(nextValue()) else { printUsageAndExit() }
+            options.maxRepairAttempts = value
         case "--max-mistakes":
             guard let value = Int(nextValue()) else { printUsageAndExit() }
             options.maxMistakes = value
         case "--size":
-            guard let value = Int(nextValue()) else { printUsageAndExit() }
+            guard let value = Int(nextValue()), value >= 2 else { printUsageAndExit() }
             options.size = value
-        case "--bias":
-            guard let value = Double(nextValue()) else { printUsageAndExit() }
-            options.bias = value
+        case "--color-strategy":
+            guard let strategy = parseColorStrategy(nextValue()) else { printUsageAndExit() }
+            options.colorStrategy = strategy
+        case "--tiers":
+            let raw = nextValue()
+            let tiers = raw.split(separator: ",").map(String.init).map(parseTier)
+            guard !tiers.isEmpty, tiers.allSatisfy({ $0 != nil }) else { printUsageAndExit() }
+            options.targetTiers = Set(tiers.compactMap { $0 })
         case "--json":
             options.jsonPath = nextValue()
         case "--help", "-h":
@@ -82,13 +158,6 @@ func parseArguments(_ arguments: [String]) -> CLIOptions {
 
 let options = parseArguments(Array(CommandLine.arguments.dropFirst()))
 
-guard options.size == 6 else {
-    print("Generator prototype only supports size = 6 for now (got \(options.size)).")
-    exit(1)
-}
-
-let strategy: ColorAssignmentStrategy = options.bias.map { .biased(nearbySampleProbability: $0) } ?? .uniform
-
 let batchRequest = PuzzleBatchGenerationRequest(
     startSeed: options.seed,
     count: options.count,
@@ -96,7 +165,9 @@ let batchRequest = PuzzleBatchGenerationRequest(
     maxAttemptsPerPuzzle: options.maxAttempts,
     size: options.size,
     maxMistakes: options.maxMistakes,
-    colorAssignmentStrategy: strategy
+    colorAssignmentStrategy: options.colorStrategy,
+    targetTiers: options.targetTiers,
+    maxRepairAttempts: options.maxRepairAttempts
 )
 
 let start = DispatchTime.now()
@@ -115,7 +186,8 @@ print(String(format: "Elapsed: %.3fs", elapsedSeconds))
 print("""
 Rejections — invalidLevel: \(stats.rejectedInvalidLevel), noSolution: \(stats.rejectedNoSolution), \
 multipleSolutions: \(stats.rejectedMultipleSolutions), wrongUniqueSolution: \(stats.rejectedWrongUniqueSolution), \
-logicalStuck: \(stats.rejectedLogicalStuck), notChallenge: \(stats.rejectedNotChallenge)
+logicalStuck: \(stats.rejectedLogicalStuck), notChallenge: \(stats.rejectedNotChallenge), \
+difficultyMismatch: \(stats.rejectedDifficultyMismatch)
 """)
 print("")
 

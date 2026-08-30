@@ -23,6 +23,41 @@ final class PuzzleDifficultyAnalyzerTests: XCTestCase {
         XCTAssertNotEqual(PuzzleDifficultyAnalyzer.analyze(report).tier, .challenge)
     }
 
+    /// `placedCats`, `deductionRounds`, and `propagationSteps` are each
+    /// exactly `size` for a report shaped like a pure singles-only cascade
+    /// (one deduction round places one cat, one propagation event per
+    /// placement) — regardless of board size. Before size-normalization,
+    /// their contribution to `score` grew linearly with `size` alone, so
+    /// the same logically-simple solve shape scored higher — and landed in
+    /// a harder tier — purely because the board was bigger. This asserts
+    /// that no longer happens: the same solve shape at two very different
+    /// sizes must land on the identical score and tier.
+    func testStructuralBaselineScoreIsSizeInvariant() {
+        let small = shapedReport(size: 6)
+        let large = shapedReport(size: 10)
+
+        let smallDifficulty = PuzzleDifficultyAnalyzer.analyze(small)
+        let largeDifficulty = PuzzleDifficultyAnalyzer.analyze(large)
+
+        XCTAssertEqual(smallDifficulty.score, largeDifficulty.score)
+        XCTAssertEqual(smallDifficulty.tier, largeDifficulty.tier)
+    }
+
+    private func shapedReport(size: Int) -> LogicalSolveReport {
+        LogicalSolveReport(
+            steps: [],
+            finalBoard: LogicalBoardSnapshot(size: size, states: []),
+            statistics: LogicalSolveStatistics(
+                placedCats: size,
+                exclusions: 0,
+                propagationSteps: size,
+                deductionRounds: size,
+                assumptionCount: 0,
+                maxAssumptionDepth: 0
+            )
+        )
+    }
+
     func testAdvancedTechniquesIncreaseScore() {
         let baseline = report(assumptionCount: 0, maxAssumptionDepth: 0)
         let withAdvanced = report(

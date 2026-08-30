@@ -59,6 +59,169 @@ final class PuzzleGeneratorTests: XCTestCase {
         XCTAssertEqual(Set(solutionColors).count, 6)
     }
 
+    // MARK: - Difficulty onboarding color strategies
+
+    func testSingletonColorStrategyReservesExactlyOneColorToOneCell() {
+        var rng = SeededRandomNumberGenerator(seed: 7)
+        let solution = PuzzleGenerator.generateSolution(size: 6, rng: &rng)
+        let colorIDs = PuzzleGenerator.assignColors(size: 6, solution: solution, strategy: .singletonColor, rng: &rng)
+
+        let counts = colorIDs.flatMap { $0 }.reduce(into: [Int: Int]()) { counts, colorID in
+            counts[colorID, default: 0] += 1
+        }
+        XCTAssertTrue(counts.values.contains(1), "expected some color to appear exactly once")
+    }
+
+    func testConfinedColorPairStrategyConfinesTwoColorsToTwoRows() {
+        var rng = SeededRandomNumberGenerator(seed: 7)
+        let solution = PuzzleGenerator.generateSolution(size: 6, rng: &rng)
+        let colorIDs = PuzzleGenerator.assignColors(
+            size: 6,
+            solution: solution,
+            strategy: .confinedColorPair(axis: .rows),
+            rng: &rng
+        )
+
+        XCTAssertTrue(hasColorPairConfinedToTwoLines(colorIDs: colorIDs, size: 6, byRow: true))
+    }
+
+    func testConfinedColorPairStrategyConfinesTwoColorsToTwoColumns() {
+        var rng = SeededRandomNumberGenerator(seed: 7)
+        let solution = PuzzleGenerator.generateSolution(size: 6, rng: &rng)
+        let colorIDs = PuzzleGenerator.assignColors(
+            size: 6,
+            solution: solution,
+            strategy: .confinedColorPair(axis: .columns),
+            rng: &rng
+        )
+
+        XCTAssertTrue(hasColorPairConfinedToTwoLines(colorIDs: colorIDs, size: 6, byRow: false))
+    }
+
+    private func hasColorPairConfinedToTwoLines(colorIDs: [[Int]], size: Int, byRow: Bool) -> Bool {
+        for colorA in 0..<size {
+            for colorB in (colorA + 1)..<size {
+                var lines: Set<Int> = []
+                for row in 0..<size {
+                    for column in 0..<size where colorIDs[row][column] == colorA || colorIDs[row][column] == colorB {
+                        lines.insert(byRow ? row : column)
+                    }
+                }
+                if lines.count == 2 { return true }
+            }
+        }
+        return false
+    }
+
+    // MARK: - Difficulty tier filtering
+
+    func testTargetTiersOnlyAcceptsMatchingTier() {
+        let request = PuzzleGenerationRequest(
+            seed: 1,
+            mode: .mainline,
+            maxAttempts: 20000,
+            colorAssignmentStrategy: .singletonColor,
+            targetTiers: [.medium]
+        )
+        guard case let .generated(puzzle) = PuzzleGenerator.generate(request: request) else {
+            return XCTFail("expected a generated puzzle matching the requested tier")
+        }
+        XCTAssertEqual(puzzle.difficulty.tier, .medium)
+    }
+
+    func testTargetTiersExhaustsWhenModeCanNeverProduceThatTier() {
+        // Mainline candidates always have assumptionCount == 0, so their
+        // tier can never be .challenge — this always exhausts regardless
+        // of seed, a deterministic way to exercise the difficultyMismatch
+        // rejection path. Not every attempt reaches difficulty analysis
+        // (some are rejected earlier for having multiple solutions, or for
+        // getting logically stuck), so this only asserts the exhaustion
+        // itself and that the new rejection path fired at least once.
+        let request = PuzzleGenerationRequest(
+            seed: 1,
+            mode: .mainline,
+            maxAttempts: 10,
+            targetTiers: [.challenge]
+        )
+        guard case let .exhausted(report) = PuzzleGenerator.generate(request: request) else {
+            return XCTFail("expected generation to exhaust its attempts")
+        }
+        XCTAssertEqual(report.attempts, 10)
+        XCTAssertGreaterThan(report.rejections.difficultyMismatch, 0)
+    }
+
+    // MARK: - Uniqueness repair (8x8-10x10 support)
+
+    /// Plain random coloring's odds of landing on a unique solution
+    /// collapse past ~7x7 — confirmed empirically: 500/500 `.uniform`
+    /// attempts at size 8 were rejected for having multiple solutions, with
+    /// no repair. `repairForUniqueSolution` is what makes larger boards
+    /// practical, so this directly proves it converges at exactly the
+    /// sizes plain rejection sampling could not handle.
+    func testRepairForUniqueSolutionAchievesUniquenessAtLargerSizes() {
+        for size in [8, 9, 10] {
+            var rng = SeededRandomNumberGenerator(seed: 1)
+            let solution = PuzzleGenerator.generateSolution(size: size, rng: &rng)
+            let colorIDs = PuzzleGenerator.assignColors(
+                size: size,
+                solution: solution,
+                strategy: .uniform,
+                rng: &rng
+            )
+            let level = LevelDefinition(
+                id: "repair-test-\(size)",
+                size: size,
+                catCount: size,
+                maxMistakes: 5,
+                colorIDs: colorIDs
+            )
+
+            guard let repaired = PuzzleGenerator.repairForUniqueSolution(
+                level: level,
+                solution: solution,
+                maxRepairAttempts: 300
+            ) else {
+                return XCTFail("expected repair to converge for size \(size)")
+            }
+            XCTAssertEqual(PuzzleSolver.solve(level: repaired), .unique(solution), "size \(size)")
+        }
+    }
+
+    func testRepairNeverModifiesSolutionCellColors() {
+        var rng = SeededRandomNumberGenerator(seed: 1)
+        let solution = PuzzleGenerator.generateSolution(size: 9, rng: &rng)
+        let colorIDs = PuzzleGenerator.assignColors(size: 9, solution: solution, strategy: .uniform, rng: &rng)
+        let level = LevelDefinition(id: "repair-preserve", size: 9, catCount: 9, maxMistakes: 5, colorIDs: colorIDs)
+
+        guard let repaired = PuzzleGenerator.repairForUniqueSolution(
+            level: level,
+            solution: solution,
+            maxRepairAttempts: 300
+        ) else {
+            return XCTFail("expected repair to converge")
+        }
+
+        for position in solution {
+            XCTAssertEqual(
+                repaired.colorIDs[position.row][position.column],
+                colorIDs[position.row][position.column]
+            )
+        }
+    }
+
+    func testRepairWithZeroAttemptsReturnsNilWithoutCrashing() {
+        var rng = SeededRandomNumberGenerator(seed: 1)
+        let solution = PuzzleGenerator.generateSolution(size: 8, rng: &rng)
+        let colorIDs = PuzzleGenerator.assignColors(size: 8, solution: solution, strategy: .uniform, rng: &rng)
+        let level = LevelDefinition(id: "repair-zero", size: 8, catCount: 8, maxMistakes: 5, colorIDs: colorIDs)
+
+        XCTAssertNil(PuzzleGenerator.repairForUniqueSolution(
+            level: level,
+            solution: solution,
+            maxRepairAttempts: 0
+        ))
+    }
+
     // MARK: - Acceptance pipeline
 
     func testAcceptedPuzzlePassesLevelValidatorAndUniqueSolver() throws {
@@ -140,6 +303,7 @@ final class PuzzleGeneratorTests: XCTestCase {
             + stats.rejectedWrongUniqueSolution
             + stats.rejectedLogicalStuck
             + stats.rejectedNotChallenge
+            + stats.rejectedDifficultyMismatch
         XCTAssertEqual(rejectedTotal, stats.totalAttempts - stats.generatedCount)
     }
 

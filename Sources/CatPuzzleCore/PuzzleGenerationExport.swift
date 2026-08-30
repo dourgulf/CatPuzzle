@@ -72,6 +72,7 @@ public struct PuzzleBatchRejectionsExport: Codable, Equatable, Sendable {
     public let wrongUniqueSolution: Int
     public let logicalStuck: Int
     public let notChallenge: Int
+    public let difficultyMismatch: Int
 
     public init(_ statistics: PuzzleBatchStatistics) {
         invalidLevel = statistics.rejectedInvalidLevel
@@ -80,6 +81,7 @@ public struct PuzzleBatchRejectionsExport: Codable, Equatable, Sendable {
         wrongUniqueSolution = statistics.rejectedWrongUniqueSolution
         logicalStuck = statistics.rejectedLogicalStuck
         notChallenge = statistics.rejectedNotChallenge
+        difficultyMismatch = statistics.rejectedDifficultyMismatch
     }
 }
 
