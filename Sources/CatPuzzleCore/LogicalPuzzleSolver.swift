@@ -79,6 +79,7 @@ private struct LogicalSolveEngine {
     let level: LevelDefinition
     var board: CandidateBoard
     var steps: [LogicalStep] = []
+    var events: [LogicalTechniqueEvent] = []
     var assumptions: [LogicalAssumption] = []
     var placedCats = 0
     var exclusions = 0
@@ -99,6 +100,7 @@ private struct LogicalSolveEngine {
     var report: LogicalSolveReport {
         LogicalSolveReport(
             steps: steps,
+            events: events,
             assumptions: assumptions,
             finalBoard: board.snapshot,
             statistics: LogicalSolveStatistics(
@@ -182,12 +184,18 @@ private struct LogicalSolveEngine {
                 )
 
                 if branchOutcome == .contradiction {
-                    exclude(
+                    let eventStart = steps.count
+                    if exclude(
                         position,
                         reason: .contradictionFromAssumption(assumed: position)
-                    )
-                    excludedByContradiction = true
-                    break
+                    ) {
+                        recordEvent(
+                            .contradictionElimination(assumed: position),
+                            startingAt: eventStart
+                        )
+                        excludedByContradiction = true
+                        break
+                    }
                 }
             }
 
@@ -197,7 +205,12 @@ private struct LogicalSolveEngine {
 
     private mutating func propagateInitialCats() {
         for position in board.sortedConfirmedCats {
+            let eventStart = steps.count
             propagateConstraints(from: position)
+            recordEvent(
+                .propagation(confirmedCat: position),
+                startingAt: eventStart
+            )
         }
     }
 
@@ -205,10 +218,13 @@ private struct LogicalSolveEngine {
         at position: CellPosition,
         reason: LogicalReason
     ) {
+        let eventStart = steps.count
         guard board.confirmCat(at: position) else { return }
         steps.append(LogicalStep(action: .placeCat(position), reason: reason))
         placedCats += 1
         propagateConstraints(from: position)
+        guard let technique = singleTechnique(for: reason) else { return }
+        recordEvent(technique, startingAt: eventStart)
     }
 
     private mutating func forceAssumedCat(at position: CellPosition) {
@@ -216,13 +232,15 @@ private struct LogicalSolveEngine {
         propagateConstraints(from: position)
     }
 
+    @discardableResult
     private mutating func exclude(
         _ position: CellPosition,
         reason: LogicalReason
-    ) {
-        guard board.exclude(at: position) else { return }
+    ) -> Bool {
+        guard board.exclude(at: position) else { return false }
         steps.append(LogicalStep(action: .exclude(position), reason: reason))
         exclusions += 1
+        return true
     }
 
     private mutating func propagateConstraints(from cat: CellPosition) {
@@ -297,6 +315,7 @@ private struct LogicalSolveEngine {
     /// event actually removed at least one candidate — a no-op deduction
     /// is not counted or recorded (see item XXI of the design brief).
     private mutating func apply(_ event: AdvancedDeductionEvent) {
+        let eventStart = steps.count
         var appliedAny = false
         for position in event.exclusions where board.exclude(at: position) {
             steps.append(LogicalStep(action: .exclude(position), reason: event.reason))
@@ -308,13 +327,44 @@ private struct LogicalSolveEngine {
         switch event.kind {
         case .lockedPair:
             lockedPairCount += 1
+            recordEvent(.lockedSet(size: 2), startingAt: eventStart)
         case .lockedTriple:
             lockedTripleCount += 1
+            recordEvent(.lockedSet(size: 3), startingAt: eventStart)
         case .commonAttack:
             commonAttackCount += 1
+            recordEvent(.commonAttack, startingAt: eventStart)
         case .strongLink:
             strongLinkDeductionCount += 1
+            recordEvent(.strongLink, startingAt: eventStart)
         }
+    }
+
+    private func singleTechnique(for reason: LogicalReason) -> LogicalTechnique? {
+        switch reason {
+        case let .onlyCandidateInRow(row):
+            return .single(.row(row))
+        case let .onlyCandidateInColumn(column):
+            return .single(.column(column))
+        case let .onlyCandidateForRegion(regionID):
+            return .single(.region(regionID))
+        default:
+            return nil
+        }
+    }
+
+    private mutating func recordEvent(
+        _ technique: LogicalTechnique,
+        startingAt stepIndex: Int
+    ) {
+        guard stepIndex < steps.count else { return }
+        events.append(
+            LogicalTechniqueEvent(
+                technique: technique,
+                steps: Array(steps[stepIndex...]),
+                boardAfter: board.snapshot
+            )
+        )
     }
 
     /// Scans, in a fixed deterministic order, for the next advanced

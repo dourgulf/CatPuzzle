@@ -65,6 +65,37 @@ public struct LogicalStep: Equatable, Sendable {
     }
 }
 
+/// A solver-level technique category independent of difficulty presets or
+/// generator blueprints. Detailed constraints and positions remain in the
+/// event's `steps`, so consumers can interpret the same trace differently.
+public enum LogicalTechnique: Equatable, Sendable {
+    case single(ConstraintKind)
+    case propagation(confirmedCat: CellPosition)
+    case lockedSet(size: Int)
+    case commonAttack
+    case strongLink
+    case contradictionElimination(assumed: CellPosition)
+}
+
+/// One atomic logical event and the candidate board immediately after it.
+/// A placement event includes the direct propagation caused by that cat;
+/// advanced deductions group all exclusions sharing the same reason.
+public struct LogicalTechniqueEvent: Equatable, Sendable {
+    public let technique: LogicalTechnique
+    public let steps: [LogicalStep]
+    public let boardAfter: LogicalBoardSnapshot
+
+    public init(
+        technique: LogicalTechnique,
+        steps: [LogicalStep],
+        boardAfter: LogicalBoardSnapshot
+    ) {
+        self.technique = technique
+        self.steps = steps
+        self.boardAfter = boardAfter
+    }
+}
+
 public enum LogicalAssumptionOutcome: Equatable, Sendable {
     case contradiction
     case solvedBranch
@@ -126,17 +157,20 @@ public struct LogicalSolveStatistics: Equatable, Sendable {
 
 public struct LogicalSolveReport: Equatable, Sendable {
     public let steps: [LogicalStep]
+    public let events: [LogicalTechniqueEvent]
     public let assumptions: [LogicalAssumption]
     public let finalBoard: LogicalBoardSnapshot
     public let statistics: LogicalSolveStatistics
 
     public init(
         steps: [LogicalStep],
+        events: [LogicalTechniqueEvent] = [],
         assumptions: [LogicalAssumption] = [],
         finalBoard: LogicalBoardSnapshot,
         statistics: LogicalSolveStatistics
     ) {
         self.steps = steps
+        self.events = events
         self.assumptions = assumptions
         self.finalBoard = finalBoard
         self.statistics = statistics

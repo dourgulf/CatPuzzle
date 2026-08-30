@@ -68,6 +68,7 @@ public struct GeneratedPuzzleExport: Codable, Equatable, Sendable {
 public struct PuzzleBatchRejectionsExport: Codable, Equatable, Sendable {
     public let invalidLevel: Int
     public let noSolution: Int
+    public let certificationInconclusive: Int
     public let multipleSolutions: Int
     public let wrongUniqueSolution: Int
     public let logicalStuck: Int
@@ -76,6 +77,7 @@ public struct PuzzleBatchRejectionsExport: Codable, Equatable, Sendable {
     public init(_ statistics: PuzzleBatchStatistics) {
         invalidLevel = statistics.rejectedInvalidLevel
         noSolution = statistics.rejectedNoSolution
+        certificationInconclusive = statistics.rejectedCertificationInconclusive
         multipleSolutions = statistics.rejectedMultipleSolutions
         wrongUniqueSolution = statistics.rejectedWrongUniqueSolution
         logicalStuck = statistics.rejectedLogicalStuck

@@ -30,16 +30,18 @@ third-party dependencies.
 - `GameEngine.setState` is the core domain operation. It validates every cat
   placement and owns atomic board changes, mistake tracking, undo history, and
   restart behavior.
-- `PuzzleSolver` is the backtracking safety net for mathematical solvability
-  and uniqueness. `LogicalPuzzleSolver` separately models candidates and emits
-  deterministic, explainable placement/exclusion steps using row, column,
-  Region, and confirmed-cat propagation rules.
+- `PuzzleSolver` is the budgeted MRV-search safety net for mathematical
+  solvability and uniqueness. Its report distinguishes proven outcomes from
+  an inconclusive exhausted budget and includes deterministic search metrics.
+  `LogicalPuzzleSolver` separately models candidates and emits deterministic,
+  explainable technique events with the candidate-board snapshot after each
+  event.
 - `LogicalPuzzleSolver` supports `.logicOnly` for main levels and bounded
   `.challenge(maxAssumptionDepth:)` proof by contradiction. Reports retain the
-  final candidate board, every accepted deduction, assumption outcomes, and
-  stable statistics. `PuzzleDifficultyAnalyzer` converts those reports into a
-  deterministic score and tier; any report that used assumptions is always
-  classified as `challenge`.
+  final candidate board, every accepted deduction, grouped technique events,
+  assumption outcomes, and stable statistics. `PuzzleDifficultyAnalyzer`
+  converts those reports into a deterministic score and tier; any report that
+  used assumptions is always classified as `challenge`.
 
 `GameEngine.toggleCell` remains a convenience adapter for the MVP interaction
 cycle `empty → excluded → cat → empty`; it delegates every change to
