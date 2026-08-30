@@ -15,6 +15,59 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.mistakeCount, 0)
         XCTAssertEqual(viewModel.remainingMistakes, 5)
         XCTAssertEqual(viewModel.mistakeSummary, "Mistakes: 0 / 5")
+        XCTAssertNil(viewModel.hint)
+    }
+
+    func testRequestHintPreviewsLogicalResultWithoutChangingPuzzle() throws {
+        let viewModel = try viewModelWithRowSingle()
+        let puzzleBeforeHint = viewModel.puzzle
+
+        viewModel.requestHint()
+
+        XCTAssertEqual(viewModel.puzzle, puzzleBeforeHint)
+        XCTAssertEqual(
+            viewModel.hint?.actions,
+            [.placeCat(CellPosition(row: 0, column: 1))]
+        )
+        XCTAssertNil(viewModel.feedbackMessage)
+    }
+
+    func testApplyHintCommitsResultAndNotifiesOnce() throws {
+        var changedStates: [GameState] = []
+        let viewModel = try viewModelWithRowSingle(
+            onGameStateChanged: { changedStates.append($0) }
+        )
+        viewModel.requestHint()
+
+        viewModel.applyHint()
+
+        XCTAssertNil(viewModel.hint)
+        XCTAssertEqual(
+            viewModel.puzzle.state(atRow: 0, column: 1),
+            .cat
+        )
+        XCTAssertEqual(changedStates.count, 1)
+    }
+
+    func testDismissHintDoesNotChangePuzzle() throws {
+        let viewModel = try viewModelWithRowSingle()
+        let puzzleBeforeHint = viewModel.puzzle
+        viewModel.requestHint()
+
+        viewModel.dismissHint()
+
+        XCTAssertNil(viewModel.hint)
+        XCTAssertEqual(viewModel.puzzle, puzzleBeforeHint)
+    }
+
+    func testRestartDismissesHintAndRestoresBoard() throws {
+        let viewModel = try viewModelWithRowSingle()
+        viewModel.requestHint()
+
+        viewModel.restart()
+
+        XCTAssertNil(viewModel.hint)
+        XCTAssertTrue(viewModel.puzzle.states.allSatisfy { $0 == .empty })
     }
 
     func testSingleTapIntentTogglesExcludedState() throws {
@@ -55,6 +108,32 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.puzzle.state(atRow: 0, column: 0), .excluded)
         XCTAssertEqual(viewModel.puzzle.state(atRow: 0, column: 1), .cat)
         XCTAssertEqual(viewModel.puzzle.state(atRow: 0, column: 2), .excluded)
+    }
+
+    func testExcludeDragPlaysAndSignalsFeedbackForEveryChangedCell() throws {
+        let sounds = RecordingPuzzleSoundPlayer()
+        let viewModel = try GameViewModel(soundPlayer: sounds)
+
+        viewModel.setExcludedDuringDrag(true, atRow: 0, column: 0)
+        viewModel.setExcludedDuringDrag(true, atRow: 0, column: 2)
+        viewModel.setExcludedDuringDrag(true, atRow: 0, column: 3)
+
+        XCTAssertEqual(
+            sounds.played,
+            [.markExcluded, .markExcluded, .markExcluded]
+        )
+        XCTAssertEqual(viewModel.markerFeedbackSequence, 3)
+    }
+
+    func testExcludeDragDoesNotRepeatFeedbackForAnUnchangedCell() throws {
+        let sounds = RecordingPuzzleSoundPlayer()
+        let viewModel = try GameViewModel(soundPlayer: sounds)
+
+        viewModel.setExcludedDuringDrag(true, atRow: 0, column: 0)
+        viewModel.setExcludedDuringDrag(true, atRow: 0, column: 0)
+
+        XCTAssertEqual(sounds.played, [.markExcluded])
+        XCTAssertEqual(viewModel.markerFeedbackSequence, 1)
     }
 
     func testClearDragClearsExcludedWithoutChangingCats() throws {
@@ -195,6 +274,35 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.mistakeSummary, "Mistakes: 1 / 5")
     }
 
+    func testChallengeWrongCatExposesSolutionFeedbackAndDisablesUndo() throws {
+        let viewModel = GameViewModel(
+            engine: try GameEngine(
+                fixture: BuiltInLevels.meadowFixture,
+                mode: .challenge
+            )
+        )
+
+        viewModel.toggleExcluded(atRow: 2, column: 2)
+        viewModel.toggleCat(atRow: 0, column: 0)
+
+        XCTAssertEqual(viewModel.mode, .challenge)
+        XCTAssertFalse(viewModel.allowsUndo)
+        XCTAssertFalse(viewModel.canUndo)
+        XCTAssertEqual(
+            viewModel.feedbackMessage,
+            "That cat is not in the solution."
+        )
+        XCTAssertEqual(viewModel.mistakeCount, 1)
+        XCTAssertEqual(
+            viewModel.puzzle.state(atRow: 0, column: 0),
+            .empty
+        )
+        XCTAssertEqual(
+            viewModel.puzzle.state(atRow: 2, column: 2),
+            .excluded
+        )
+    }
+
     func testUndoRestoresPreviousPuzzle() throws {
         let viewModel = try GameViewModel()
         viewModel.toggleExcluded(atRow: 2, column: 2)
@@ -279,11 +387,13 @@ final class GameViewModelTests: XCTestCase {
         viewModel.handleCellTap(atRow: 0, column: 0)
 
         XCTAssertEqual(sounds.played, [.markExcluded])
+        XCTAssertEqual(viewModel.markerFeedbackSequence, 1)
         XCTAssertEqual(viewModel.displayState(atRow: 0, column: 0), .excluded)
 
         try await Task.sleep(for: .milliseconds(30))
 
         XCTAssertEqual(sounds.played, [.markExcluded])
+        XCTAssertEqual(viewModel.markerFeedbackSequence, 1)
         XCTAssertEqual(viewModel.puzzle.state(atRow: 0, column: 0), .excluded)
     }
 
@@ -404,6 +514,20 @@ final class GameViewModelTests: XCTestCase {
         viewModel.restart()
 
         XCTAssertEqual(sounds.stopped, [.markExcluded])
+    }
+
+    private func viewModelWithRowSingle(
+        onGameStateChanged: @escaping (GameState) -> Void = { _ in }
+    ) throws -> GameViewModel {
+        let level = BuiltInLevels.meadow
+        var puzzle = try level.makePuzzle()
+        for column in 0..<level.size where column != 1 {
+            try puzzle.setState(.excluded, atRow: 0, column: column)
+        }
+        return GameViewModel(
+            engine: try GameEngine(level: level, puzzle: puzzle),
+            onGameStateChanged: onGameStateChanged
+        )
     }
 }
 

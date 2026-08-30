@@ -59,7 +59,8 @@ protocol PuzzleSoundPlaying: AnyObject {
 final class PuzzleSoundPlayer: PuzzleSoundPlaying {
     static let shared = PuzzleSoundPlayer()
 
-    private var players: [PuzzleSound: AVAudioPlayer] = [:]
+    private var playerPools: [PuzzleSound: [AVAudioPlayer]] = [:]
+    private var resourceURLs: [PuzzleSound: URL] = [:]
     private var didConfigureSession = false
 
     init(bundle: Bundle = Bundle(for: PuzzleSoundPlayer.self)) {
@@ -67,23 +68,25 @@ final class PuzzleSoundPlayer: PuzzleSoundPlaying {
             guard let url = Self.resourceURL(for: sound, in: bundle) else {
                 continue
             }
-            let player = try? AVAudioPlayer(contentsOf: url)
-            player?.prepareToPlay()
-            players[sound] = player
+            resourceURLs[sound] = url
+            if let player = makePlayer(for: url) {
+                playerPools[sound] = [player]
+            }
         }
     }
 
     func play(_ sound: PuzzleSound) {
         configureSessionIfNeeded()
-        guard let player = players[sound] else { return }
+        guard let player = availablePlayer(for: sound) else { return }
         player.currentTime = 0
         player.play()
     }
 
     func stop(_ sound: PuzzleSound) {
-        guard let player = players[sound] else { return }
-        player.stop()
-        player.currentTime = 0
+        for player in playerPools[sound] ?? [] {
+            player.stop()
+            player.currentTime = 0
+        }
     }
 
     static func resourceURL(
@@ -106,5 +109,26 @@ final class PuzzleSoundPlayer: PuzzleSoundPlaying {
         let session = AVAudioSession.sharedInstance()
         try? session.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
         try? session.setActive(true)
+    }
+
+    private func availablePlayer(for sound: PuzzleSound) -> AVAudioPlayer? {
+        if let idlePlayer = playerPools[sound]?.first(where: { !$0.isPlaying }) {
+            return idlePlayer
+        }
+
+        guard let url = resourceURLs[sound],
+              let player = makePlayer(for: url) else {
+            return nil
+        }
+        playerPools[sound, default: []].append(player)
+        return player
+    }
+
+    private func makePlayer(for url: URL) -> AVAudioPlayer? {
+        guard let player = try? AVAudioPlayer(contentsOf: url) else {
+            return nil
+        }
+        player.prepareToPlay()
+        return player
     }
 }

@@ -1,6 +1,18 @@
 import CatPuzzleCore
 import SwiftUI
 
+struct CellMarkerMetrics: Equatable {
+    let excludedFontSize: CGFloat
+    let catFontSize: CGFloat
+    let catPadding: CGFloat
+
+    init(cellSide: CGFloat) {
+        excludedFontSize = min(40, cellSide * 0.72)
+        catFontSize = min(23, cellSide * 0.42)
+        catPadding = min(7, cellSide * 0.13)
+    }
+}
+
 struct CellView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -8,24 +20,40 @@ struct CellView: View {
     let regionID: Int
     let row: Int
     let column: Int
+    let cellSide: CGFloat
+    let showsRegionIcon: Bool
+    let hintEmphasis: CellHintEmphasis
+    let allowsInteraction: Bool
     let onTap: () -> Void
     let onToggleCatAccessibility: () -> Void
+
+    private var markerMetrics: CellMarkerMetrics {
+        CellMarkerMetrics(cellSide: cellSide)
+    }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .fill(CatPuzzleTheme.regionColor(for: regionID))
 
-            Image(systemName: CatPuzzleTheme.regionSymbol(for: regionID))
-                .font(.system(size: 7, weight: .bold))
-                .foregroundStyle(
-                    CatPuzzleTheme.markerColor(for: regionID).opacity(0.45)
-                )
-                .padding(6)
-                .accessibilityHidden(true)
+            if showsRegionIcon {
+                Image(systemName: CatPuzzleTheme.regionSymbol(for: regionID))
+                    .font(.system(size: 7, weight: .bold))
+                    .foregroundStyle(
+                        CatPuzzleTheme.markerColor(for: regionID).opacity(0.45)
+                    )
+                    .padding(6)
+                    .accessibilityHidden(true)
+            }
 
             marker
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
+
+            if hintEmphasis == .dimmed {
+                Color.black.opacity(0.62)
+                    .accessibilityHidden(true)
+            }
         }
             .animation(
                 reduceMotion ? nil : .easeOut(duration: 0.16),
@@ -34,7 +62,12 @@ struct CellView: View {
             .contentShape(Rectangle())
             .overlay {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(.white.opacity(0.5), lineWidth: 1)
+                    .stroke(
+                        hintEmphasis == .result
+                            ? CatPuzzleTheme.action
+                            : .white.opacity(0.5),
+                        lineWidth: hintEmphasis == .result ? 4 : 1
+                    )
             }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(
@@ -42,14 +75,22 @@ struct CellView: View {
                     + CatPuzzleTheme.regionName(for: regionID)
             )
             .accessibilityValue(accessibilityValue)
-            .accessibilityHint("Activate to mark excluded.")
+            .accessibilityHint(
+                allowsInteraction
+                    ? "Activate to mark excluded."
+                    : "Hint preview. Use Apply or Cancel below the board."
+            )
             .accessibilityAddTraits(.isButton)
             .accessibilityIdentifier("cell-\(row)-\(column)")
             .accessibilityAction {
-                onTap()
+                if allowsInteraction {
+                    onTap()
+                }
             }
             .accessibilityAction(named: "Toggle cat") {
-                onToggleCatAccessibility()
+                if allowsInteraction {
+                    onToggleCatAccessibility()
+                }
             }
     }
 
@@ -60,7 +101,13 @@ struct CellView: View {
             Color.clear
         case .excluded:
             Text("×")
-                .font(.system(size: 40, weight: .bold, design: .rounded))
+                .font(
+                    .system(
+                        size: markerMetrics.excludedFontSize,
+                        weight: .bold,
+                        design: .rounded
+                    )
+                )
                 .foregroundStyle(.white)
                 .transition(.scale.combined(with: .opacity))
         case .cat:
@@ -68,10 +115,15 @@ struct CellView: View {
                 Circle()
                     .fill(CatPuzzleTheme.surface.opacity(0.94))
                 Image(systemName: "pawprint.fill")
-                    .font(.system(size: 23, weight: .semibold))
+                    .font(
+                        .system(
+                            size: markerMetrics.catFontSize,
+                            weight: .semibold
+                        )
+                    )
                     .foregroundStyle(CatPuzzleTheme.textPrimary)
             }
-            .padding(7)
+            .padding(markerMetrics.catPadding)
             .transition(.scale.combined(with: .opacity))
         }
     }

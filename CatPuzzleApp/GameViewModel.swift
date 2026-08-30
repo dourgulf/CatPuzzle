@@ -38,6 +38,9 @@ struct CellTapInterpreter {
 final class GameViewModel: ObservableObject {
     let level: LevelDefinition
 
+    @Published private(set) var mode: GameplayMode
+    var allowsUndo: Bool { mode.allowsUndo }
+
     @Published private(set) var puzzle: Puzzle
     @Published private(set) var canUndo: Bool
     @Published private(set) var isSolved: Bool
@@ -46,6 +49,8 @@ final class GameViewModel: ObservableObject {
     @Published private(set) var remainingMistakes: Int
     @Published private(set) var feedbackMessage: String?
     @Published private(set) var previewStates: [CellPosition: CellState] = [:]
+    @Published private(set) var markerFeedbackSequence = 0
+    @Published private(set) var hint: LogicalHint?
 
     var mistakeSummary: String {
         "Mistakes: \(mistakeCount) / \(level.maxMistakes)"
@@ -84,6 +89,7 @@ final class GameViewModel: ObservableObject {
         self.doubleTapInterval = doubleTapInterval
         self.soundPlayer = soundPlayer
         self.onGameStateChanged = onGameStateChanged
+        mode = engine.state.mode
         puzzle = engine.state.puzzle
         canUndo = engine.canUndo
         isSolved = engine.state.isSolved
@@ -110,7 +116,7 @@ final class GameViewModel: ObservableObject {
         case let .pendingSingle(token):
             previewStates[position] = excludedToggleResult(for: currentState)
             if let sound = previewExcludedSound(for: currentState) {
-                soundPlayer.play(sound)
+                playMarkerFeedback(sound)
                 pendingPreviewSounds[position] = sound
             }
             scheduleSingleTapCommit(at: position, token: token)
@@ -149,6 +155,7 @@ final class GameViewModel: ObservableObject {
 
     func undo() {
         cancelPendingTaps()
+        hint = nil
         guard engine.undo() else { return }
         feedbackMessage = nil
         synchronizeFromEngine(notifyChange: true)
@@ -156,9 +163,52 @@ final class GameViewModel: ObservableObject {
 
     func restart() {
         cancelPendingTaps()
+        hint = nil
         engine.restart()
         feedbackMessage = nil
         synchronizeFromEngine(notifyChange: true)
+    }
+
+    func setMode(_ mode: GameplayMode) {
+        cancelPendingTaps()
+        hint = nil
+        engine.setMode(mode)
+        feedbackMessage = nil
+        synchronizeFromEngine(notifyChange: true)
+    }
+
+    func requestHint() {
+        cancelPendingTaps()
+        guard !isSolved, !isFailed else { return }
+        hint = LogicalHintEngine.nextHint(level: level, puzzle: puzzle)
+        feedbackMessage = hint == nil
+            ? "No deterministic next step is available from this board."
+            : nil
+    }
+
+    func dismissHint() {
+        hint = nil
+    }
+
+    func applyHint() {
+        guard let hint else { return }
+        cancelPendingTaps()
+        let previousPuzzle = engine.state.puzzle
+        do {
+            try engine.applyHint(hint)
+            self.hint = nil
+            feedbackMessage = nil
+            synchronizeFromEngine(
+                notifyChange: engine.state.puzzle != previousPuzzle
+            )
+            if isSolved || isFailed {
+                cancelPendingTaps()
+            }
+        } catch {
+            self.hint = nil
+            feedbackMessage = "This hint can no longer be applied."
+            synchronizeFromEngine(notifyChange: false)
+        }
     }
 
     private func applyExcludedToggle(
@@ -286,6 +336,13 @@ final class GameViewModel: ObservableObject {
             if isFailed {
                 cancelPendingTaps()
             }
+        } catch GameEngineError.incorrectCatPlacement {
+            feedbackMessage = "That cat is not in the solution."
+            synchronizeFromEngine(notifyChange: true)
+            soundPlayer.play(isFailed ? .gameOver : .catPlacementFailed)
+            if isFailed {
+                cancelPendingTaps()
+            }
         } catch GameEngineError.gameAlreadyFailed {
             feedbackMessage = "Restart to try again."
         } catch GameEngineError.invalidCell {
@@ -307,10 +364,16 @@ final class GameViewModel: ObservableObject {
               ) else {
             return
         }
+        playMarkerFeedback(sound)
+    }
+
+    private func playMarkerFeedback(_ sound: PuzzleSound) {
         soundPlayer.play(sound)
+        markerFeedbackSequence &+= 1
     }
 
     private func synchronizeFromEngine(notifyChange: Bool) {
+        mode = engine.state.mode
         puzzle = engine.state.puzzle
         canUndo = engine.canUndo
         isSolved = engine.state.isSolved
