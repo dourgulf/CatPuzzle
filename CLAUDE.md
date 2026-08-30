@@ -19,8 +19,8 @@ CatPuzzle is a "one cat per row/column/Region, no adjacent cats" logic puzzle. T
 - `GameEngine.setState` is the single core domain operation: every cat placement is validated here, and it atomically owns board mutation, mistake tracking, undo history, and restart. `GameEngine.toggleCell` is a convenience adapter over `setState` implementing the MVP cycle `empty → excluded → cat → empty`; UI is free to call `setState` directly for other gesture mappings instead. Setting a cell to its current state is a no-op (no undo entry). An illegal cat placement is rejected, increments mistakes, and does not create undo history. Once the mistake limit is hit, only Restart is allowed.
 - `GameState` — read-only snapshot exposed to callers: current puzzle, mistake count, solved/failed flags.
 - Two independent solvers exist for different purposes:
-  - `PuzzleSolver` — backtracking search used as the safety net proving a level is mathematically solvable and has a unique solution.
-  - `LogicalPuzzleSolver` — models per-cell candidates and emits deterministic, explainable step-by-step deductions (row/column/Region/confirmed-cat propagation). Supports `.logicOnly` (used for the shipped levels) and bounded `.challenge(maxAssumptionDepth:)` proof-by-contradiction. Any report that required an assumption is classified as `challenge`.
+  - `PuzzleSolver` — budgeted MRV search with occupancy bitsets, used as the safety net proving a level is mathematically solvable and has a unique solution. `PuzzleSolverReport` includes deterministic statistics; budget exhaustion is `.inconclusive`, never `.none`.
+  - `LogicalPuzzleSolver` — models per-cell candidates and emits deterministic, explainable technique events plus the candidate-board snapshot after each event. Supports `.logicOnly` (used for the shipped levels) and bounded `.challenge(maxAssumptionDepth:)` proof-by-contradiction. Any report that required an assumption is classified as `challenge`.
   - `PuzzleDifficultyAnalyzer` turns a `LogicalPuzzleSolver` report into a deterministic score/tier.
 
 ### App layer (`CatPuzzleApp`)

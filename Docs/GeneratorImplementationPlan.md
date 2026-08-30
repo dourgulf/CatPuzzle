@@ -12,6 +12,8 @@ Rename `colorID` and related Color rule terminology to `regionID` across models,
 
 Expose generic logical technique events and candidate snapshots without teaching the solver about generation difficulty or blueprints. Upgrade exact solving to budgeted MRV search with occupancy bitsets and statistics. Represent budget exhaustion as inconclusive.
 
+The exact-solver boundary is `PuzzleSolver.solve(level:budget:) -> PuzzleSolverReport`. The report records visited nodes, candidate checks, dead ends, maximum depth, solutions found, and budget exhaustion. Logical reports retain the flat step stream for compatibility and also group accepted steps into `LogicalTechniqueEvent` values whose `boardAfter` snapshot is suitable for generator feedback and review tooling.
+
 ### PR C — Constructive generator
 
 Add `SolutionPermutationGenerator`, internal staged `DeductionBlueprint` presets, `RegionPartition`, the dominant-background and balanced-mosaic builders, reversible boundary moves, geometry analysis, bounded beam optimization, blueprint evaluation, and structured diagnostics.

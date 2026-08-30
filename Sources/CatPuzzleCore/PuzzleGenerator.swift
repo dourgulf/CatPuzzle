@@ -41,6 +41,7 @@ public enum PuzzleGenerator {
             totalAttempts: totalAttempts,
             rejectedInvalidLevel: rejections.invalidLevel,
             rejectedNoSolution: rejections.noSolution,
+            rejectedCertificationInconclusive: rejections.certificationInconclusive,
             rejectedMultipleSolutions: rejections.multipleSolutions,
             rejectedWrongUniqueSolution: rejections.wrongUniqueSolution,
             rejectedLogicalStuck: rejections.logicalStuck,
@@ -59,6 +60,7 @@ public enum PuzzleGenerator {
     private enum RejectionReason {
         case invalidLevel
         case noSolution
+        case certificationInconclusive
         case multipleSolutions
         case wrongUniqueSolution
         case logicalStuck
@@ -92,6 +94,7 @@ public enum PuzzleGenerator {
         switch reason {
         case .invalidLevel: rejections.invalidLevel += 1
         case .noSolution: rejections.noSolution += 1
+        case .certificationInconclusive: rejections.certificationInconclusive += 1
         case .multipleSolutions: rejections.multipleSolutions += 1
         case .wrongUniqueSolution: rejections.wrongUniqueSolution += 1
         case .logicalStuck: rejections.logicalStuck += 1
@@ -124,7 +127,7 @@ public enum PuzzleGenerator {
             return .rejected(.invalidLevel)
         }
 
-        switch PuzzleSolver.solve(level: level) {
+        switch PuzzleSolver.solve(level: level).result {
         case .none:
             return .rejected(.noSolution)
         case .multiple:
@@ -133,6 +136,8 @@ public enum PuzzleGenerator {
             guard foundSolution == solution else {
                 return .rejected(.wrongUniqueSolution)
             }
+        case .inconclusive:
+            return .rejected(.certificationInconclusive)
         }
 
         switch request.mode {

@@ -86,6 +86,7 @@ public struct GeneratedPuzzle: Equatable, Sendable {
 public struct PuzzleGenerationRejectionCounts: Equatable, Sendable {
     public var invalidLevel: Int = 0
     public var noSolution: Int = 0
+    public var certificationInconclusive: Int = 0
     public var multipleSolutions: Int = 0
     public var wrongUniqueSolution: Int = 0
     public var logicalStuck: Int = 0
@@ -94,6 +95,7 @@ public struct PuzzleGenerationRejectionCounts: Equatable, Sendable {
     public init(
         invalidLevel: Int = 0,
         noSolution: Int = 0,
+        certificationInconclusive: Int = 0,
         multipleSolutions: Int = 0,
         wrongUniqueSolution: Int = 0,
         logicalStuck: Int = 0,
@@ -101,6 +103,7 @@ public struct PuzzleGenerationRejectionCounts: Equatable, Sendable {
     ) {
         self.invalidLevel = invalidLevel
         self.noSolution = noSolution
+        self.certificationInconclusive = certificationInconclusive
         self.multipleSolutions = multipleSolutions
         self.wrongUniqueSolution = wrongUniqueSolution
         self.logicalStuck = logicalStuck
@@ -110,6 +113,7 @@ public struct PuzzleGenerationRejectionCounts: Equatable, Sendable {
     static func += (lhs: inout Self, rhs: Self) {
         lhs.invalidLevel += rhs.invalidLevel
         lhs.noSolution += rhs.noSolution
+        lhs.certificationInconclusive += rhs.certificationInconclusive
         lhs.multipleSolutions += rhs.multipleSolutions
         lhs.wrongUniqueSolution += rhs.wrongUniqueSolution
         lhs.logicalStuck += rhs.logicalStuck
@@ -170,6 +174,7 @@ public struct PuzzleBatchStatistics: Equatable, Sendable {
     public let totalAttempts: Int
     public let rejectedInvalidLevel: Int
     public let rejectedNoSolution: Int
+    public let rejectedCertificationInconclusive: Int
     public let rejectedMultipleSolutions: Int
     public let rejectedWrongUniqueSolution: Int
     public let rejectedLogicalStuck: Int
@@ -181,6 +186,7 @@ public struct PuzzleBatchStatistics: Equatable, Sendable {
         totalAttempts: Int,
         rejectedInvalidLevel: Int,
         rejectedNoSolution: Int,
+        rejectedCertificationInconclusive: Int,
         rejectedMultipleSolutions: Int,
         rejectedWrongUniqueSolution: Int,
         rejectedLogicalStuck: Int,
@@ -191,6 +197,7 @@ public struct PuzzleBatchStatistics: Equatable, Sendable {
         self.totalAttempts = totalAttempts
         self.rejectedInvalidLevel = rejectedInvalidLevel
         self.rejectedNoSolution = rejectedNoSolution
+        self.rejectedCertificationInconclusive = rejectedCertificationInconclusive
         self.rejectedMultipleSolutions = rejectedMultipleSolutions
         self.rejectedWrongUniqueSolution = rejectedWrongUniqueSolution
         self.rejectedLogicalStuck = rejectedLogicalStuck

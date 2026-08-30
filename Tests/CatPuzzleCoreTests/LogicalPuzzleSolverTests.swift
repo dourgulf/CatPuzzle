@@ -60,6 +60,11 @@ final class LogicalPuzzleSolverTests: XCTestCase {
                 reason: .onlyCandidateForRegion(regionID: 0)
             )
         )
+
+        let event = try XCTUnwrap(result.report.events.first)
+        XCTAssertEqual(event.technique, .single(.region(0)))
+        XCTAssertEqual(event.steps.first, firstPlacement(in: result))
+        XCTAssertEqual(event.boardAfter.state(atRow: 0, column: 0), .confirmedCat)
     }
 
     func testConfirmedCatExcludesSameRow() throws {
@@ -91,6 +96,11 @@ final class LogicalPuzzleSolverTests: XCTestCase {
                 reason: .adjacentToConfirmedCat(CellPosition(row: 0, column: 0))
             )
         ))
+        XCTAssertTrue(result.report.events.contains {
+            $0.technique == .propagation(
+                confirmedCat: CellPosition(row: 0, column: 0)
+            )
+        })
     }
 
     func testSolveIsDeterministic() {
@@ -106,6 +116,8 @@ final class LogicalPuzzleSolverTests: XCTestCase {
         XCTAssertTrue(result.isSolved)
         XCTAssertEqual(result.report.statistics.assumptionCount, 0)
         XCTAssertEqual(result.report.statistics.maxAssumptionDepth, 0)
+        XCTAssertFalse(result.report.events.isEmpty)
+        XCTAssertEqual(result.report.events.flatMap(\.steps), result.report.steps)
     }
 
     func testLogicOnlyReturnsStuckWhenNoSingleExists() {
@@ -221,6 +233,9 @@ final class LogicalPuzzleSolverTests: XCTestCase {
             result.report.assumptions.count,
             result.report.statistics.assumptionCount
         )
+        XCTAssertTrue(result.report.events.contains {
+            $0.technique == .contradictionElimination(assumed: assumed)
+        })
     }
 
     private func propagatedResult() throws -> LogicalSolveResult {

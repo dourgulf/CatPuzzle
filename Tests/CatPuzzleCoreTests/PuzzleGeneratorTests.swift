@@ -67,7 +67,10 @@ final class PuzzleGeneratorTests: XCTestCase {
             return XCTFail("expected a generated puzzle")
         }
         try LevelValidator.validate(puzzle.level)
-        XCTAssertEqual(PuzzleSolver.solve(level: puzzle.level), .unique(puzzle.solution))
+        XCTAssertEqual(
+            PuzzleSolver.solve(level: puzzle.level).result,
+            .unique(puzzle.solution)
+        )
     }
 
     // MARK: - Mainline mode
@@ -136,6 +139,7 @@ final class PuzzleGeneratorTests: XCTestCase {
         let stats = result.statistics
         let rejectedTotal = stats.rejectedInvalidLevel
             + stats.rejectedNoSolution
+            + stats.rejectedCertificationInconclusive
             + stats.rejectedMultipleSolutions
             + stats.rejectedWrongUniqueSolution
             + stats.rejectedLogicalStuck

@@ -50,6 +50,14 @@ final class AdvancedLogicalDeductionTests: XCTestCase {
             )
         ))
         XCTAssertEqual(result.report.statistics.lockedPairCount, 1)
+        let event = try XCTUnwrap(result.report.events.first {
+            $0.technique == .lockedSet(size: 2)
+        })
+        XCTAssertGreaterThan(event.steps.count, 1)
+        XCTAssertTrue(event.steps.allSatisfy {
+            if case .lockedSet = $0.reason { return true }
+            return false
+        })
     }
 
     /// Rows 0 and 1 only have candidates in columns 0 and 1: a locked pair
@@ -243,6 +251,10 @@ final class AdvancedLogicalDeductionTests: XCTestCase {
         })
         XCTAssertEqual(result.report.statistics.lockedPairCount, 0)
         XCTAssertEqual(result.report.statistics.lockedTripleCount, 0)
+        XCTAssertFalse(result.report.events.contains {
+            if case .lockedSet = $0.technique { return true }
+            return false
+        })
     }
 
     // MARK: - Helpers

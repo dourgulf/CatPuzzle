@@ -5,7 +5,7 @@ final class BuiltInLogicalAnalysisTests: XCTestCase {
     func testBuiltInLevelsRemainUnique() {
         for fixture in BuiltInLevels.fixtures {
             XCTAssertEqual(
-                PuzzleSolver.solve(level: fixture.level),
+                PuzzleSolver.solve(level: fixture.level).result,
                 .unique(fixture.solution),
                 fixture.level.id
             )
