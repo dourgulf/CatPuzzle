@@ -17,6 +17,7 @@ struct GameScreen: View {
                         puzzle: viewModel.puzzle,
                         previewStates: viewModel.previewStates,
                         showsRegionIcons: showsRegionIcons,
+                        lockedPositions: viewModel.level.givenPositions,
                         hint: viewModel.hint,
                         onTap: viewModel.handleCellTap,
                         onDragSetExcluded: viewModel.setExcludedDuringDrag,

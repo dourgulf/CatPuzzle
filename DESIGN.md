@@ -51,6 +51,7 @@ Do not add score, timer, advertisements, power-ups, or a level list unless produ
 - **Excluded:** large high-contrast `×`, visually centered and readable without relying on opacity.
 - **Cat:** a single original cat/paw mark with strong separation from the Region fill.
 - **Illegal placement:** keep the cell unchanged; show brief warning feedback and update the mistake count.
+- **Given (locked):** a level may ship with a cell already marked excluded or containing a cat. Render its normal excluded/cat marker plus a small `lock.fill` glyph in the opposite corner from the Region icon. It never responds to tap, drag, or the cat-toggle accessibility action, and Restart returns it to its given value rather than clearing it.
 
 Single-tap feedback must appear immediately. A same-cell second tap within the app’s double-tap interval resolves to one cat operation, without leaving an exclusion or creating an extra Undo entry. Provide explicit accessibility actions for marking excluded and toggling a cat. Interactive targets must be at least 44×44 pt.
 

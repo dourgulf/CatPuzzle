@@ -7,6 +7,8 @@ public enum GameEngineError: Error, Equatable, Sendable {
     case invalidRestoredPuzzle
     case invalidMistakeCount
     case invalidSolution
+    case cellIsLocked
+    case invalidGivenCells
 }
 
 public struct GameEngine: Sendable {
@@ -53,7 +55,8 @@ public struct GameEngine: Sendable {
         guard !PuzzleValidator.hasRowConflict(in: puzzle),
               !PuzzleValidator.hasColumnConflict(in: puzzle),
               !PuzzleValidator.hasRegionConflict(in: puzzle),
-              !PuzzleValidator.hasAdjacentCats(in: puzzle) else {
+              !PuzzleValidator.hasAdjacentCats(in: puzzle),
+              Self.puzzleMatchesGivens(puzzle, level: level) else {
             throw GameEngineError.invalidRestoredPuzzle
         }
         guard mistakeCount >= 0 else {
@@ -111,10 +114,24 @@ public struct GameEngine: Sendable {
         ) else {
             throw GameEngineError.invalidSolution
         }
+        // A given `.cat` that isn't part of `solution` already fails the
+        // isSolved check above (either as a cat-count mismatch or a row/
+        // column/region conflict once the real solution is overlaid), so
+        // only a given `.excluded` marking the solution's own cell needs an
+        // explicit check here.
+        if let givenStates = level.givenStates {
+            for position in level.givenPositions
+            where givenStates[position.row][position.column] == .excluded {
+                guard !solution.contains(position) else {
+                    throw GameEngineError.invalidGivenCells
+                }
+            }
+        }
         guard !PuzzleValidator.hasRowConflict(in: puzzle),
               !PuzzleValidator.hasColumnConflict(in: puzzle),
               !PuzzleValidator.hasRegionConflict(in: puzzle),
-              !PuzzleValidator.hasAdjacentCats(in: puzzle) else {
+              !PuzzleValidator.hasAdjacentCats(in: puzzle),
+              Self.puzzleMatchesGivens(puzzle, level: level) else {
             throw GameEngineError.invalidRestoredPuzzle
         }
         if mode == .challenge {
@@ -151,6 +168,11 @@ public struct GameEngine: Sendable {
             column: column
         ) else {
             throw GameEngineError.invalidCell
+        }
+        guard !state.level.givenPositions.contains(
+            CellPosition(row: row, column: column)
+        ) else {
+            throw GameEngineError.cellIsLocked
         }
         guard currentState != newState else { return }
 
@@ -253,5 +275,16 @@ public struct GameEngine: Sendable {
         state.puzzle = initialPuzzle
         state.mistakeCount = 0
         history.removeAll(keepingCapacity: true)
+    }
+
+    private static func puzzleMatchesGivens(
+        _ puzzle: Puzzle,
+        level: LevelDefinition
+    ) -> Bool {
+        guard let givenStates = level.givenStates else { return true }
+        return level.givenPositions.allSatisfy { position in
+            puzzle.state(atRow: position.row, column: position.column)
+                == givenStates[position.row][position.column]
+        }
     }
 }

@@ -18,6 +18,53 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.hint)
     }
 
+    func testIsLockedReflectsLevelGivenPositions() throws {
+        let viewModel = try viewModelWithGivenCat(atRow: 0, column: 1)
+
+        XCTAssertTrue(viewModel.isLocked(atRow: 0, column: 1))
+        XCTAssertFalse(viewModel.isLocked(atRow: 0, column: 0))
+        XCTAssertEqual(viewModel.puzzle.state(atRow: 0, column: 1), .cat)
+    }
+
+    func testTapOnLockedCellIsNoOp() throws {
+        let viewModel = try viewModelWithGivenCat(atRow: 0, column: 1)
+
+        viewModel.handleCellTap(atRow: 0, column: 1)
+
+        XCTAssertEqual(viewModel.puzzle.state(atRow: 0, column: 1), .cat)
+        XCTAssertFalse(viewModel.canUndo)
+        XCTAssertNil(viewModel.feedbackMessage)
+    }
+
+    func testToggleExcludedAndToggleCatOnLockedCellAreNoOps() throws {
+        let viewModel = try viewModelWithGivenCat(atRow: 0, column: 1)
+
+        viewModel.toggleExcluded(atRow: 0, column: 1)
+        viewModel.toggleCat(atRow: 0, column: 1)
+
+        XCTAssertEqual(viewModel.puzzle.state(atRow: 0, column: 1), .cat)
+        XCTAssertFalse(viewModel.canUndo)
+    }
+
+    func testDragOverLockedCellDoesNotChangeItsState() throws {
+        let viewModel = try viewModelWithGivenCat(atRow: 0, column: 1)
+
+        viewModel.setExcludedDuringDrag(true, atRow: 0, column: 1)
+
+        XCTAssertEqual(viewModel.puzzle.state(atRow: 0, column: 1), .cat)
+        XCTAssertFalse(viewModel.canUndo)
+    }
+
+    func testRestartRestoresGivenCatThroughViewModel() throws {
+        let viewModel = try viewModelWithGivenCat(atRow: 0, column: 1)
+        viewModel.toggleExcluded(atRow: 2, column: 2)
+
+        viewModel.restart()
+
+        XCTAssertEqual(viewModel.puzzle.state(atRow: 0, column: 1), .cat)
+        XCTAssertEqual(viewModel.puzzle.state(atRow: 2, column: 2), .empty)
+    }
+
     func testRequestHintPreviewsLogicalResultWithoutChangingPuzzle() throws {
         let viewModel = try viewModelWithRowSingle()
         let puzzleBeforeHint = viewModel.puzzle
@@ -514,6 +561,26 @@ final class GameViewModelTests: XCTestCase {
         viewModel.restart()
 
         XCTAssertEqual(sounds.stopped, [.markExcluded])
+    }
+
+    private func viewModelWithGivenCat(
+        atRow row: Int,
+        column: Int
+    ) throws -> GameViewModel {
+        var givenStates = Array(
+            repeating: Array(repeating: CellState.empty, count: 6),
+            count: 6
+        )
+        givenStates[row][column] = .cat
+        let level = LevelDefinition(
+            id: BuiltInLevels.meadow.id,
+            size: BuiltInLevels.meadow.size,
+            catCount: BuiltInLevels.meadow.catCount,
+            maxMistakes: BuiltInLevels.meadow.maxMistakes,
+            regionIDs: BuiltInLevels.meadow.regionIDs,
+            givenStates: givenStates
+        )
+        return try GameViewModel(level: level)
     }
 
     private func viewModelWithRowSingle(

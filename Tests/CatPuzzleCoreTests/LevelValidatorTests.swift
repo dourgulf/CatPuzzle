@@ -67,6 +67,70 @@ final class LevelValidatorTests: XCTestCase {
         assertValidationError(.invalidRegionCount, for: level)
     }
 
+    func testRejectsGivenStateDimensionMismatch() {
+        var level = makeLevel(
+            size: 3,
+            catCount: 3,
+            regionIDs: [
+                [0, 0, 0],
+                [1, 1, 1],
+                [2, 2, 2],
+            ]
+        )
+        level = LevelDefinition(
+            id: level.id,
+            size: level.size,
+            catCount: level.catCount,
+            maxMistakes: level.maxMistakes,
+            regionIDs: level.regionIDs,
+            givenStates: [[.empty, .empty], [.empty, .empty]]
+        )
+
+        assertValidationError(.invalidGivenStateDimensions, for: level)
+    }
+
+    func testRejectsConflictingGivenCells() {
+        let level = LevelDefinition(
+            id: "conflicting-givens",
+            size: 3,
+            catCount: 3,
+            maxMistakes: 5,
+            regionIDs: [
+                [0, 0, 0],
+                [1, 1, 1],
+                [2, 2, 2],
+            ],
+            givenStates: [
+                [.cat, .cat, .empty],
+                [.empty, .empty, .empty],
+                [.empty, .empty, .empty],
+            ]
+        )
+
+        assertValidationError(.conflictingGivenCells, for: level)
+    }
+
+    func testAcceptsNonConflictingGivenCells() {
+        let level = LevelDefinition(
+            id: "valid-givens",
+            size: 3,
+            catCount: 3,
+            maxMistakes: 5,
+            regionIDs: [
+                [0, 0, 0],
+                [1, 1, 1],
+                [2, 2, 2],
+            ],
+            givenStates: [
+                [.empty, .cat, .empty],
+                [.empty, .empty, .empty],
+                [.empty, .empty, .empty],
+            ]
+        )
+
+        XCTAssertNoThrow(try LevelValidator.validate(level))
+    }
+
     func testAcceptsDisconnectedRegions() {
         let level = makeLevel(
             size: 3,
