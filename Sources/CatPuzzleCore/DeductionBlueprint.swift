@@ -42,6 +42,7 @@ enum DeductionBlueprint {
                 )
             }
             if report.statistics.lockedTripleCount > 0
+                || report.statistics.higherOrderLockedSetCount > 0
                 || report.statistics.commonAttackCount > 0
                 || report.statistics.strongLinkDeductionCount > 0 {
                 violations.append("Easy used a forbidden advanced technique.")
@@ -52,7 +53,8 @@ enum DeductionBlueprint {
                 violations.append("Medium must open with a locked pair or triple.")
             }
             if report.statistics.commonAttackCount > 0
-                || report.statistics.strongLinkDeductionCount > 0 {
+                || report.statistics.strongLinkDeductionCount > 0
+                || report.statistics.higherOrderLockedSetCount > 0 {
                 violations.append("Medium used a Hard-only technique.")
             }
             if !hasTechniqueAfterPlacement(events, matching: isSingle) {

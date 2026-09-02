@@ -220,7 +220,8 @@ private struct PlaytestCandidateRow: View {
             }
             Text(
                 "\(puzzle.profile.displayName) · pair \(statistics.lockedPairCount) · "
-                    + "triple \(statistics.lockedTripleCount) · attack \(statistics.commonAttackCount) · "
+                    + "triple \(statistics.lockedTripleCount) · set4+ \(statistics.higherOrderLockedSetCount) · "
+                    + "attack \(statistics.commonAttackCount) · "
                     + "strongLink \(statistics.strongLinkDeductionCount)"
             )
             .font(.caption)

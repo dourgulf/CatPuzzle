@@ -28,6 +28,7 @@ public struct LogicalStatisticsExport: Codable, Equatable, Sendable {
     public let maxAssumptionDepth: Int
     public let lockedPairCount: Int
     public let lockedTripleCount: Int
+    public let higherOrderLockedSetCount: Int
     public let commonAttackCount: Int
     public let strongLinkDeductionCount: Int
 
@@ -40,6 +41,7 @@ public struct LogicalStatisticsExport: Codable, Equatable, Sendable {
         maxAssumptionDepth = statistics.maxAssumptionDepth
         lockedPairCount = statistics.lockedPairCount
         lockedTripleCount = statistics.lockedTripleCount
+        higherOrderLockedSetCount = statistics.higherOrderLockedSetCount
         commonAttackCount = statistics.commonAttackCount
         strongLinkDeductionCount = statistics.strongLinkDeductionCount
     }

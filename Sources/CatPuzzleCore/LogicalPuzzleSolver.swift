@@ -45,9 +45,17 @@ private let lockedSetFamilyPairs: [(ConstraintFamily, ConstraintFamily)] = [
     (.region, .column),
 ]
 
+/// Largest locked set (Hall set) the solver will search for. Sizes 2 and 3
+/// (locked pair/triple) run at their historical priority; sizes 4...this cap
+/// run only as a last resort before an assumption (see
+/// `nextHigherOrderLockedSetDeduction`). Large boards such as Level 258 need a
+/// single size-4 step, which this turns from a trial into pure logic.
+private let maxLockedSetSize = 4
+
 private enum AdvancedDeductionKind {
     case lockedPair
     case lockedTriple
+    case higherOrderLockedSet(size: Int)
     case commonAttack
     case strongLink
 }
@@ -89,6 +97,7 @@ private struct LogicalSolveEngine {
     var reachedAssumptionDepth = 0
     var lockedPairCount = 0
     var lockedTripleCount = 0
+    var higherOrderLockedSetCount = 0
     var commonAttackCount = 0
     var strongLinkDeductionCount = 0
 
@@ -112,6 +121,7 @@ private struct LogicalSolveEngine {
                 maxAssumptionDepth: reachedAssumptionDepth,
                 lockedPairCount: lockedPairCount,
                 lockedTripleCount: lockedTripleCount,
+                higherOrderLockedSetCount: higherOrderLockedSetCount,
                 commonAttackCount: commonAttackCount,
                 strongLinkDeductionCount: strongLinkDeductionCount
             )
@@ -331,6 +341,9 @@ private struct LogicalSolveEngine {
         case .lockedTriple:
             lockedTripleCount += 1
             recordEvent(.lockedSet(size: 3), startingAt: eventStart)
+        case let .higherOrderLockedSet(size):
+            higherOrderLockedSetCount += 1
+            recordEvent(.lockedSet(size: size), startingAt: eventStart)
         case .commonAttack:
             commonAttackCount += 1
             recordEvent(.commonAttack, startingAt: eventStart)
@@ -374,11 +387,26 @@ private struct LogicalSolveEngine {
         if let event = nextLockedSetDeduction() { return event }
         if let event = nextCommonAttackDeduction() { return event }
         if let event = nextStrongLinkDeduction() { return event }
+        if let event = nextHigherOrderLockedSetDeduction() { return event }
         return nil
     }
 
     private func nextLockedSetDeduction() -> AdvancedDeductionEvent? {
-        for size in [2, 3] {
+        lockedSetDeduction(sizes: [2, 3])
+    }
+
+    /// Locked sets of size 4 and up. Deliberately scanned last — after common
+    /// attack and strong link — so every board that already solved with the
+    /// pair/triple/attack/link set keeps its exact deduction sequence and
+    /// statistics; a size-4 set only ever fires where the solver would
+    /// otherwise have had to open an assumption branch.
+    private func nextHigherOrderLockedSetDeduction() -> AdvancedDeductionEvent? {
+        guard maxLockedSetSize >= 4 else { return nil }
+        return lockedSetDeduction(sizes: Array(4...maxLockedSetSize))
+    }
+
+    private func lockedSetDeduction(sizes: [Int]) -> AdvancedDeductionEvent? {
+        for size in sizes {
             for (sourceFamily, targetFamily) in lockedSetFamilyPairs {
                 if let event = lockedSetDeduction(
                     sourceFamily: sourceFamily,
@@ -428,10 +456,18 @@ private struct LogicalSolveEngine {
                     targets: sortedTargets
                 ),
                 exclusions: affected.sorted(by: CandidateBoard.rowMajor),
-                kind: size == 2 ? .lockedPair : .lockedTriple
+                kind: lockedSetKind(for: size)
             )
         }
         return nil
+    }
+
+    private func lockedSetKind(for size: Int) -> AdvancedDeductionKind {
+        switch size {
+        case 2: return .lockedPair
+        case 3: return .lockedTriple
+        default: return .higherOrderLockedSet(size: size)
+        }
     }
 
     /// Common attack: an unresolved constraint's eventual cat must land on
