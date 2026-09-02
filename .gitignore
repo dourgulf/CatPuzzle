@@ -34,6 +34,11 @@ playground.xcworkspace
 # Local design research and Finder metadata
 .DS_Store
 Docs/关卡示范/
+Docs/demo/
+
+# Python research tooling caches (Scripts/*.py are tracked)
+Scripts/__pycache__/
+*.pyc
 
 # CocoaPods
 #
