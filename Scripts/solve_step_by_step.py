@@ -33,7 +33,9 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import copy
 import sys
+from itertools import combinations
 from pathlib import Path
 
 from PIL import Image, ImageDraw
@@ -48,6 +50,12 @@ from transcribe_level import (
 from transcribe_solution import classify_cell
 
 REGION_MERGE_DISTANCE = 40.0
+
+# Largest locked set (N units confined to N cross-units) the deducer will try.
+# CatPuzzleCore's LogicalPuzzleSolver caps at 3 (lockedPair/lockedTriple); the
+# large Docs/demo boards (e.g. Level 258) empirically need one k=4 step, so the
+# teaching script goes a little further before falling back to a trial.
+MAX_LOCKED_SET = 4
 
 
 def region_color(im: Image.Image, rect: tuple[int, int, int, int]) -> tuple[int, int, int]:
@@ -318,8 +326,169 @@ class Deducer:
                     return desc, new
         return None
 
+    # -- helpers for the advanced techniques ------------------------------
+
+    def _unit_kind(self, r, c, family):
+        """The label of the row/column/region unit cell (r,c) belongs to."""
+        if family == "row":
+            return ("row", r)
+        if family == "column":
+            return ("column", c)
+        return ("color", self.region_ids[r][c])
+
+    def _cells_of_kind(self, kind):
+        tag, label = kind
+        n = self.size
+        if tag == "row":
+            return [(label, c) for c in range(n)]
+        if tag == "column":
+            return [(r, label) for r in range(n)]
+        return list(self.region_cells[label])
+
+    def _unresolved_units(self, family):
+        """Units of a family that still need a cat, with their candidate cells."""
+        result = []
+        for kind, _label, cells in self.units():
+            fam = {"row": "row", "column": "column", "color": "region"}[kind]
+            if fam != family:
+                continue
+            if self.has_cat(cells):
+                continue
+            cand = self.candidates(cells)
+            if cand:
+                result.append((kind, _label, cand))
+        return result
+
+    def _attacks(self, a, b):
+        """True if a cat on cell a would forbid cell b (same row/col/region or 8-adjacent)."""
+        (r1, c1), (r2, c2) = a, b
+        if a == b:
+            return False
+        if r1 == r2 or c1 == c2:
+            return True
+        if self.region_ids[r1][c1] == self.region_ids[r2][c2]:
+            return True
+        return abs(r1 - r2) <= 1 and abs(c1 - c2) <= 1
+
+    _FAMILY_NAME = {"row": "行", "column": "列", "region": "色块"}
+
+    def t4_locked_set(self):
+        """Generalized locked set (pigeonhole). If N source units confine their
+        candidates to exactly N cross-units, those cross-units are 'owned' -> any
+        other candidate in them is excluded. N=1 across region->line is the
+        common attack (t3); this covers N=2..MAX for every source/target family
+        pair (region<->row/column, row<->column), mirroring Core's lockedSet."""
+        families = ("row", "column", "region")
+        for size in range(2, MAX_LOCKED_SET + 1):
+            for src_fam in families:
+                for tgt_fam in families:
+                    if src_fam == tgt_fam:
+                        continue
+                    sources = self._unresolved_units(src_fam)
+                    if len(sources) < size:
+                        continue
+                    for combo in combinations(sources, size):
+                        union = [cell for _k, _l, cand in combo for cell in cand]
+                        target_kinds = {self._unit_kind(r, c, tgt_fam) for (r, c) in union}
+                        if len(target_kinds) != size:
+                            continue
+                        union_set = set(union)
+                        new = []
+                        for kind in sorted(target_kinds):
+                            for (r, c) in self._cells_of_kind(kind):
+                                if self.grid[r][c] == UNKNOWN and (r, c) not in union_set:
+                                    new.append((EXCLUDED, r, c))
+                        if new:
+                            src_labels = ", ".join(str(l) for _k, l, _c in combo)
+                            tgt_labels = ", ".join(str(l) for _t, l in sorted(target_kinds))
+                            noun = "对" if size == 2 else "组"
+                            desc = (
+                                f"锁定{noun}：{size} 个{self._FAMILY_NAME[src_fam]}"
+                                f"（{src_labels}）的候选恰好只占据 {size} 个"
+                                f"{self._FAMILY_NAME[tgt_fam]}（{tgt_labels}）"
+                                f"→ 这些{self._FAMILY_NAME[tgt_fam]}被它们包干，排除其中其余空格。"
+                            )
+                            return desc, new
+        return None
+
+    def t5_strong_link(self):
+        """A unit with exactly two candidates A, B must hold its cat on one of
+        them; any cell attacked by BOTH A and B can never be a cat -> exclude."""
+        for kind, label, cells in self.units():
+            if self.has_cat(cells):
+                continue
+            cand = self.candidates(cells)
+            if len(cand) != 2:
+                continue
+            a, b = cand
+            new = []
+            for r in range(self.size):
+                for c in range(self.size):
+                    if self.grid[r][c] != UNKNOWN or (r, c) in (a, b):
+                        continue
+                    if self._attacks(a, (r, c)) and self._attacks(b, (r, c)):
+                        new.append((EXCLUDED, r, c))
+            if new:
+                name = {"row": f"第 {label} 行", "column": f"第 {label} 列",
+                        "color": f"{label} 号色块"}[kind]
+                desc = (
+                    f"强链：{name}只剩 R{a[0]+1}C{a[1]+1}、R{b[0]+1}C{b[1]+1} 两个候选，"
+                    f"猫必居其一 → 同时被两者攻击的空格都不可能是猫，排除。"
+                )
+                return desc, new
+        return None
+
+    # -- depth-1 assumption (proof by contradiction) ----------------------
+
+    def _polynomial_step(self):
+        """First deterministic (non-assumption) technique that fires, or None."""
+        for technique in (self.t1_eliminate_from_cats, self.t2_hidden_single,
+                           self.t3_common_attack, self.t4_locked_set, self.t5_strong_link):
+            result = technique()
+            if result:
+                return result
+        return None
+
+    def _has_contradiction(self):
+        for _kind, _label, cells in self.units():
+            if not self.has_cat(cells) and not self.candidates(cells):
+                return True
+        return False
+
+    def _run_to_fixpoint(self):
+        """Apply polynomial techniques (raw, no solution asserts) until stuck or
+        a contradiction appears. Returns True if consistent, False if broken.
+        Used only on throwaway copies inside t6_assumption."""
+        while True:
+            if self._has_contradiction():
+                return False
+            result = self._polynomial_step()
+            if result is None:
+                return not self._has_contradiction()
+            for kind, r, c in result[1]:
+                self.grid[r][c] = kind
+
+    def t6_assumption(self):
+        """Depth-1 trial: if hypothesizing a cat on an unknown cell forces a
+        contradiction under the polynomial techniques, that cell can't be a cat."""
+        for r in range(self.size):
+            for c in range(self.size):
+                if self.grid[r][c] != UNKNOWN:
+                    continue
+                trial = copy.deepcopy(self)
+                trial.grid[r][c] = CAT
+                if not trial._run_to_fixpoint():
+                    desc = (
+                        f"试探反证：假设 R{r+1}C{c+1} 放猫，仅凭确定性推理即可推出矛盾"
+                        f"（某行/列/色块再无处落猫）→ 故 R{r+1}C{c+1} 必为空。"
+                    )
+                    return desc, [(EXCLUDED, r, c)]
+        return None
+
     def next_step(self):
-        for technique in (self.t1_eliminate_from_cats, self.t2_hidden_single, self.t3_common_attack):
+        for technique in (self.t1_eliminate_from_cats, self.t2_hidden_single,
+                          self.t3_common_attack, self.t4_locked_set,
+                          self.t5_strong_link, self.t6_assumption):
             result = technique()
             if result:
                 return result
@@ -711,8 +880,8 @@ def main() -> int:
         print("🎉 已放满所有猫，推理完成。")
     else:
         last = steps[-1]["grid"] if steps else init_grid
-        print("⏸ 当前技巧库（同行列色排除 / 唯一候选 / common attack）无法继续推进——"
-              "这一步需要更高级的技巧。剩余盘面：")
+        print("⏸ 当前技巧库（同行列色排除 / 唯一候选 / common attack / 锁定组 / "
+              "强链 / 深度1试探反证）无法继续推进——这一步需要更深的嵌套假设。剩余盘面：")
         print(render_board(size, region_ids, last, region_colors, set(), use_color))
 
     return 0
