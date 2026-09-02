@@ -185,6 +185,48 @@ final class ConstructivePuzzleGeneratorTests: XCTestCase {
         XCTAssertEqual(generated.exactSolverReport.result, .unique(generated.solution))
     }
 
+    func testFixedSeedEasyTenByTenGeneratesWithSizeScaledBands() {
+        // Before the size-scaled geometry cap and locked-pair allowance, every
+        // 10x10 Easy dominant-background request failed: the flat 0.45 fraction
+        // cap rejected the naturally larger background before the solver ran,
+        // and the flat one-pair cap rejected the few layouts that did pass. This
+        // pins a known-good seed so both regressions stay fixed.
+        let request = ConstructiveGenerationRequest(
+            size: 10,
+            seed: 8,
+            difficulty: .easy,
+            profile: .dominantBackground
+        )
+
+        let result = ConstructivePuzzleGenerator.generate(request: request)
+        guard case let .success(generated) = result else {
+            return XCTFail("Expected 10x10 Easy generation to succeed: \(result)")
+        }
+
+        XCTAssertEqual(generated.level.size, 10)
+        XCTAssertEqual(generated.geometry.connectedRegionCount, 10)
+        XCTAssertTrue(generated.blueprintCoverage.isSatisfied)
+        XCTAssertLessThanOrEqual(generated.geometry.largestRegionFraction, 0.55)
+        XCTAssertGreaterThan(generated.geometry.largestRegionFraction, 0.45)
+        XCTAssertLessThanOrEqual(
+            generated.logicalReport.statistics.lockedPairCount,
+            DeductionBlueprint.easyLockedPairAllowance(size: 10)
+        )
+        // Still gentle: no Hard-only technique and no proof-by-contradiction.
+        XCTAssertEqual(generated.logicalReport.statistics.lockedTripleCount, 0)
+        XCTAssertEqual(generated.logicalReport.statistics.commonAttackCount, 0)
+        XCTAssertEqual(generated.logicalReport.statistics.strongLinkDeductionCount, 0)
+        XCTAssertEqual(generated.logicalReport.statistics.assumptionCount, 0)
+        XCTAssertEqual(generated.exactSolverReport.result, .unique(generated.solution))
+    }
+
+    func testEasyLockedPairAllowanceScalesWithBoard() {
+        XCTAssertEqual(DeductionBlueprint.easyLockedPairAllowance(size: 6), 1)
+        XCTAssertEqual(DeductionBlueprint.easyLockedPairAllowance(size: 8), 1)
+        XCTAssertEqual(DeductionBlueprint.easyLockedPairAllowance(size: 9), 2)
+        XCTAssertEqual(DeductionBlueprint.easyLockedPairAllowance(size: 10), 3)
+    }
+
     func testFixedSeedMediumNineByNineOpensWithLockedSetAndIsUnique() {
         let request = ConstructiveGenerationRequest(
             size: 9,
@@ -249,6 +291,164 @@ final class ConstructivePuzzleGeneratorTests: XCTestCase {
             $0.technique == .commonAttack || $0.technique == .strongLink
         })
         XCTAssertEqual(generated.exactSolverReport.result, .unique(generated.solution))
+    }
+
+    // MARK: - Common-attack density (A1)
+
+    func testHardLayoutForcesAtLeastTheCommonAttackFloor() {
+        let request = ConstructiveGenerationRequest(
+            size: 10,
+            seed: 1,
+            difficulty: .hard,
+            profile: .dominantBackground
+        )
+        guard case let .success(generated) = ConstructivePuzzleGenerator.generate(
+            request: request
+        ) else {
+            return XCTFail("Expected fixed-seed hard generation to succeed")
+        }
+        XCTAssertGreaterThanOrEqual(
+            generated.logicalReport.statistics.commonAttackCount,
+            DeductionBlueprint.hardCommonAttackFloor
+        )
+    }
+
+    func testHardBlueprintRejectsAStrongLinkOnlyLayout() {
+        // A Hard report that solves with a strong link but no common attack
+        // must fail coverage now that the density band requires the signature
+        // common-attack technique.
+        let report = LogicalSolveResult.solved(
+            LogicalSolveReport(
+                steps: [],
+                events: [
+                    LogicalTechniqueEvent(
+                        technique: .lockedSet(size: 2),
+                        steps: [],
+                        boardAfter: LogicalBoardSnapshot(size: 10, states: [])
+                    ),
+                    LogicalTechniqueEvent(
+                        technique: .single(.region(0)),
+                        steps: [],
+                        boardAfter: LogicalBoardSnapshot(size: 10, states: [])
+                    ),
+                    LogicalTechniqueEvent(
+                        technique: .strongLink,
+                        steps: [],
+                        boardAfter: LogicalBoardSnapshot(size: 10, states: [])
+                    ),
+                ],
+                finalBoard: LogicalBoardSnapshot(size: 10, states: []),
+                statistics: LogicalSolveStatistics(
+                    placedCats: 10,
+                    exclusions: 0,
+                    propagationSteps: 0,
+                    deductionRounds: 3,
+                    assumptionCount: 0,
+                    maxAssumptionDepth: 0,
+                    lockedPairCount: 1,
+                    lockedTripleCount: 0,
+                    commonAttackCount: 0,
+                    strongLinkDeductionCount: 1
+                )
+            )
+        )
+        let coverage = DeductionBlueprint.evaluate(difficulty: .hard, result: report)
+        XCTAssertFalse(coverage.isSatisfied)
+    }
+
+    // MARK: - Given anchors (A2)
+
+    func testGivenAnchorShipsALockedSolutionCatAndStaysUnique() {
+        let request = ConstructiveGenerationRequest(
+            size: 10,
+            seed: 1,
+            difficulty: .hard,
+            profile: .dominantBackground,
+            givenAnchorCount: 1
+        )
+        guard case let .success(generated) = ConstructivePuzzleGenerator.generate(
+            request: request
+        ) else {
+            return XCTFail("Expected given-anchor generation to succeed")
+        }
+        let givens = generated.level.givenPositions
+        XCTAssertEqual(givens.count, 1)
+        let anchor = try? XCTUnwrap(givens.first)
+        if let anchor {
+            XCTAssertEqual(
+                generated.level.givenStates?[anchor.row][anchor.column],
+                .cat
+            )
+            XCTAssertTrue(generated.solution.contains(anchor))
+        }
+        XCTAssertNoThrow(try LevelValidator.validate(generated.level))
+        XCTAssertEqual(
+            generated.exactSolverReport.result,
+            .unique(generated.solution)
+        )
+    }
+
+    func testDefaultRequestShipsNoGivenAnchors() {
+        let request = ConstructiveGenerationRequest(
+            size: 10,
+            seed: 1,
+            difficulty: .hard,
+            profile: .dominantBackground
+        )
+        guard case let .success(generated) = ConstructivePuzzleGenerator.generate(
+            request: request
+        ) else {
+            return XCTFail("Expected fixed-seed hard generation to succeed")
+        }
+        XCTAssertNil(generated.level.givenStates)
+        XCTAssertTrue(generated.level.givenPositions.isEmpty)
+    }
+
+    // MARK: - balancedMosaic Easy geometry (B1)
+
+    func testBalancedMosaicEasyIsNoLongerRejectedAsInvalidRequest() {
+        let result = ConstructivePuzzleGenerator.generate(request: .init(
+            size: 8,
+            seed: 1,
+            difficulty: .easy,
+            profile: .balancedMosaic,
+            budget: GenerationBudget(
+                solutionRestarts: 1,
+                partitionRestarts: 1,
+                boundaryMutations: 0,
+                logicalEvaluations: 1,
+                exactSolverNodes: 0,
+                beamWidth: 1
+            )
+        ))
+        if case let .failure(failure) = result {
+            XCTAssertNotEqual(failure.stage, .invalidRequest)
+        }
+    }
+
+    func testGeometryAnalyzerAcceptsBalancedEasyWithOneSingletonAnchor() {
+        let easyMetrics = RegionGeometryMetrics(
+            areasByRegionID: [0: 1, 1: 9, 2: 9, 3: 9, 4: 9, 5: 9, 6: 9, 7: 9],
+            connectedRegionCount: 8,
+            regionsWithHoles: [],
+            singletonRegionCount: 1,
+            largestRegionFraction: 9.0 / 64.0,
+            narrowCorridorCellCount: 0
+        )
+        XCTAssertTrue(RegionGeometryAnalyzer.matches(
+            easyMetrics,
+            size: 8,
+            difficulty: .easy,
+            profile: .balancedMosaic
+        ))
+        // The same singleton-bearing geometry is rejected for Medium, which
+        // still forbids singletons.
+        XCTAssertFalse(RegionGeometryAnalyzer.matches(
+            easyMetrics,
+            size: 8,
+            difficulty: .medium,
+            profile: .balancedMosaic
+        ))
     }
 
     private func easyPartition(

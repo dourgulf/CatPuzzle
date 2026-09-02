@@ -30,7 +30,20 @@ enum RegionGeometryAnalyzer {
 
         switch profile {
         case .dominantBackground:
-            let maximumLargestRegionFraction = difficulty == .easy ? 0.45 : 0.70
+            // The Easy cascade grows each satellite Region to a small fixed
+            // size (~6 cells). On a larger board that same singles-friendly
+            // cascade naturally leaves a proportionally larger background:
+            // 8x8 ~0.42, 9x9 ~0.47, 10x10 ~0.51. A flat 0.45 cap therefore
+            // rejects every 9x9/10x10 Easy layout before it is ever handed to
+            // the logical solver. Scale the Easy cap with the board so the
+            // natural cascade is admitted, while still keeping the background a
+            // clear-but-not-overwhelming majority.
+            let maximumLargestRegionFraction: Double
+            if difficulty == .easy {
+                maximumLargestRegionFraction = size <= 8 ? 0.45 : 0.55
+            } else {
+                maximumLargestRegionFraction = 0.70
+            }
             guard (0.25...maximumLargestRegionFraction).contains(
                 metrics.largestRegionFraction
             ),
@@ -45,13 +58,17 @@ enum RegionGeometryAnalyzer {
             } && metrics.regionsWithHoles.allSatisfy { $0 == largestRegionID }
 
         case .balancedMosaic:
+            // Easy carries exactly one singleton anchor (human sample: 248 is a
+            // 10x10 pure-singles Easy with one one-cell Region); Medium/Hard
+            // remain singleton-free. The anchor is exempt from the minimum-area
+            // band; every other Region stays in [minimumArea, 2*size].
             let minimumArea = max(2, size / 2)
-            return difficulty != .easy
-                && metrics.singletonRegionCount == 0
+            let requiredSingletons = difficulty == .easy ? 1 : 0
+            return metrics.singletonRegionCount == requiredSingletons
                 && metrics.largestRegionFraction <= 0.28
                 && metrics.regionsWithHoles.isEmpty
                 && metrics.areasByRegionID.values.allSatisfy {
-                    (minimumArea...(2 * size)).contains($0)
+                    $0 == 1 || (minimumArea...(2 * size)).contains($0)
                 }
         }
     }

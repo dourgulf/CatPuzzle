@@ -89,6 +89,7 @@ struct BoardView: View {
     let puzzle: Puzzle
     let previewStates: [CellPosition: CellState]
     let showsRegionIcons: Bool
+    let lockedPositions: Set<CellPosition>
     let hint: LogicalHint?
     let onTap: (Int, Int) -> Void
     let onDragSetExcluded: (Bool, Int, Int) -> Void
@@ -129,6 +130,7 @@ struct BoardView: View {
                                 column: column,
                                 cellSide: layout.cellSide,
                                 showsRegionIcon: showsRegionIcons,
+                                isLocked: lockedPositions.contains(position),
                                 hintEmphasis: hintEmphasis(at: position),
                                 allowsInteraction: hint == nil,
                                 onTap: {
@@ -245,7 +247,8 @@ struct BoardView: View {
               let state = puzzle.state(
                   atRow: position.row,
                   column: position.column
-              ) else {
+              ),
+              !lockedPositions.contains(position) else {
             return .ignore
         }
         return BoardDragMode(startingFrom: state)

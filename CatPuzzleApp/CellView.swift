@@ -22,6 +22,7 @@ struct CellView: View {
     let column: Int
     let cellSide: CGFloat
     let showsRegionIcon: Bool
+    let isLocked: Bool
     let hintEmphasis: CellHintEmphasis
     let allowsInteraction: Bool
     let onTap: () -> Void
@@ -50,6 +51,17 @@ struct CellView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .clipped()
 
+            if isLocked {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 7, weight: .bold))
+                    .foregroundStyle(
+                        CatPuzzleTheme.markerColor(for: regionID).opacity(0.55)
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    .padding(6)
+                    .accessibilityHidden(true)
+            }
+
             if hintEmphasis == .dimmed {
                 Color.black.opacity(0.62)
                     .accessibilityHidden(true)
@@ -73,22 +85,19 @@ struct CellView: View {
             .accessibilityLabel(
                 "Row \(row + 1), Column \(column + 1), "
                     + CatPuzzleTheme.regionName(for: regionID)
+                    + (isLocked ? ", Given" : "")
             )
             .accessibilityValue(accessibilityValue)
-            .accessibilityHint(
-                allowsInteraction
-                    ? "Activate to mark excluded."
-                    : "Hint preview. Use Apply or Cancel below the board."
-            )
-            .accessibilityAddTraits(.isButton)
+            .accessibilityHint(accessibilityHintText)
+            .accessibilityAddTraits(isLocked ? [] : .isButton)
             .accessibilityIdentifier("cell-\(row)-\(column)")
             .accessibilityAction {
-                if allowsInteraction {
+                if allowsInteraction, !isLocked {
                     onTap()
                 }
             }
             .accessibilityAction(named: "Toggle cat") {
-                if allowsInteraction {
+                if allowsInteraction, !isLocked {
                     onToggleCatAccessibility()
                 }
             }
@@ -133,6 +142,16 @@ struct CellView: View {
         case .empty: "Empty"
         case .excluded: "Excluded"
         case .cat: "Cat"
+        }
+    }
+
+    private var accessibilityHintText: String {
+        if isLocked {
+            "Fixed at the start of this level."
+        } else if allowsInteraction {
+            "Activate to mark excluded."
+        } else {
+            "Hint preview. Use Apply or Cancel below the board."
         }
     }
 

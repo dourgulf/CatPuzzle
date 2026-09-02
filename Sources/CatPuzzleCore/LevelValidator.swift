@@ -5,6 +5,8 @@ public enum LevelValidationError: Error, Equatable, Sendable {
     case invalidMaxMistakes
     case invalidRegionCount
     case catCountMustEqualSize
+    case invalidGivenStateDimensions
+    case conflictingGivenCells
 }
 
 public enum LevelValidator {
@@ -27,6 +29,20 @@ public enum LevelValidator {
         }
         guard Set(level.regionIDs.flatMap { $0 }).count == level.catCount else {
             throw LevelValidationError.invalidRegionCount
+        }
+
+        if let givenStates = level.givenStates {
+            guard givenStates.count == level.size,
+                  givenStates.allSatisfy({ $0.count == level.size }) else {
+                throw LevelValidationError.invalidGivenStateDimensions
+            }
+            let puzzle = try level.makePuzzle()
+            guard !PuzzleValidator.hasRowConflict(in: puzzle),
+                  !PuzzleValidator.hasColumnConflict(in: puzzle),
+                  !PuzzleValidator.hasRegionConflict(in: puzzle),
+                  !PuzzleValidator.hasAdjacentCats(in: puzzle) else {
+                throw LevelValidationError.conflictingGivenCells
+            }
         }
     }
 }

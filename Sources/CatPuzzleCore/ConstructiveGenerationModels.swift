@@ -45,6 +45,13 @@ public struct ConstructiveGenerationRequest: Equatable, Sendable {
     public let profile: RegionGeometryProfile
     public let maxMistakes: Int
     public let budget: GenerationBudget
+    /// Number of solution cells shipped pre-placed as locked `given` cats,
+    /// giving the player a gentle opening independent of Region geometry
+    /// (human sample: levels 231 and 232 ship a dominant-background layout
+    /// with one given cat). Defaults to 0. A given anchor is an optional
+    /// overlay on an already-accepted level: it never changes which layout
+    /// is certified, only pre-reveals cells of that layout's unique solution.
+    public let givenAnchorCount: Int
 
     public init(
         size: Int,
@@ -52,7 +59,8 @@ public struct ConstructiveGenerationRequest: Equatable, Sendable {
         difficulty: GeneratorDifficulty,
         profile: RegionGeometryProfile,
         maxMistakes: Int = 5,
-        budget: GenerationBudget = GenerationBudget()
+        budget: GenerationBudget = GenerationBudget(),
+        givenAnchorCount: Int = 0
     ) {
         self.size = size
         self.seed = seed
@@ -60,6 +68,7 @@ public struct ConstructiveGenerationRequest: Equatable, Sendable {
         self.profile = profile
         self.maxMistakes = maxMistakes
         self.budget = budget
+        self.givenAnchorCount = max(0, givenAnchorCount)
     }
 }
 

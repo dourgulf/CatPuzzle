@@ -391,4 +391,128 @@ final class GameEngineTests: XCTestCase {
             XCTAssertEqual(error as? GameEngineError, .invalidRestoredPuzzle)
         }
     }
+
+    func testGivenCatIsPrefilledWhenEngineStarts() throws {
+        let engine = try GameEngine(level: makeGivensLevel(givenCatAt: CellPosition(row: 0, column: 1)))
+
+        XCTAssertEqual(engine.state.puzzle.state(atRow: 0, column: 1), .cat)
+    }
+
+    func testLockedCellRejectsSetStateWithoutMistakeOrUndoHistory() throws {
+        var engine = try GameEngine(level: makeGivensLevel(givenCatAt: CellPosition(row: 0, column: 1)))
+
+        XCTAssertThrowsError(
+            try engine.setState(.empty, atRow: 0, column: 1)
+        ) { error in
+            XCTAssertEqual(error as? GameEngineError, .cellIsLocked)
+        }
+        XCTAssertEqual(engine.state.puzzle.state(atRow: 0, column: 1), .cat)
+        XCTAssertEqual(engine.state.mistakeCount, 0)
+        XCTAssertFalse(engine.canUndo)
+    }
+
+    func testToggleCellOnLockedCellThrows() throws {
+        var engine = try GameEngine(level: makeGivensLevel(givenCatAt: CellPosition(row: 0, column: 1)))
+
+        XCTAssertThrowsError(
+            try engine.toggleCell(atRow: 0, column: 1)
+        ) { error in
+            XCTAssertEqual(error as? GameEngineError, .cellIsLocked)
+        }
+    }
+
+    func testRestartRestoresGivenCells() throws {
+        var engine = try GameEngine(level: makeGivensLevel(givenCatAt: CellPosition(row: 0, column: 1)))
+        try engine.setState(.excluded, atRow: 3, column: 3)
+
+        engine.restart()
+
+        XCTAssertEqual(engine.state.puzzle.state(atRow: 0, column: 1), .cat)
+        XCTAssertEqual(engine.state.puzzle.state(atRow: 3, column: 3), .empty)
+    }
+
+    func testFixtureAcceptsGivenCatThatMatchesSolution() throws {
+        let fixture = LevelFixture(
+            level: makeGivensLevel(givenCatAt: CellPosition(row: 0, column: 1)),
+            solution: givensLevelSolution
+        )
+
+        let engine = try GameEngine(fixture: fixture, mode: .challenge)
+
+        XCTAssertEqual(engine.state.puzzle.state(atRow: 0, column: 1), .cat)
+    }
+
+    func testFixtureRejectsGivenCatThatIsNotInSolution() {
+        let fixture = LevelFixture(
+            level: makeGivensLevel(givenCatAt: CellPosition(row: 0, column: 0)),
+            solution: givensLevelSolution
+        )
+
+        XCTAssertThrowsError(
+            try GameEngine(fixture: fixture, mode: .challenge)
+        ) { error in
+            XCTAssertEqual(error as? GameEngineError, .invalidSolution)
+        }
+    }
+
+    func testFixtureRejectsGivenExcludedOnSolutionCell() {
+        let fixture = LevelFixture(
+            level: makeGivensLevel(givenExcludedAt: CellPosition(row: 0, column: 1)),
+            solution: givensLevelSolution
+        )
+
+        XCTAssertThrowsError(
+            try GameEngine(fixture: fixture, mode: .challenge)
+        ) { error in
+            XCTAssertEqual(error as? GameEngineError, .invalidGivenCells)
+        }
+    }
+
+    func testEngineRejectsRestoredPuzzleThatContradictsGivens() throws {
+        let level = makeGivensLevel(givenCatAt: CellPosition(row: 0, column: 1))
+        var savedPuzzle = try level.makePuzzle()
+        try savedPuzzle.setState(.empty, atRow: 0, column: 1)
+
+        XCTAssertThrowsError(
+            try GameEngine(level: level, puzzle: savedPuzzle)
+        ) { error in
+            XCTAssertEqual(error as? GameEngineError, .invalidRestoredPuzzle)
+        }
+    }
+
+    private let givensLevelSolution = [
+        CellPosition(row: 0, column: 1),
+        CellPosition(row: 1, column: 3),
+        CellPosition(row: 2, column: 0),
+        CellPosition(row: 3, column: 2),
+    ]
+
+    private func makeGivensLevel(
+        givenCatAt catPosition: CellPosition? = nil,
+        givenExcludedAt excludedPosition: CellPosition? = nil
+    ) -> LevelDefinition {
+        var givenStates = Array(
+            repeating: Array(repeating: CellState.empty, count: 4),
+            count: 4
+        )
+        if let catPosition {
+            givenStates[catPosition.row][catPosition.column] = .cat
+        }
+        if let excludedPosition {
+            givenStates[excludedPosition.row][excludedPosition.column] = .excluded
+        }
+        return LevelDefinition(
+            id: "with-givens",
+            size: 4,
+            catCount: 4,
+            maxMistakes: 3,
+            regionIDs: [
+                [0, 0, 0, 1],
+                [0, 1, 1, 1],
+                [2, 2, 2, 3],
+                [2, 3, 3, 3],
+            ],
+            givenStates: givenStates
+        )
+    }
 }

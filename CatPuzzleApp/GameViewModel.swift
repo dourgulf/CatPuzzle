@@ -105,11 +105,16 @@ final class GameViewModel: ObservableObject {
             ?? puzzle.state(atRow: row, column: column)
     }
 
+    func isLocked(atRow row: Int, column: Int) -> Bool {
+        level.givenPositions.contains(CellPosition(row: row, column: column))
+    }
+
     func handleCellTap(atRow row: Int, column: Int) {
         guard let currentState = puzzle.state(atRow: row, column: column) else {
             feedbackMessage = "That cell is outside the board."
             return
         }
+        guard !isLocked(atRow: row, column: column) else { return }
 
         let position = CellPosition(row: row, column: column)
         switch tapInterpreter.registerTap(at: position) {
@@ -131,11 +136,13 @@ final class GameViewModel: ObservableObject {
     }
 
     func toggleExcluded(atRow row: Int, column: Int) {
+        guard !isLocked(atRow: row, column: column) else { return }
         cancelPendingTaps()
         applyExcludedToggle(atRow: row, column: column)
     }
 
     func toggleCat(atRow row: Int, column: Int) {
+        guard !isLocked(atRow: row, column: column) else { return }
         cancelPendingTaps()
         applyCatToggle(atRow: row, column: column)
     }
@@ -147,7 +154,8 @@ final class GameViewModel: ObservableObject {
     ) {
         cancelPendingTaps()
         guard let currentState = puzzle.state(atRow: row, column: column),
-              currentState != .cat else {
+              currentState != .cat,
+              !isLocked(atRow: row, column: column) else {
             return
         }
         apply(excluded ? .excluded : .empty, atRow: row, column: column)
