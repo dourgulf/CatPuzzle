@@ -127,6 +127,10 @@ public struct LogicalSolveStatistics: Equatable, Sendable {
     public let maxAssumptionDepth: Int
     public let lockedPairCount: Int
     public let lockedTripleCount: Int
+    /// Locked sets of size 4 or larger (a Hall set beyond the pair/triple the
+    /// standard human toolkit covers). Kept separate so difficulty scoring and
+    /// the generator blueprint can treat it as a distinctly harder technique.
+    public let higherOrderLockedSetCount: Int
     public let commonAttackCount: Int
     public let strongLinkDeductionCount: Int
 
@@ -139,6 +143,7 @@ public struct LogicalSolveStatistics: Equatable, Sendable {
         maxAssumptionDepth: Int,
         lockedPairCount: Int = 0,
         lockedTripleCount: Int = 0,
+        higherOrderLockedSetCount: Int = 0,
         commonAttackCount: Int = 0,
         strongLinkDeductionCount: Int = 0
     ) {
@@ -150,6 +155,7 @@ public struct LogicalSolveStatistics: Equatable, Sendable {
         self.maxAssumptionDepth = maxAssumptionDepth
         self.lockedPairCount = lockedPairCount
         self.lockedTripleCount = lockedTripleCount
+        self.higherOrderLockedSetCount = higherOrderLockedSetCount
         self.commonAttackCount = commonAttackCount
         self.strongLinkDeductionCount = strongLinkDeductionCount
     }

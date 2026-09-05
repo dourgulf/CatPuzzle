@@ -143,6 +143,7 @@ for (index, puzzle) in result.generated.enumerated() {
     print("tier: \(tierName(puzzle.difficulty.tier))")
     print("lockedPair: \(stats.lockedPairCount)")
     print("lockedTriple: \(stats.lockedTripleCount)")
+    print("higherOrderLockedSet: \(stats.higherOrderLockedSetCount)")
     print("commonAttack: \(stats.commonAttackCount)")
     print("strongLink: \(stats.strongLinkDeductionCount)")
     print("assumptions: \(stats.assumptionCount)")

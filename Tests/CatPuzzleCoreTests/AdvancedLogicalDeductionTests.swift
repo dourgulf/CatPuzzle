@@ -259,6 +259,57 @@ final class AdvancedLogicalDeductionTests: XCTestCase {
 
     // MARK: - Helpers
 
+    // MARK: - Higher-order locked set (K >= 4)
+
+    /// Rows 0-3 are each confined to columns {0, 1, 2, 3} (a full 4x4 block),
+    /// so no two of them share only two columns and no three share only three
+    /// — there is no locked pair or triple, and no unit is down to two
+    /// candidates (no strong link) or dominated by a common attacker. The only
+    /// deterministic move is the size-4 locked set (rows {0,1,2,3} own columns
+    /// {0,1,2,3}), which excludes every other candidate in those columns
+    /// (rows 4-7). This exercises the higher-order tier in isolation.
+    func testHigherOrderLockedSetExcludesWhenFourRowsAreConfinedToFourColumns() throws {
+        let level = rowRegionLevel(id: "locked-set-4-row-column", size: 8)
+        var block: [(Int, Int)] = []
+        for row in 0...3 {
+            for column in 0...3 { block.append((row, column)) }
+        }
+        for row in 4...7 {
+            for column in 0...7 { block.append((row, column)) }
+        }
+        let puzzle = try puzzle(for: level, candidates: positions(block))
+
+        let result = LogicalPuzzleSolver.solve(level: level, puzzle: puzzle)
+
+        let sources: [ConstraintKind] = [.row(0), .row(1), .row(2), .row(3)]
+        let targets: [ConstraintKind] = [.column(0), .column(1), .column(2), .column(3)]
+        for row in 4...7 {
+            for column in 0...3 {
+                XCTAssertTrue(result.report.steps.contains(
+                    LogicalStep(
+                        action: .exclude(CellPosition(row: row, column: column)),
+                        reason: .lockedSet(sources: sources, targets: targets)
+                    )
+                ), "expected (\(row), \(column)) to be excluded by the size-4 locked set")
+            }
+        }
+        XCTAssertEqual(result.report.statistics.lockedPairCount, 0)
+        XCTAssertEqual(result.report.statistics.lockedTripleCount, 0)
+        XCTAssertGreaterThanOrEqual(result.report.statistics.higherOrderLockedSetCount, 1)
+        XCTAssertTrue(result.report.events.contains { $0.technique == .lockedSet(size: 4) })
+    }
+
+    /// The higher-order tier is deliberately last-resort: a shipped level that
+    /// solves with the standard toolkit must report zero, proving the new scan
+    /// does not perturb the existing pair/triple/attack/link sequence.
+    func testBuiltInLevelRecordsNoHigherOrderLockedSet() throws {
+        for level in BuiltInLevels.all {
+            let result = LogicalPuzzleSolver.solve(level: level)
+            XCTAssertTrue(result.isSolved)
+            XCTAssertEqual(result.report.statistics.higherOrderLockedSetCount, 0)
+        }
+    }
+
     private func rowRegionLevel(id: String, size: Int = 4) -> LevelDefinition {
         LevelDefinition(
             id: id,
