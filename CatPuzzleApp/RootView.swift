@@ -127,10 +127,16 @@ struct RootView: View {
             case .settings:
                 SettingsScreen(
                     session: session,
-                    onOpenLab: { presentedSheet = .lab }
+                    onOpenLab: { presentedSheet = .lab },
+                    onOpenScreenshotImport: { presentedSheet = .screenshotImport }
                 )
             case .lab:
                 PlaytestLabScreen(
+                    showsRegionIcons: session.showsRegionIcons
+                )
+            case .screenshotImport:
+                ScreenshotImportScreen(
+                    mode: session.gameplayMode,
                     showsRegionIcons: session.showsRegionIcons
                 )
             }
@@ -157,6 +163,7 @@ struct RootView: View {
 private enum PresentedSheet: String, Identifiable {
     case settings
     case lab
+    case screenshotImport
 
     var id: String { rawValue }
 }
@@ -165,6 +172,7 @@ private struct SettingsScreen: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var session: AppSession
     let onOpenLab: () -> Void
+    let onOpenScreenshotImport: () -> Void
 
     @State private var showsRestartConfirmation = false
 
@@ -226,6 +234,11 @@ private struct SettingsScreen: View {
                 .foregroundStyle(CatPuzzleTheme.warning)
                 .accessibilityIdentifier("restart-level-setting")
             }
+
+            Button("Play from Screenshot", systemImage: "photo.on.rectangle") {
+                onOpenScreenshotImport()
+            }
+            .accessibilityIdentifier("open-screenshot-import")
 
             Button("Puzzle Lab", systemImage: "flask.fill") {
                 onOpenLab()

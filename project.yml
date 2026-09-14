@@ -25,6 +25,7 @@ targets:
       - package: CatPuzzleCore
         product: CatPuzzleCore
       - sdk: AVFoundation.framework
+      - sdk: PhotosUI.framework
 
   CatPuzzleAppTests:
     type: bundle.unit-test
