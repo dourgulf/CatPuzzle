@@ -14,6 +14,8 @@ struct CLIOptions {
     var size = 6
     var bias: Double?
     var jsonPath: String?
+    var analyzePath: String?
+    var assumptionDepth = 1
 }
 
 func printUsageAndExit() -> Never {
@@ -26,6 +28,9 @@ func printUsageAndExit() -> Never {
       --max-mistakes <Int>     maxMistakes on generated levels (default 5)
       --bias <Double>          Nearby-Region bias probability [0,1] (default: uniform, no bias)
       --json <path>            Write JSON results to path
+      --analyze <path>         Score existing levels from a JSON file (id/size/regionIDs)
+                               instead of generating; prints JSON and exits
+      --assumption-depth <Int> Assumption depth used by --analyze (default 1, 0 = logic only)
     """)
     exit(1)
 }
@@ -70,6 +75,11 @@ func parseArguments(_ arguments: [String]) -> CLIOptions {
             options.bias = value
         case "--json":
             options.jsonPath = nextValue()
+        case "--analyze":
+            options.analyzePath = nextValue()
+        case "--assumption-depth":
+            guard let value = Int(nextValue()) else { printUsageAndExit() }
+            options.assumptionDepth = value
         case "--help", "-h":
             printUsageAndExit()
         default:
@@ -81,6 +91,12 @@ func parseArguments(_ arguments: [String]) -> CLIOptions {
 }
 
 let options = parseArguments(Array(CommandLine.arguments.dropFirst()))
+
+// --analyze scores levels that already exist (any size) and exits before the
+// generator's own 6x6-only path.
+if let analyzePath = options.analyzePath {
+    runAnalyze(path: analyzePath, assumptionDepth: options.assumptionDepth)
+}
 
 guard options.size == 6 else {
     print("Generator prototype only supports size = 6 for now (got \(options.size)).")
@@ -118,17 +134,6 @@ multipleSolutions: \(stats.rejectedMultipleSolutions), wrongUniqueSolution: \(st
 logicalStuck: \(stats.rejectedLogicalStuck), notChallenge: \(stats.rejectedNotChallenge)
 """)
 print("")
-
-func tierName(_ tier: DifficultyTier) -> String {
-    switch tier {
-    case .beginner: return "beginner"
-    case .easy: return "easy"
-    case .medium: return "medium"
-    case .hard: return "hard"
-    case .expert: return "expert"
-    case .challenge: return "challenge"
-    }
-}
 
 func solutionColumns(_ puzzle: GeneratedPuzzle) -> [Int] {
     puzzle.solution.sorted { $0.row < $1.row }.map(\.column)
