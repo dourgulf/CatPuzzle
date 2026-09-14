@@ -216,12 +216,19 @@ final class LogicalPuzzleSolverTests: XCTestCase {
             mode: .challenge(maxAssumptionDepth: 1)
         )
 
-        XCTAssertTrue(result.report.steps.contains(
-            LogicalStep(
-                action: .exclude(assumed),
-                reason: .contradictionFromAssumption(assumed: assumed)
-            )
-        ))
+        let refutation = try XCTUnwrap(result.report.steps.first { step in
+            guard case let .contradictionFromAssumption(cell, _) = step.reason else {
+                return false
+            }
+            return step.action == .exclude(assumed) && cell == assumed
+        })
+        guard case let .contradictionFromAssumption(_, contradicting) = refutation.reason else {
+            return XCTFail("expected a contradiction reason")
+        }
+        XCTAssertNotNil(
+            contradicting,
+            "the starved constraint is recorded so hints can explain the refutation"
+        )
         XCTAssertTrue(result.report.assumptions.contains(
             LogicalAssumption(
                 assumedCat: assumed,

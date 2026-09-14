@@ -28,7 +28,10 @@ struct GameScreen: View {
 
                     if let hint = viewModel.hint {
                         HintPanel(
-                            description: HintDescription.text(for: hint),
+                            description: HintDescription.text(
+                                for: hint,
+                                showsRegionIcons: showsRegionIcons
+                            ),
                             onApply: viewModel.applyHint,
                             onCancel: viewModel.dismissHint
                         )
@@ -137,9 +140,21 @@ struct GameScreen: View {
         }
     }
 
+    /// A broken board is explained here rather than in the hint panel: there
+    /// is no step to preview, only something to undo.
+    private var feedbackText: String? {
+        if let diagnosis = viewModel.hintDiagnosis {
+            return HintDescription.text(
+                for: diagnosis,
+                showsRegionIcons: showsRegionIcons
+            )
+        }
+        return viewModel.feedbackMessage
+    }
+
     @ViewBuilder
     private var feedback: some View {
-        if let message = viewModel.feedbackMessage {
+        if let message = feedbackText {
             Text(message)
                 .font(.footnote.weight(.medium))
                 .foregroundStyle(CatPuzzleTheme.warning)
@@ -255,43 +270,89 @@ private struct HintPanel: View {
 }
 
 enum HintDescription {
-    static func text(for hint: LogicalHint) -> String {
+    /// `showsRegionIcons` mirrors the board: with icons off a Region is named
+    /// by color alone, since that is all the player can see.
+    static func text(for hint: LogicalHint, showsRegionIcons: Bool) -> String {
         switch hint.reason {
         case let .onlyCandidateInRow(row):
             "Row \(row + 1) has only one possible cell left. Place a cat there."
         case let .onlyCandidateInColumn(column):
             "Column \(column + 1) has only one possible cell left. Place a cat there."
         case let .onlyCandidateForRegion(regionID):
-            "Region \(regionID + 1) has only one possible cell left. Place a cat there."
+            "The \(regionText(regionID, showsRegionIcons)) block has only one possible cell left. Place a cat there."
         case let .rowAlreadyHasCat(row):
             "Row \(row + 1) already has its cat. Exclude the highlighted cells."
         case let .columnAlreadyHasCat(column):
             "Column \(column + 1) already has its cat. Exclude the highlighted cells."
         case let .regionAlreadyHasCat(regionID):
-            "Region \(regionID + 1) already has its cat. Exclude the highlighted cells."
+            "The \(regionText(regionID, showsRegionIcons)) block already has its cat. Exclude the highlighted cells."
         case .adjacentToConfirmedCat:
             "Cats cannot touch, including diagonally. Exclude the highlighted cells."
         case let .lockedSet(sources, targets):
-            "The cats in \(constraintList(sources)) are locked into \(constraintList(targets)). Exclude the highlighted cells."
-        case let .commonAttack(constraint, _):
-            "Every possible cat in \(constraintName(constraint)) conflicts with the highlighted cell. Exclude it."
+            "The cats in \(constraintList(sources, showsRegionIcons)) are locked into \(constraintList(targets, showsRegionIcons)). Exclude the highlighted cells."
+        case let .commonAttack(constraint, candidates):
+            "\(constraintName(constraint, showsRegionIcons).capitalizedFirst) has \(candidates.count) possible cells left, and the highlighted cell conflicts with every one of them. Exclude it."
         case let .strongLinkCommonElimination(link):
-            "One of the two cells in \(constraintName(link.constraint)) must contain a cat. The highlighted cell conflicts with both."
-        case .contradictionFromAssumption:
-            "That candidate leads to a contradiction, so exclude the highlighted cell."
+            "One of \(cellName(link.first)) and \(cellName(link.second)) must hold \(constraintName(link.constraint, showsRegionIcons))'s cat. The highlighted cell conflicts with both, so it can never be a cat."
+        case let .contradictionFromAssumption(assumed, contradicting):
+            if let contradicting {
+                "Try a cat at \(cellName(assumed)): \(constraintName(contradicting, showsRegionIcons)) would then have nowhere left for its own cat. So it cannot be a cat — exclude it."
+            } else {
+                "Try a cat at \(cellName(assumed)): the board contradicts itself. So it cannot be a cat — exclude it."
+            }
         }
     }
 
-    private static func constraintList(_ constraints: [ConstraintKind]) -> String {
-        constraints.map(constraintName).joined(separator: " and ")
+    static func text(
+        for diagnosis: LogicalHintDiagnosis,
+        showsRegionIcons: Bool
+    ) -> String {
+        switch diagnosis {
+        case let .starvedConstraint(constraint):
+            "\(constraintName(constraint, showsRegionIcons).capitalizedFirst) has no cell left for a cat, so one of your ✕ marks must be wrong. Undo to fix it."
+        case let .clashingCats(first, second):
+            "The cats at \(cellName(first)) and \(cellName(second)) cannot both be right. Undo to fix it."
+        }
     }
 
-    private static func constraintName(_ constraint: ConstraintKind) -> String {
+    private static func cellName(_ position: CellPosition) -> String {
+        "R\(position.row + 1)C\(position.column + 1)"
+    }
+
+    private static func constraintList(
+        _ constraints: [ConstraintKind],
+        _ showsRegionIcons: Bool
+    ) -> String {
+        constraints
+            .map { constraintName($0, showsRegionIcons) }
+            .joined(separator: " and ")
+    }
+
+    static func constraintName(
+        _ constraint: ConstraintKind,
+        _ showsRegionIcons: Bool
+    ) -> String {
         switch constraint {
         case let .row(row): "row \(row + 1)"
         case let .column(column): "column \(column + 1)"
-        case let .region(regionID): "region \(regionID + 1)"
+        case let .region(regionID):
+            "the \(regionText(regionID, showsRegionIcons)) block"
         }
+    }
+
+    private static func regionText(_ regionID: Int, _ showsRegionIcons: Bool) -> String {
+        CatPuzzleTheme.regionDescription(
+            for: regionID,
+            includingShape: showsRegionIcons
+        )
+    }
+}
+
+private extension String {
+    /// "row 3" -> "Row 3", for a constraint name that starts a sentence.
+    var capitalizedFirst: String {
+        guard let first else { return self }
+        return first.uppercased() + dropFirst()
     }
 }
 

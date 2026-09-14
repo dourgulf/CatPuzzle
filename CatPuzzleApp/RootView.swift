@@ -46,6 +46,38 @@ enum CatPuzzleTheme {
         Color(red: 239.0 / 255.0, green: 105.0 / 255.0, blue: 112.0 / 255.0),
     ]
 
+    /// Player-facing names for `regionColors`, in the same order. The first
+    /// six match the palette named in DESIGN.md; the rest name the colors the
+    /// palette grew by for larger boards. Hints say "the pink circle block",
+    /// never "region 3" -- players see colors and shapes, not IDs.
+    private static let regionColorNames = [
+        "pink",
+        "green",
+        "yellow",
+        "blue",
+        "brown",
+        "lime",
+        "orange",
+        "purple",
+        "teal",
+        "red",
+    ]
+
+    /// Shape names matching `regionSymbols`. Paired with the color name so a
+    /// hint never relies on color alone (DESIGN.md accessibility rule).
+    private static let regionShapeNames = [
+        "circle",
+        "triangle",
+        "square",
+        "diamond",
+        "star",
+        "hexagon",
+        "heart",
+        "moon",
+        "cloud",
+        "bolt",
+    ]
+
     private static let regionSymbols = [
         "circle.fill",
         "triangle.fill",
@@ -67,8 +99,28 @@ enum CatPuzzleTheme {
         regionSymbols[normalizedIndex(for: regionID)]
     }
 
-    static func regionName(for regionID: Int) -> String {
-        "Region \(regionID + 1)"
+    static func regionColorName(for regionID: Int) -> String {
+        regionColorNames[normalizedIndex(for: regionID)]
+    }
+
+    static func regionShapeName(for regionID: Int) -> String {
+        regionShapeNames[normalizedIndex(for: regionID)]
+    }
+
+    /// How a Region is referred to in player-facing copy: "pink", or
+    /// "pink circle" when Region icons are on. The shape is only mentioned
+    /// when it is actually drawn on the board — naming an invisible symbol
+    /// would send the player looking for something that is not there.
+    static func regionDescription(
+        for regionID: Int,
+        includingShape: Bool
+    ) -> String {
+        guard includingShape else { return regionColorName(for: regionID) }
+        return "\(regionColorName(for: regionID)) \(regionShapeName(for: regionID))"
+    }
+
+    static func regionName(for regionID: Int, includingShape: Bool) -> String {
+        "\(regionDescription(for: regionID, includingShape: includingShape)) Region"
     }
 
     static func markerColor(for regionID: Int) -> Color {

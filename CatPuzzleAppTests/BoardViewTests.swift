@@ -10,9 +10,49 @@ final class BoardViewTests: XCTestCase {
             Set(regionIDs.map(CatPuzzleTheme.regionSymbol)).count,
             regionIDs.count
         )
+        // Regions are named by what the player can see, not by their ID.
         XCTAssertEqual(
-            regionIDs.map(CatPuzzleTheme.regionName),
-            (1...10).map { "Region \($0)" }
+            Set(regionIDs.map { CatPuzzleTheme.regionName(for: $0, includingShape: true) }).count,
+            regionIDs.count
+        )
+        // Color alone must still tell all ten Regions apart when icons are off.
+        XCTAssertEqual(
+            Set(regionIDs.map { CatPuzzleTheme.regionDescription(for: $0, includingShape: false) }).count,
+            regionIDs.count
+        )
+        XCTAssertEqual(
+            CatPuzzleTheme.regionName(for: 0, includingShape: true),
+            "pink circle Region"
+        )
+        XCTAssertFalse(
+            regionIDs
+                .map { CatPuzzleTheme.regionName(for: $0, includingShape: true) }
+                .contains { $0.contains("Region 1") }
+        )
+    }
+
+    /// Region icons off: the shape is not on screen, so copy must not name it.
+    func testRegionIsNamedByColorAloneWhenIconsAreHidden() {
+        XCTAssertEqual(
+            CatPuzzleTheme.regionDescription(for: 3, includingShape: false),
+            "blue"
+        )
+        XCTAssertEqual(
+            CatPuzzleTheme.regionDescription(for: 3, includingShape: true),
+            "blue diamond"
+        )
+        XCTAssertEqual(
+            HintDescription.text(
+                for: .starvedConstraint(.region(0)),
+                showsRegionIcons: false
+            ),
+            "The pink block has no cell left for a cat, so one of your ✕ marks must be wrong. Undo to fix it."
+        )
+        XCTAssertTrue(
+            HintDescription.text(
+                for: .starvedConstraint(.region(0)),
+                showsRegionIcons: true
+            ).hasPrefix("The pink circle block")
         )
     }
 

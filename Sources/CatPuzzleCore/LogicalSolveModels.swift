@@ -36,7 +36,15 @@ public enum LogicalReason: Equatable, Sendable {
     case columnAlreadyHasCat(column: Int)
     case regionAlreadyHasCat(regionID: Int)
     case adjacentToConfirmedCat(CellPosition)
-    case contradictionFromAssumption(assumed: CellPosition)
+    /// Assuming a cat at `assumed` broke the board, so it cannot be a cat.
+    /// `contradicting` names the constraint that ran out of candidates under
+    /// that assumption, so a hint can explain the refutation instead of just
+    /// asserting it. It is nil when the contradiction was two cats clashing
+    /// rather than a starved constraint.
+    case contradictionFromAssumption(
+        assumed: CellPosition,
+        contradicting: ConstraintKind?
+    )
 
     /// A generalized locked set (Hall set): the candidates of `sources`
     /// fall entirely within `targets` (|sources| == |targets|), so any
