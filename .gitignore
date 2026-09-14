@@ -36,6 +36,9 @@ playground.xcworkspace
 Docs/关卡示范/
 Docs/demo/
 
+# Step-by-step solver HTML output (Scripts/solve_step_by_step.py)
+out.html
+
 # Python research tooling caches (Scripts/*.py are tracked)
 Scripts/__pycache__/
 *.pyc
