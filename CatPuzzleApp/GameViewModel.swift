@@ -51,6 +51,11 @@ final class GameViewModel: ObservableObject {
     @Published private(set) var previewStates: [CellPosition: CellState] = [:]
     @Published private(set) var markerFeedbackSequence = 0
     @Published private(set) var hint: LogicalHint?
+    /// Why the board can no longer be finished, when the player asked for a
+    /// hint on a board they had already broken. Kept structured rather than
+    /// pre-rendered: naming a Region needs the board's icon setting, which
+    /// lives with the view.
+    @Published private(set) var hintDiagnosis: LogicalHintDiagnosis?
 
     var mistakeSummary: String {
         "Mistakes: \(mistakeCount) / \(level.maxMistakes)"
@@ -164,6 +169,7 @@ final class GameViewModel: ObservableObject {
     func undo() {
         cancelPendingTaps()
         hint = nil
+        hintDiagnosis = nil
         guard engine.undo() else { return }
         feedbackMessage = nil
         synchronizeFromEngine(notifyChange: true)
@@ -172,6 +178,7 @@ final class GameViewModel: ObservableObject {
     func restart() {
         cancelPendingTaps()
         hint = nil
+        hintDiagnosis = nil
         engine.restart()
         feedbackMessage = nil
         synchronizeFromEngine(notifyChange: true)
@@ -180,6 +187,7 @@ final class GameViewModel: ObservableObject {
     func setMode(_ mode: GameplayMode) {
         cancelPendingTaps()
         hint = nil
+        hintDiagnosis = nil
         engine.setMode(mode)
         feedbackMessage = nil
         synchronizeFromEngine(notifyChange: true)
@@ -188,14 +196,27 @@ final class GameViewModel: ObservableObject {
     func requestHint() {
         cancelPendingTaps()
         guard !isSolved, !isFailed else { return }
-        hint = LogicalHintEngine.nextHint(level: level, puzzle: puzzle)
-        feedbackMessage = hint == nil
-            ? "No deterministic next step is available from this board."
-            : nil
+        switch LogicalHintEngine.nextHint(level: level, puzzle: puzzle) {
+        case let .hint(next):
+            hint = next
+            hintDiagnosis = nil
+            feedbackMessage = nil
+        case let .contradiction(diagnosis):
+            // The board can no longer be finished, so there is nothing to
+            // preview — tell the player what they broke instead.
+            hint = nil
+            hintDiagnosis = diagnosis
+            feedbackMessage = nil
+        case .unavailable:
+            hint = nil
+            hintDiagnosis = nil
+            feedbackMessage = "No next step can be deduced from this board."
+        }
     }
 
     func dismissHint() {
         hint = nil
+        hintDiagnosis = nil
     }
 
     func applyHint() {
@@ -205,6 +226,7 @@ final class GameViewModel: ObservableObject {
         do {
             try engine.applyHint(hint)
             self.hint = nil
+            self.hintDiagnosis = nil
             feedbackMessage = nil
             synchronizeFromEngine(
                 notifyChange: engine.state.puzzle != previousPuzzle
@@ -214,6 +236,7 @@ final class GameViewModel: ObservableObject {
             }
         } catch {
             self.hint = nil
+            self.hintDiagnosis = nil
             feedbackMessage = "This hint can no longer be applied."
             synchronizeFromEngine(notifyChange: false)
         }

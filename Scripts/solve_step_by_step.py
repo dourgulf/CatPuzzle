@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import re
 import sys
 from itertools import combinations
 from pathlib import Path
@@ -56,6 +57,40 @@ REGION_MERGE_DISTANCE = 40.0
 # large Docs/demo boards (e.g. Level 258) empirically need one k=4 step, so the
 # teaching script goes a little further before falling back to a trial.
 MAX_LOCKED_SET = 4
+# How many trial steps a proof-by-contradiction trace prints before eliding
+# the middle (keeps the explanation readable on wide boards).
+MAX_TRIAL_TRACE = 12
+
+# --- technique cost table -------------------------------------------------
+# How hard each technique is for a human to spot. The solver compares every
+# applicable technique on every turn and takes the cheapest one, so these
+# numbers -- not the order the techniques happen to be written in -- decide
+# which deduction is shown. They also drive the difficulty summary.
+COST_PROPAGATE = 0     # cross off a placed cat's row/column/region/neighbours
+COST_SINGLE = 1        # a unit with a single remaining candidate
+COST_COMMON_LINE = 3   # a region's candidates all share one row/column
+COST_STRONG_LINK = 7   # two-candidate unit attacking a common cell
+COST_COMMON_ATTACK = 8  # same idea with 3+ candidates -- harder to eyeball
+COST_TRIAL_BASE = 25   # depth-1 proof by contradiction, plus its chain length
+
+
+def cost_locked_set(size: int) -> int:
+    """Locked pair 5, triple 9, and 4 more per extra unit beyond that."""
+    return {2: 5, 3: 9}.get(size, 13 + (size - 4) * 4)
+
+
+def cost_trial(chain_length: int) -> int:
+    """A contradiction takes more work to see the longer its chain runs."""
+    return COST_TRIAL_BASE + chain_length
+
+
+def _better(current, candidate):
+    """Keep whichever Step is cheaper, breaking ties by how much it resolves."""
+    if candidate is None:
+        return current
+    if current is None or candidate.rank() < current.rank():
+        return candidate
+    return current
 
 
 def region_color(im: Image.Image, rect: tuple[int, int, int, int]) -> tuple[int, int, int]:
@@ -91,6 +126,80 @@ def region_color(im: Image.Image, rect: tuple[int, int, int, int]) -> tuple[int,
         return vals[len(vals) // 2]
 
     return (median(rs), median(gs), median(bs))
+
+# Reference colors for naming a Region the way a player sees it. Players read
+# the board as colors, never as Region IDs, so every explanation says
+# "蓝色色块" rather than "3 号色块".
+# Names carry no trailing 色 so `region_label` can append 色块 cleanly
+# ("浅蓝" -> "浅蓝色块").
+COLOR_VOCABULARY = [
+    ("红", (214, 66, 66)),
+    ("粉", (237, 134, 213)),
+    ("玫红", (200, 90, 130)),
+    ("橙", (255, 153, 85)),
+    ("黄", (244, 207, 104)),
+    ("土黄", (200, 170, 50)),
+    ("绿", (56, 170, 112)),
+    ("浅绿", (137, 207, 120)),
+    ("墨绿", (40, 110, 70)),
+    ("青", (73, 191, 207)),
+    ("蓝", (93, 131, 180)),
+    ("浅蓝", (170, 200, 235)),
+    ("紫", (136, 119, 216)),
+    ("棕", (174, 118, 84)),
+    ("灰", (150, 150, 150)),
+    ("白", (242, 242, 242)),
+    ("黑", (40, 40, 40)),
+]
+
+
+def nearest_color_name(rgb) -> str:
+    r, g, b = rgb
+    return min(
+        COLOR_VOCABULARY,
+        key=lambda entry: (r - entry[1][0]) ** 2
+        + (g - entry[1][1]) ** 2
+        + (b - entry[1][2]) ** 2,
+    )[0]
+
+
+def name_regions(region_colors) -> dict:
+    """Region id -> player-facing color name, disambiguated when two Regions
+    land on the same name (a board can hold two greens): the lighter one keeps
+    a 浅 prefix, the darker a 深, and any leftover collision falls back to the
+    id so a name is never ambiguous."""
+    names = {rid: nearest_color_name(color) for rid, color in region_colors.items()}
+    by_name: dict[str, list[int]] = {}
+    for rid, name in names.items():
+        by_name.setdefault(name, []).append(rid)
+
+    for name, ids in by_name.items():
+        if len(ids) < 2:
+            continue
+        # Brightest first, so 浅 / 深 read the way the board looks.
+        ids.sort(key=lambda rid: sum(region_colors[rid]), reverse=True)
+        prefixes = ["浅", "深"] if len(ids) == 2 else None
+        for index, rid in enumerate(ids):
+            if prefixes and not name.startswith(("浅", "深")):
+                names[rid] = prefixes[index] + name
+            else:
+                names[rid] = f"{name}（{index + 1}）"
+    return names
+
+
+def unit_name(kind, label, region_names=None) -> str:
+    """Human label for a row/column/color unit, e.g. 第 3 行 / 蓝色色块."""
+    if kind == "color":
+        return region_label(label, region_names)
+    return {"row": f"第 {label} 行", "column": f"第 {label} 列"}[kind]
+
+
+def region_label(region_id, region_names=None) -> str:
+    """'蓝色色块', or '3 号色块' when no colors were parsed (generated levels)."""
+    if region_names and region_id in region_names:
+        return f"{region_names[region_id]}色块"
+    return f"{region_id} 号色块"
+
 
 CAT = "cat"
 EXCLUDED = "excluded"
@@ -205,10 +314,37 @@ def solve_exact(size, region_ids, forced_cats, forced_excluded, limit=2):
 # Human-style deduction engine
 # --------------------------------------------------------------------------
 
+class Step:
+    """One technique application: how hard it is, what it says, what it marks.
+
+    `cost` is the technique's human difficulty (see the COST_* table). The
+    solver picks, among everything applicable to the current board, the
+    cheapest step -- and among equally cheap ones, the most productive.
+    """
+
+    __slots__ = ("cost", "technique", "desc", "marks")
+
+    def __init__(self, cost, technique, desc, marks):
+        self.cost = cost
+        self.technique = technique
+        self.desc = desc
+        self.marks = marks
+
+    @property
+    def gain(self):
+        """How much board this step resolves (cats count double: they end a unit)."""
+        return sum(2 if k == CAT else 1 for k, _r, _c in self.marks)
+
+    def rank(self):
+        return (self.cost, -self.gain)
+
+
 class Deducer:
-    def __init__(self, size, region_ids, cats, excluded, solution):
+    def __init__(self, size, region_ids, cats, excluded, solution, region_names=None):
         self.size = size
         self.region_ids = region_ids
+        # Region id -> color name shown to the player; None falls back to ids.
+        self.region_names = region_names
         # grid[r][c] in {CAT, EXCLUDED, UNKNOWN}
         self.grid = [[UNKNOWN] * size for _ in range(size)]
         for (r, c) in cats:
@@ -234,6 +370,12 @@ class Deducer:
         for rid, cells in sorted(self.region_cells.items()):
             yield ("color", rid, cells)
 
+    def unit_name(self, kind, label):
+        return unit_name(kind, label, self.region_names)
+
+    def region_label(self, region_id):
+        return region_label(region_id, self.region_names)
+
     def candidates(self, cells):
         return [(r, c) for (r, c) in cells if self.grid[r][c] == UNKNOWN]
 
@@ -252,7 +394,7 @@ class Deducer:
         return sum(row.count(CAT) for row in self.grid) == self.size
 
     # -- techniques --------------------------------------------------------
-    # Each returns (description, [('cat'|'excluded', r, c), ...]) or None.
+    # Each returns the cheapest/most productive Step it can find, or None.
 
     def t1_eliminate_from_cats(self):
         """A placed cat forbids its row, column, region, and 8 neighbors."""
@@ -280,7 +422,7 @@ class Deducer:
                         f"R{r+1}C{c+1} 已是猫：按“每行/列/同色只有一只”且“猫不相邻”，"
                         f"排除与它同行、同列、同色或相邻的所有空格。"
                     )
-                    return desc, new
+                    return Step(COST_PROPAGATE, "同行列色排除", desc, new)
         return None
 
     def t2_hidden_single(self):
@@ -291,15 +433,16 @@ class Deducer:
             cand = self.candidates(cells)
             if len(cand) == 1:
                 r, c = cand[0]
-                name = {"row": f"第 {label} 行", "column": f"第 {label} 列", "color": f"{label} 号色块"}[kind]
+                name = self.unit_name(kind, label)
                 desc = f"{name}的其他格都已被排除，唯一能放猫的位置是 R{r+1}C{c+1}。"
-                return desc, [(CAT, r, c)]
+                return Step(COST_SINGLE, "唯一候选", desc, [(CAT, r, c)])
         return None
 
     def t3_common_attack(self):
         """If every candidate of a color region shares one row (or column),
         that row (column) must hold this region's cat -> exclude the rest."""
         n = self.size
+        best = None
         for rid, cells in sorted(self.region_cells.items()):
             if self.has_cat(cells):
                 continue
@@ -313,18 +456,18 @@ class Deducer:
                 new = [(EXCLUDED, r, c) for c in range(n)
                        if self.grid[r][c] == UNKNOWN and self.region_ids[r][c] != rid]
                 if new:
-                    desc = (f"{rid} 号色块的候选格全部落在第 {r+1} 行，"
+                    desc = (f"{self.region_label(rid)}的候选格全部落在第 {r+1} 行，"
                             f"故这只猫必在第 {r+1} 行 → 排除该行其他色块的空格。")
-                    return desc, new
+                    best = _better(best, Step(COST_COMMON_LINE, "色块共线", desc, new))
             if len(cols) == 1:
                 c = next(iter(cols))
                 new = [(EXCLUDED, r, c) for r in range(n)
                        if self.grid[r][c] == UNKNOWN and self.region_ids[r][c] != rid]
                 if new:
-                    desc = (f"{rid} 号色块的候选格全部落在第 {c+1} 列，"
+                    desc = (f"{self.region_label(rid)}的候选格全部落在第 {c+1} 列，"
                             f"故这只猫必在第 {c+1} 列 → 排除该列其他色块的空格。")
-                    return desc, new
-        return None
+                    best = _better(best, Step(COST_COMMON_LINE, "色块共线", desc, new))
+        return best
 
     # -- helpers for the advanced techniques ------------------------------
 
@@ -371,15 +514,26 @@ class Deducer:
         return abs(r1 - r2) <= 1 and abs(c1 - c2) <= 1
 
     _FAMILY_NAME = {"row": "行", "column": "列", "region": "色块"}
+    _MEASURE = {"row": "", "column": "", "region": "个"}
+
+    def _fmt_labels(self, family, labels):
+        """'第 1, 2 行' / '第 3, 5 列' / '蓝色、黄色色块' for a set of unit labels."""
+        labels = sorted(labels)
+        if family == "region":
+            return "、".join(self.region_label(l) for l in labels)
+        unit = " 行" if family == "row" else " 列"
+        return "第 " + ", ".join(str(l) for l in labels) + unit
 
     def t4_locked_set(self):
         """Generalized locked set (pigeonhole). If N source units confine their
         candidates to exactly N cross-units, those cross-units are 'owned' -> any
         other candidate in them is excluded. N=1 across region->line is the
         common attack (t3); this covers N=2..MAX for every source/target family
-        pair (region<->row/column, row<->column), mirroring Core's lockedSet."""
+        pair (region<->row/column, row<->column), mirroring Core's lockedSet.
+        Returns the smallest (cheapest) set it can find, most productive first."""
         families = ("row", "column", "region")
         for size in range(2, MAX_LOCKED_SET + 1):
+            best = None
             for src_fam in families:
                 for tgt_fam in families:
                     if src_fam == tgt_fam:
@@ -399,21 +553,33 @@ class Deducer:
                                 if self.grid[r][c] == UNKNOWN and (r, c) not in union_set:
                                     new.append((EXCLUDED, r, c))
                         if new:
-                            src_labels = ", ".join(str(l) for _k, l, _c in combo)
-                            tgt_labels = ", ".join(str(l) for _t, l in sorted(target_kinds))
+                            # combo labels come from units() (rows/columns already
+                            # 1-based); target kinds come from _unit_kind and are
+                            # 0-based indices, so they need the +1 here.
+                            src_text = self._fmt_labels(
+                                src_fam, [l for _k, l, _c in combo])
+                            tgt_text = self._fmt_labels(
+                                tgt_fam, [l if t == "color" else l + 1
+                                          for t, l in sorted(target_kinds)])
                             noun = "对" if size == 2 else "组"
                             desc = (
-                                f"锁定{noun}：{size} 个{self._FAMILY_NAME[src_fam]}"
-                                f"（{src_labels}）的候选恰好只占据 {size} 个"
-                                f"{self._FAMILY_NAME[tgt_fam]}（{tgt_labels}）"
-                                f"→ 这些{self._FAMILY_NAME[tgt_fam]}被它们包干，排除其中其余空格。"
+                                f"锁定{noun}：{src_text}的候选恰好只占据 {tgt_text}"
+                                f" → 这 {size} {self._MEASURE[tgt_fam]}"
+                                f"{self._FAMILY_NAME[tgt_fam]}被它们包干，"
+                                f"排除其中其余空格。"
                             )
-                            return desc, new
+                            best = _better(best, Step(
+                                cost_locked_set(size), f"锁定组{size}", desc, new))
+            # A smaller locked set is always easier to see than a larger one,
+            # so stop at the first size that fires.
+            if best is not None:
+                return best
         return None
 
     def t5_strong_link(self):
         """A unit with exactly two candidates A, B must hold its cat on one of
         them; any cell attacked by BOTH A and B can never be a cat -> exclude."""
+        best = None
         for kind, label, cells in self.units():
             if self.has_cat(cells):
                 continue
@@ -429,70 +595,179 @@ class Deducer:
                     if self._attacks(a, (r, c)) and self._attacks(b, (r, c)):
                         new.append((EXCLUDED, r, c))
             if new:
-                name = {"row": f"第 {label} 行", "column": f"第 {label} 列",
-                        "color": f"{label} 号色块"}[kind]
+                name = self.unit_name(kind, label)
                 desc = (
                     f"强链：{name}只剩 R{a[0]+1}C{a[1]+1}、R{b[0]+1}C{b[1]+1} 两个候选，"
                     f"猫必居其一 → 同时被两者攻击的空格都不可能是猫，排除。"
                 )
-                return desc, new
-        return None
+                best = _better(best, Step(COST_STRONG_LINK, "强链", desc, new))
+        return best
+
+    def t5b_common_attack_cell(self):
+        """A cell that attacks *every* remaining candidate of some unresolved
+        unit can never hold a cat: whichever candidate takes the unit's cat
+        would forbid it. Mirrors Core's `commonAttack`; the 2-candidate case
+        is the cheaper strong link above."""
+        best = None
+        for kind, label, cells in self.units():
+            if self.has_cat(cells):
+                continue
+            cand = self.candidates(cells)
+            if len(cand) < 3:
+                continue
+            new = []
+            for r in range(self.size):
+                for c in range(self.size):
+                    if self.grid[r][c] != UNKNOWN or (r, c) in cand:
+                        continue
+                    if all(self._attacks((r, c), x) for x in cand):
+                        new.append((EXCLUDED, r, c))
+            if new:
+                name = self.unit_name(kind, label)
+                desc = (f"共同攻击：{name}的猫只能落在剩下的 {len(cand)} 个候选"
+                        f"（{'、'.join(f'R{x[0]+1}C{x[1]+1}' for x in cand)}）之一"
+                        f" → 同时攻击这些候选的空格都不可能是猫，排除。")
+                best = _better(best, Step(COST_COMMON_ATTACK, "共同攻击", desc, new))
+        return best
 
     # -- depth-1 assumption (proof by contradiction) ----------------------
 
+    DETERMINISTIC_TECHNIQUES = ("t1_eliminate_from_cats", "t2_hidden_single",
+                                "t3_common_attack", "t4_locked_set",
+                                "t5_strong_link", "t5b_common_attack_cell")
+
+    def _best_deterministic_step(self):
+        """Cheapest applicable non-assumption step, or None if none applies.
+
+        Every technique is tried on every turn -- the solver no longer takes
+        whichever one happens to be listed first."""
+        best = None
+        for name in self.DETERMINISTIC_TECHNIQUES:
+            best = _better(best, getattr(self, name)())
+        return best
+
     def _polynomial_step(self):
-        """First deterministic (non-assumption) technique that fires, or None."""
-        for technique in (self.t1_eliminate_from_cats, self.t2_hidden_single,
-                           self.t3_common_attack, self.t4_locked_set, self.t5_strong_link):
-            result = technique()
-            if result:
-                return result
+        """Fast first-match variant used inside trial branches, where we only
+        care *whether* a contradiction appears, not how elegantly."""
+        for name in self.DETERMINISTIC_TECHNIQUES:
+            step = getattr(self, name)()
+            if step:
+                return step
+        return None
+
+    def _contradiction(self):
+        """Name of the first unit that can no longer hold a cat, or None."""
+        for kind, label, cells in self.units():
+            if not self.has_cat(cells) and not self.candidates(cells):
+                return self.unit_name(kind, label)
         return None
 
     def _has_contradiction(self):
-        for _kind, _label, cells in self.units():
-            if not self.has_cat(cells) and not self.candidates(cells):
-                return True
-        return False
+        return self._contradiction() is not None
 
-    def _run_to_fixpoint(self):
+    def _run_to_fixpoint(self, trace=None):
         """Apply polynomial techniques (raw, no solution asserts) until stuck or
         a contradiction appears. Returns True if consistent, False if broken.
+        When `trace` is a list, every applied technique is appended to it as
+        ("step", step) and the failing unit as ("contradiction", name), so the
+        caller can explain *how* the contradiction arose.
         Used only on throwaway copies inside t6_assumption."""
         while True:
-            if self._has_contradiction():
+            reason = self._contradiction()
+            if reason is not None:
+                if trace is not None:
+                    trace.append(("contradiction", reason))
                 return False
-            result = self._polynomial_step()
-            if result is None:
-                return not self._has_contradiction()
-            for kind, r, c in result[1]:
+            step = self._polynomial_step()
+            if step is None:
+                return True
+            if trace is not None:
+                trace.append(("step", step))
+            for kind, r, c in step.marks:
                 self.grid[r][c] = kind
+
+    @staticmethod
+    def _marks_summary(marks, limit=6):
+        """'放猫 R3C4；排除 R1C1, R1C2 等 9 格' for one technique's output."""
+        cats = [f"R{r+1}C{c+1}" for k, r, c in marks if k == CAT]
+        exc = [f"R{r+1}C{c+1}" for k, r, c in marks if k == EXCLUDED]
+        parts = []
+        if cats:
+            parts.append("放猫 " + ", ".join(cats))
+        if exc:
+            tail = f" 等 {len(exc)} 格" if len(exc) > limit else ""
+            parts.append("排除 " + ", ".join(exc[:limit]) + tail)
+        return "；".join(parts)
+
+    def _assumption_desc(self, r, c, trace):
+        """Spell out the full deduction chain that refuted the hypothesis."""
+        steps = [item for tag, item in trace if tag == "step"]
+        reason = next((item for tag, item in trace if tag == "contradiction"), None)
+        cell = f"R{r+1}C{c+1}"
+        lines = [f"试探反证：假设 {cell} 放猫，看看会推出什么"
+                 f"（这是全盘最短的一条反证链，共 {len(steps)} 步）——"]
+
+        numbered = list(enumerate(steps, 1))
+        elided = 0
+        if len(numbered) > MAX_TRIAL_TRACE:
+            elided = len(numbered) - MAX_TRIAL_TRACE
+            numbered = numbered[:MAX_TRIAL_TRACE - 4] + [None] + numbered[-4:]
+
+        for item in numbered:
+            if item is None:
+                lines.append(f"   …（中间省略 {elided} 步同类推理）…")
+                continue
+            idx, step = item
+            desc = step.desc.replace(f"{cell} 已是猫：", "假设生效：")
+            desc = re.sub(r"^R(\d+)C(\d+) 已是猫：", r"由此 R\1C\2 只能是猫：", desc)
+            summary = self._marks_summary(step.marks)
+            lines.append(f"   ({idx}) {desc.rstrip('。')}"
+                         + (f" → {summary}" if summary else ""))
+
+        if reason:
+            lines.append(f"   ⇒ 矛盾：{reason}的所有格都被排除，已无处落猫。")
+        else:
+            lines.append("   ⇒ 矛盾：某行/列/色块已无处落猫。")
+        lines.append(f"故假设不成立 → {cell} 必为空。")
+        return "\n".join(lines)
 
     def t6_assumption(self):
         """Depth-1 trial: if hypothesizing a cat on an unknown cell forces a
-        contradiction under the polynomial techniques, that cell can't be a cat."""
+        contradiction under the polynomial techniques, that cell can't be a cat.
+
+        Every unknown cell is tried and the *shortest* refuting chain wins, so
+        the printed proof is the easiest one a human could have found; the
+        step's cost grows with that chain's length."""
+        best = None
+        best_trace = None
         for r in range(self.size):
             for c in range(self.size):
                 if self.grid[r][c] != UNKNOWN:
                     continue
                 trial = copy.deepcopy(self)
                 trial.grid[r][c] = CAT
-                if not trial._run_to_fixpoint():
-                    desc = (
-                        f"试探反证：假设 R{r+1}C{c+1} 放猫，仅凭确定性推理即可推出矛盾"
-                        f"（某行/列/色块再无处落猫）→ 故 R{r+1}C{c+1} 必为空。"
-                    )
-                    return desc, [(EXCLUDED, r, c)]
-        return None
+                trace: list = []
+                if trial._run_to_fixpoint(trace):
+                    continue
+                chain = sum(1 for tag, _ in trace if tag == "step")
+                if best is None or chain < best[0]:
+                    best = (chain, r, c)
+                    best_trace = trace
+        if best is None:
+            return None
+        chain, r, c = best
+        return Step(cost_trial(chain), "试探反证",
+                    self._assumption_desc(r, c, best_trace), [(EXCLUDED, r, c)])
 
     def next_step(self):
-        for technique in (self.t1_eliminate_from_cats, self.t2_hidden_single,
-                          self.t3_common_attack, self.t4_locked_set,
-                          self.t5_strong_link, self.t6_assumption):
-            result = technique()
-            if result:
-                return result
-        return None
+        """The easiest step available on the current board.
+
+        Deterministic techniques are all evaluated and compared; the trial
+        (assumption) technique is only consulted when none of them applies."""
+        step = self._best_deterministic_step()
+        if step is not None:
+            return step
+        return self.t6_assumption()
 
     def apply(self, marks):
         for kind, r, c in marks:
@@ -589,22 +864,65 @@ def render_board(size, region_ids, grid, region_colors, new_cells, use_color=Tru
 def run_deduction(deducer: "Deducer", size: int):
     """Run techniques to exhaustion, returning (steps, status).
 
-    Each step is {'desc', 'marks', 'grid'} where 'grid' is a snapshot of the
-    board *after* the step. status is 'solved' or 'stuck'.
+    Each step is {'desc', 'marks', 'technique', 'cost', 'grid'} where 'grid'
+    is a snapshot of the board *after* the step. status is 'solved' or 'stuck'.
     """
     steps = []
     while not deducer.solved():
-        result = deducer.next_step()
-        if result is None:
+        step = deducer.next_step()
+        if step is None:
             return steps, "stuck"
-        desc, marks = result
-        deducer.apply(marks)
+        deducer.apply(step.marks)
         steps.append({
-            "desc": desc,
-            "marks": marks,
+            "desc": step.desc,
+            "marks": step.marks,
+            "technique": step.technique,
+            "cost": step.cost,
             "grid": [row[:] for row in deducer.grid],
         })
     return steps, "solved"
+
+
+# --------------------------------------------------------------------------
+# Difficulty summary
+# --------------------------------------------------------------------------
+
+# Tier is decided by the single hardest technique the solve needed -- a board
+# is exactly as hard as its hardest required insight -- and the step count only
+# refines the score inside that tier.
+_TIERS = [
+    (COST_SINGLE, "入门"),
+    (COST_COMMON_LINE, "简单"),
+    (cost_locked_set(2), "中等"),
+    (cost_locked_set(3), "困难"),   # also covers strong link
+    (COST_TRIAL_BASE - 1, "专家"),
+]
+
+
+def summarize_difficulty(steps):
+    """(tier, score, hardest step) for a finished solve, or None if empty."""
+    if not steps:
+        return None
+    hardest = max(steps, key=lambda s: s["cost"])
+    tier = "挑战"
+    for limit, name in _TIERS:
+        if hardest["cost"] <= limit:
+            tier = name
+            break
+    return tier, hardest["cost"] * 10 + len(steps), hardest
+
+
+def difficulty_line(steps, status):
+    if not steps:
+        return ""
+    tier, score, hardest = summarize_difficulty(steps)
+    used = []
+    for s in steps:
+        if s["technique"] not in used:
+            used.append(s["technique"])
+    suffix = "" if status == "solved" else "（未解出，仅统计已走的步骤）"
+    return (f"难度：{tier}（评分 {score}）—— 最难的一步是「{hardest['technique']}」"
+            f"，共 {len(steps)} 步，用到的技巧：{'、'.join(used)}。{suffix}")
 
 
 # --------------------------------------------------------------------------
@@ -647,13 +965,18 @@ HTML_TEMPLATE = r"""<!doctype html>
   .stepline button:disabled { opacity: .4; cursor: default; }
   #counter { font-variant-numeric: tabular-nums; min-width: 120px; }
   #desc { font-size: 15px; min-height: 3em; padding: 10px 12px; border-radius: 8px;
-          background: rgba(0,0,0,.05); }
+          background: rgba(0,0,0,.05); white-space: pre-wrap; }
   @media (prefers-color-scheme: dark) { #desc { background: rgba(255,255,255,.08); } }
   #marks { list-style: none; padding: 0; margin: 10px 0; font-size: 13px; }
   #marks li { display: inline-block; margin: 2px 6px 2px 0; padding: 1px 7px; border-radius: 6px; }
   #marks li.cat { background: rgba(20,184,20,.18); }
   #marks li.exc { background: rgba(226,59,59,.16); }
   .legend { margin-top: 16px; font-size: 12px; color: #777; }
+  #tech { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 10px;
+          background: rgba(0,0,0,.08); margin-bottom: 6px; }
+  @media (prefers-color-scheme: dark) { #tech { background: rgba(255,255,255,.14); } }
+  #difficulty { font-size: 13px; color: #6b5b4a; margin: 10px 0 0; }
+  @media (prefers-color-scheme: dark) { #difficulty { color: #bba; } }
 </style>
 </head>
 <body>
@@ -668,8 +991,10 @@ HTML_TEMPLATE = r"""<!doctype html>
         <span id="counter"></span>
         <button id="next">下一步 →</button>
       </div>
+      <div id="tech"></div>
       <p id="desc"></p>
       <ul id="marks"></ul>
+      <p id="difficulty"></p>
       <div class="legend">🐱 猫　✕ 排除　绿框=本步新增猫　红框=本步新增排除　（← → 键可翻页）</div>
     </aside>
   </div>
@@ -687,6 +1012,7 @@ statusEl.textContent = status === "solved" ? "已解出" : "需更高级技巧";
 if (status !== "solved") statusEl.classList.add("stuck");
 const note = DATA.note;
 if (note) document.getElementById("note").textContent = note;
+document.getElementById("difficulty").textContent = DATA.difficulty || "";
 
 function key(r, c) { return r + "," + c; }
 
@@ -712,6 +1038,9 @@ function render() {
   document.getElementById("counter").textContent =
     i === 0 ? "初始盘面" : `第 ${i} / ${frames.length - 1} 步`;
   document.getElementById("desc").textContent = f.desc;
+  const tech = document.getElementById("tech");
+  tech.textContent = f.technique ? `${f.technique} · 难度 ${f.cost}` : "";
+  tech.style.display = f.technique ? "inline-block" : "none";
   const marks = document.getElementById("marks");
   marks.innerHTML = "";
   for (const [r, c] of f.newCats) { const li = document.createElement("li"); li.className = "cat"; li.textContent = `猫 R${r + 1}C${c + 1}`; marks.appendChild(li); }
@@ -734,6 +1063,7 @@ render();
 
 
 def to_html(title, size, region_ids, region_colors, init_grid, steps, status, mislabeled):
+    """Self-contained step-through report; `steps` come from run_deduction."""
     def enc(grid):
         return [[_ENC[grid[r][c]] for c in range(size)] for r in range(size)]
 
@@ -746,6 +1076,8 @@ def to_html(title, size, region_ids, region_colors, init_grid, steps, status, mi
     for s in steps:
         frames.append({
             "desc": s["desc"],
+            "technique": s["technique"],
+            "cost": s["cost"],
             "grid": enc(s["grid"]),
             "newCats": [[r, c] for k, r, c in s["marks"] if k == CAT],
             "newExcluded": [[r, c] for k, r, c in s["marks"] if k == EXCLUDED],
@@ -764,6 +1096,7 @@ def to_html(title, size, region_ids, region_colors, init_grid, steps, status, mi
         "status": status,
         "title": title,
         "note": note,
+        "difficulty": difficulty_line(steps, status),
     }
     import json as _json
     return HTML_TEMPLATE.replace("__DATA__", _json.dumps(data, ensure_ascii=False))
@@ -843,7 +1176,8 @@ def main() -> int:
     excluded = [cell for cell in excluded if cell not in solution_set]
 
     # -- run deduction once, then render to HTML or the terminal -----------
-    deducer = Deducer(size, region_ids, cats, excluded, sol_cols)
+    region_names = name_regions(region_colors)
+    deducer = Deducer(size, region_ids, cats, excluded, sol_cols, region_names)
     steps, status = run_deduction(deducer, size)
 
     if args.html:
@@ -861,7 +1195,7 @@ def main() -> int:
         new_cells = {(r, c) for _k, r, c in marks}
         cat_marks = [f"R{r+1}C{c+1}" for k, r, c in marks if k == CAT]
         exc_marks = [f"R{r+1}C{c+1}" for k, r, c in marks if k == EXCLUDED]
-        print(f"步骤 {idx}：{s['desc']}")
+        print(f"步骤 {idx} [{s['technique']} · 难度 {s['cost']}]：{s['desc']}")
         if cat_marks:
             print(f"   ✓ 新增猫：{', '.join(cat_marks)}")
         if exc_marks:
@@ -876,13 +1210,18 @@ def main() -> int:
         else:
             print()
 
+    summary = difficulty_line(steps, status)
     if status == "solved":
         print("🎉 已放满所有猫，推理完成。")
+        if summary:
+            print(summary)
     else:
         last = steps[-1]["grid"] if steps else init_grid
-        print("⏸ 当前技巧库（同行列色排除 / 唯一候选 / common attack / 锁定组 / "
-              "强链 / 深度1试探反证）无法继续推进——这一步需要更深的嵌套假设。剩余盘面：")
+        print("⏸ 当前技巧库（同行列色排除 / 唯一候选 / 色块共线 / 锁定组 / "
+              "强链 / 共同攻击 / 深度1试探反证）无法继续推进——这一步需要更深的嵌套假设。剩余盘面：")
         print(render_board(size, region_ids, last, region_colors, set(), use_color))
+        if summary:
+            print(summary)
 
     return 0
 

@@ -84,7 +84,10 @@ struct CellView: View {
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(
                 "Row \(row + 1), Column \(column + 1), "
-                    + CatPuzzleTheme.regionName(for: regionID)
+                    + CatPuzzleTheme.regionName(
+                        for: regionID,
+                        includingShape: showsRegionIcon
+                    )
                     + (isLocked ? ", Given" : "")
             )
             .accessibilityValue(accessibilityValue)

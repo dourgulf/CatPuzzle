@@ -15,6 +15,64 @@ public enum LogicalPuzzleSolver {
         return outcome.result(with: engine.report)
     }
 
+    /// The easiest single deduction available on `puzzle`, or nil when no
+    /// deterministic technique applies. Techniques are tried cheapest-first
+    /// (what a player would spot soonest), which is deliberately *not* the
+    /// scan order `solve` uses -- that order is frozen so difficulty
+    /// statistics and generated levels stay reproducible.
+    static func easiestHint(level: LevelDefinition, puzzle: Puzzle) -> LogicalHint? {
+        guard let engine = makeEngine(level: level, puzzle: puzzle) else { return nil }
+        var working = engine
+        return working.easiestHintStep()
+    }
+
+    /// A hint that only depth-1 proof by contradiction can produce. Used as a
+    /// fallback when no deterministic technique applies, so a player on a
+    /// board that needs a trial still gets help instead of silence.
+    static func assumptionHint(level: LevelDefinition, puzzle: Puzzle) -> LogicalHint? {
+        guard let engine = makeEngine(level: level, puzzle: puzzle) else { return nil }
+        var working = engine
+        _ = working.solve(maxAssumptionDepth: 1)
+        for event in working.report.events {
+            guard case .contradictionElimination = event.technique else { continue }
+            let actions = event.steps.compactMap { step -> LogicalAction? in
+                guard case .exclude = step.action else { return nil }
+                return step.action
+            }
+            guard let reason = event.steps.first?.reason, !actions.isEmpty else { continue }
+            return LogicalHint(actions: actions, reason: reason)
+        }
+        return nil
+    }
+
+    /// Why the board is already broken, if it is. A player who mis-marked a
+    /// cell gets told which constraint they starved instead of a blank "no
+    /// hint available".
+    static func diagnoseContradiction(
+        level: LevelDefinition,
+        puzzle: Puzzle
+    ) -> LogicalHintDiagnosis? {
+        guard let engine = makeEngine(level: level, puzzle: puzzle) else { return nil }
+        if let (first, second) = engine.clashingCats {
+            return .clashingCats(first, second)
+        }
+        if let constraint = engine.starvedConstraint {
+            return .starvedConstraint(constraint)
+        }
+        return nil
+    }
+
+    private static func makeEngine(
+        level: LevelDefinition,
+        puzzle: Puzzle
+    ) -> LogicalSolveEngine? {
+        guard (try? LevelValidator.validate(level)) != nil,
+              puzzle.matches(level) else {
+            return nil
+        }
+        return LogicalSolveEngine(level: level, puzzle: puzzle)
+    }
+
     private static func emptyReport(for level: LevelDefinition) -> LogicalSolveReport {
         LogicalSolveReport(
             steps: [],
@@ -197,7 +255,10 @@ private struct LogicalSolveEngine {
                     let eventStart = steps.count
                     if exclude(
                         position,
-                        reason: .contradictionFromAssumption(assumed: position)
+                        reason: .contradictionFromAssumption(
+                            assumed: position,
+                            contradicting: branch.starvedConstraint
+                        )
                     ) {
                         recordEvent(
                             .contradictionElimination(assumed: position),
@@ -211,6 +272,90 @@ private struct LogicalSolveEngine {
 
             if !excludedByContradiction { return .stuck }
         }
+    }
+
+    /// One deduction from this board, preferring the technique a player would
+    /// spot first: cross off what a placed cat forbids, then a single
+    /// candidate, then locked pair/triple, strong link, common attack and
+    /// finally higher-order locked sets. Mutates this (throwaway) engine.
+    mutating func easiestHintStep() -> LogicalHint? {
+        guard !hasContradiction else { return nil }
+
+        for cat in board.sortedConfirmedCats {
+            let start = steps.count
+            propagateConstraints(from: cat)
+            if let hint = hint(fromStepsAt: start) { return hint }
+        }
+
+        if let deduction = nextDeduction() {
+            return LogicalHint(
+                actions: [.placeCat(deduction.position)],
+                reason: deduction.reason
+            )
+        }
+
+        if let event = easiestAdvancedDeduction() {
+            let actions = hintExclusions(for: event)
+                .filter { board.candidates.contains($0) }
+                .map(LogicalAction.exclude)
+            if !actions.isEmpty {
+                return LogicalHint(actions: actions, reason: event.reason)
+            }
+        }
+
+        return nil
+    }
+
+    /// Every cell the event's reasoning rules out, not just the first one.
+    ///
+    /// `solve` deliberately emits common attacks and strong links one cell at
+    /// a time (its statistics and the generator's blueprints are calibrated on
+    /// that), but a hint is a limited resource: once a player has been shown
+    /// the argument, they should get all of its conclusions in one go.
+    private func hintExclusions(for event: AdvancedDeductionEvent) -> [CellPosition] {
+        switch event.reason {
+        case let .strongLinkCommonElimination(link):
+            return board.sortedCandidates.filter { position in
+                position != link.first
+                    && position != link.second
+                    && board.conflicts(position, link.first)
+                    && board.conflicts(position, link.second)
+            }
+        case let .commonAttack(_, candidatePositions):
+            return board.sortedCandidates.filter { position in
+                !candidatePositions.contains(position)
+                    && candidatePositions.allSatisfy { board.conflicts(position, $0) }
+            }
+        default:
+            return event.exclusions
+        }
+    }
+
+    /// Advanced techniques ordered by how hard they are to see, rather than by
+    /// `nextAdvancedDeduction`'s frozen scan order.
+    private func easiestAdvancedDeduction() -> AdvancedDeductionEvent? {
+        if let event = lockedSetDeduction(sizes: [2]) { return event }
+        if let event = lockedSetDeduction(sizes: [3]) { return event }
+        if let event = nextStrongLinkDeduction() { return event }
+        if let event = nextCommonAttackDeduction() { return event }
+        return nextHigherOrderLockedSetDeduction()
+    }
+
+    /// Groups the steps recorded from `index` onwards into one hint: a single
+    /// placement, or every exclusion sharing the first step's reason.
+    private func hint(fromStepsAt index: Int) -> LogicalHint? {
+        let produced = steps[index...]
+        if let placement = produced.first(where: { step in
+            if case .placeCat = step.action { return true }
+            return false
+        }) {
+            return LogicalHint(actions: [placement.action], reason: placement.reason)
+        }
+        guard let first = produced.first else { return nil }
+        let actions = produced
+            .filter { $0.reason == first.reason }
+            .map(\.action)
+        return actions.isEmpty ? nil : LogicalHint(actions: actions, reason: first.reason)
     }
 
     private mutating func propagateInitialCats() {
@@ -543,6 +688,45 @@ private struct LogicalSolveEngine {
         }
         combine(0)
         return result
+    }
+
+    /// The first exactly-one constraint that has no cat and no candidate
+    /// left, if any. Explains *why* a board (or a trial branch) is broken.
+    var starvedConstraint: ConstraintKind? {
+        for row in 0..<level.size
+        where !board.hasCat(inRow: row) && board.candidates(inRow: row).isEmpty {
+            return .row(row)
+        }
+        for column in 0..<level.size
+        where !board.hasCat(inColumn: column)
+            && board.candidates(inColumn: column).isEmpty {
+            return .column(column)
+        }
+        for regionID in board.regionIDs
+        where !board.hasCat(forRegion: regionID)
+            && board.candidates(forRegion: regionID).isEmpty {
+            return .region(regionID)
+        }
+        return nil
+    }
+
+    /// Two placed cats that cannot coexist, if the board has such a pair.
+    var clashingCats: (CellPosition, CellPosition)? {
+        let cats = board.sortedConfirmedCats
+        for firstIndex in cats.indices {
+            for secondIndex in cats.index(after: firstIndex)..<cats.endIndex {
+                let first = cats[firstIndex]
+                let second = cats[secondIndex]
+                if first.row == second.row
+                    || first.column == second.column
+                    || level.regionIDs[first.row][first.column]
+                        == level.regionIDs[second.row][second.column]
+                    || areAdjacent(first, second) {
+                    return (first, second)
+                }
+            }
+        }
+        return nil
     }
 
     private var hasContradiction: Bool {

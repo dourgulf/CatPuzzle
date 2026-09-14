@@ -583,6 +583,27 @@ final class GameViewModelTests: XCTestCase {
         return try GameViewModel(level: level)
     }
 
+    func testRequestHintExplainsAContradictoryBoardInsteadOfStayingSilent() throws {
+        let level = BuiltInLevels.meadow
+        var puzzle = try level.makePuzzle()
+        // The player wrongly excludes an entire row.
+        for column in 0..<level.size {
+            try puzzle.setState(.excluded, atRow: 2, column: column)
+        }
+        let viewModel = GameViewModel(engine: try GameEngine(level: level, puzzle: puzzle))
+
+        viewModel.requestHint()
+
+        XCTAssertNil(viewModel.hint)
+        XCTAssertEqual(viewModel.hintDiagnosis, .starvedConstraint(.row(2)))
+        XCTAssertTrue(
+            HintDescription.text(
+                for: .starvedConstraint(.row(2)),
+                showsRegionIcons: false
+            ).contains("Row 3")
+        )
+    }
+
     private func viewModelWithRowSingle(
         onGameStateChanged: @escaping (GameState) -> Void = { _ in }
     ) throws -> GameViewModel {
