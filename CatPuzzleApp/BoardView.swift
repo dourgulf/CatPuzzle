@@ -24,6 +24,23 @@ enum CellHintEmphasis: Equatable {
     case result
 }
 
+extension BoardView {
+    /// Every cell's bounding frame, always emitted regardless of masking or
+    /// tutorial state, so any ancestor that reads this preference can resolve
+    /// whichever cells it cares about into real `CGRect`s — the tutorial's
+    /// spotlight cutouts and finger-guide targets among them. A plain level
+    /// screen simply never reads it.
+    struct CellFrameKey: PreferenceKey {
+        static var defaultValue: [CellPosition: Anchor<CGRect>] = [:]
+        static func reduce(
+            value: inout [CellPosition: Anchor<CGRect>],
+            nextValue: () -> [CellPosition: Anchor<CGRect>]
+        ) {
+            value.merge(nextValue(), uniquingKeysWith: { $1 })
+        }
+    }
+}
+
 struct BoardLayout {
     let side: CGFloat
     let size: Int
@@ -91,6 +108,12 @@ struct BoardView: View {
     let showsRegionIcons: Bool
     let lockedPositions: Set<CellPosition>
     let hint: LogicalHint?
+    /// Cells a guided tutorial step has masked off: dimmed and inert, so the
+    /// player can only act on what the step is explaining. Empty on every
+    /// ordinary level.
+    var maskedPositions: Set<CellPosition> = []
+    /// Cells pulsing to show a stuck player where to look.
+    var nudgedPositions: Set<CellPosition> = []
     let onTap: (Int, Int) -> Void
     let onDragSetExcluded: (Bool, Int, Int) -> Void
     let onToggleCatAccessibility: (Int, Int) -> Void
@@ -132,7 +155,10 @@ struct BoardView: View {
                                 showsRegionIcon: showsRegionIcons,
                                 isLocked: lockedPositions.contains(position),
                                 hintEmphasis: hintEmphasis(at: position),
-                                allowsInteraction: hint == nil,
+                                isMasked: maskedPositions.contains(position),
+                                isNudged: nudgedPositions.contains(position),
+                                allowsInteraction: hint == nil
+                                    && !maskedPositions.contains(position),
                                 onTap: {
                                     onTap(row, column)
                                 },
@@ -141,6 +167,12 @@ struct BoardView: View {
                                 }
                             )
                             .frame(width: layout.cellSide, height: layout.cellSide)
+                            .anchorPreference(
+                                key: CellFrameKey.self,
+                                value: .bounds
+                            ) { anchor in
+                                [position: anchor]
+                            }
                         }
                     }
                 }
@@ -229,7 +261,8 @@ struct BoardView: View {
                         ),
                         mode: dragMode ?? .ignore
                     )
-                } else if let position = layout.position(at: value.startLocation) {
+                } else if let position = layout.position(at: value.startLocation),
+                          !maskedPositions.contains(position) {
                     onTap(position.row, position.column)
                 }
 
@@ -248,7 +281,8 @@ struct BoardView: View {
                   atRow: position.row,
                   column: position.column
               ),
-              !lockedPositions.contains(position) else {
+              !lockedPositions.contains(position),
+              !maskedPositions.contains(position) else {
             return .ignore
         }
         return BoardDragMode(startingFrom: state)

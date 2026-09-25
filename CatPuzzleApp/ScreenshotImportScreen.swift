@@ -340,6 +340,7 @@ private struct ScreenshotPlayView: View {
     var body: some View {
         GameScreen(
             viewModel: viewModel,
+            presentation: .scratch(title: "Screenshot"),
             showsRegionIcons: showsRegionIcons,
             onContinue: { dismiss() }
         )

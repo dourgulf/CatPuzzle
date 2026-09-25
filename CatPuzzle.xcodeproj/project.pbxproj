@@ -12,11 +12,15 @@
 		10451F62935AF7116308039E /* CellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4890F6ACF8E2AA15AC1065D2 /* CellView.swift */; };
 		2485DFBFBE7466F57E5BE1B2 /* sfx_cat_unmark.wav in Resources */ = {isa = PBXBuildFile; fileRef = BCBEFC522EA66683ABA7A4CA /* sfx_cat_unmark.wav */; };
 		33801A431E1843D619D10078 /* ScreenshotImportScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC1044B00357B33D373CBE2E /* ScreenshotImportScreen.swift */; };
+		3512AD04103A8070BAB87B76 /* TutorialFingerGuide.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91B889C16CC3BA1C69439A51 /* TutorialFingerGuide.swift */; };
 		378DDAA4C21235D4BA867AFA /* GameScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C3A14156F40CDC5F819781D /* GameScreen.swift */; };
 		40E73C916EC8B760EF4821BE /* GameViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5DFA64C5983085816A2B051 /* GameViewModelTests.swift */; };
 		43838DAF0F4374355FF0413F /* CatPuzzleCore in Frameworks */ = {isa = PBXBuildFile; productRef = 66B89727DBD1C8449B53BAA5 /* CatPuzzleCore */; };
+		49A946C5E3E5068941849003 /* TutorialViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6982B25EDA727B5B490F4824 /* TutorialViewModel.swift */; };
 		50859F75D2D48D2162DABD55 /* NextLevelScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AF778737EE6B1DBCED4D141 /* NextLevelScreen.swift */; };
+		567DFECC614F8D46DBEC247B /* CellInputCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22DE5BB28A40A7CB51C7F8FF /* CellInputCoordinator.swift */; };
 		5B623BA8CA971F9AC320478D /* sfx_cat_mark.wav in Resources */ = {isa = PBXBuildFile; fileRef = 0A49B14E12A5C105B0331A41 /* sfx_cat_mark.wav */; };
+		5D086D9719F6818778ECD424 /* TutorialTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 064EF8726351E1A4A5B9C80E /* TutorialTheme.swift */; };
 		5D7F2458E337A2A4EC31EB06 /* LevelProgression.swift in Sources */ = {isa = PBXBuildFile; fileRef = 359024E1CF371922D839ACD1 /* LevelProgression.swift */; };
 		66DAD91E76E2164B56B9981A /* ScreenshotImportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79E199778440A03E79F13FB5 /* ScreenshotImportTests.swift */; };
 		6F542BA0A78A5F87ED5F3ACB /* GameProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5736732213168EFBF1569B70 /* GameProgress.swift */; };
@@ -27,16 +31,23 @@
 		88CCB976900590897D6181BF /* PhotosUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 96C21EB18333C75975EB261E /* PhotosUI.framework */; };
 		89F9291107E234DAE666B9D6 /* ScreenshotPixelDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EDC7F27F972AEFBDF77BC8A /* ScreenshotPixelDecoder.swift */; };
 		9B203FE0002125437D0B22E3 /* PlaytestLabScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B02DCA335B2C6D820408417 /* PlaytestLabScreen.swift */; };
+		A097F82F735D4B81C0BE8CC4 /* TutorialFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9BDD51E794CEBEF41C0F3DA /* TutorialFlowTests.swift */; };
+		A0EF1B794680A30AF9F794F8 /* TutorialScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 479BF02CAEEC031573FE474F /* TutorialScreen.swift */; };
 		A466CD12878B729A7A555E91 /* AllLevelsCompleteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EBFFBA4747D918EC133276B /* AllLevelsCompleteView.swift */; };
 		A94CB5D90C5FC0056CE052F5 /* CatPuzzleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 545D10397B8681B21E643BCE /* CatPuzzleApp.swift */; };
 		AD231919A62CE809CE5EBCF7 /* sfx_excluded_unmark.wav in Resources */ = {isa = PBXBuildFile; fileRef = 2D1AA59631DCE4267E282B58 /* sfx_excluded_unmark.wav */; };
 		B26AF74766674968CFF1C460 /* AppSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FE7E0D5FCADE753517028D /* AppSessionTests.swift */; };
 		C0077BCAB3FED66B42D26353 /* sfx_cat_failed.wav in Resources */ = {isa = PBXBuildFile; fileRef = ABBA7203057E6635D561DA4E /* sfx_cat_failed.wav */; };
+		C5D235D20FDA417D154CE5CB /* TutorialViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90DF38482F16C926E275D439 /* TutorialViewModelTests.swift */; };
 		C8C438165427EC33776E1F9F /* GameProgressTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C28896388C93775D820CC30 /* GameProgressTests.swift */; };
+		CCC5E9BA0E4B0C5BEE53BF2B /* TutorialSpotlightMask.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14339A27815773C5A07118D2 /* TutorialSpotlightMask.swift */; };
 		D5495E654DA177826CE80B18 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 40B3C76E7B8ACCAA608B77F1 /* AVFoundation.framework */; };
 		DC155185F312F7C52E07B2B8 /* sfx_heart_broken.wav in Resources */ = {isa = PBXBuildFile; fileRef = 306A304622EE6D2E40C394EE /* sfx_heart_broken.wav */; };
+		DDFAA2F76C4BBD401CA3FE8E /* TutorialCompletionScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE9E4DF3165A6B9A47D1F257 /* TutorialCompletionScreen.swift */; };
 		DE03D18DD205B82448E1A961 /* BoardViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B13CCAF096E9BA9016A32D0B /* BoardViewTests.swift */; };
+		E227E80D3B889C6C0D55C8E9 /* TutorialCoach.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13D603E9BF5F7A42215ACA0B /* TutorialCoach.swift */; };
 		ED15BAF9A2D9614E4E857A92 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB30A670056D345A82204A57 /* RootView.swift */; };
+		F5809B3EE13EA6E8E32A29D6 /* LevelPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09E2C34088FB985FADD42F8C /* LevelPresentation.swift */; };
 		FB4426A15886909952E0E62D /* GameViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB97F24DAA1DF2F9D9609A78 /* GameViewModel.swift */; };
 		FC7336A512352A99C7255EE9 /* sfx_start.wav in Resources */ = {isa = PBXBuildFile; fileRef = A149457B1815F61F25AAD66D /* sfx_start.wav */; };
 /* End PBXBuildFile section */
@@ -55,14 +66,20 @@
 		016B8CD49A35E29B173C9E01 /* AppSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSession.swift; sourceTree = "<group>"; };
 		03A1321E3F989487C0675038 /* CatPuzzle */ = {isa = PBXFileReference; lastKnownFileType = folder; name = CatPuzzle; path = .; sourceTree = SOURCE_ROOT; };
 		04FE7E0D5FCADE753517028D /* AppSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSessionTests.swift; sourceTree = "<group>"; };
+		064EF8726351E1A4A5B9C80E /* TutorialTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialTheme.swift; sourceTree = "<group>"; };
+		09E2C34088FB985FADD42F8C /* LevelPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LevelPresentation.swift; sourceTree = "<group>"; };
 		0A49B14E12A5C105B0331A41 /* sfx_cat_mark.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = sfx_cat_mark.wav; sourceTree = "<group>"; };
+		13D603E9BF5F7A42215ACA0B /* TutorialCoach.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialCoach.swift; sourceTree = "<group>"; };
+		14339A27815773C5A07118D2 /* TutorialSpotlightMask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialSpotlightMask.swift; sourceTree = "<group>"; };
 		1AAAF173B0537E1A0342F539 /* CatPuzzle.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CatPuzzle.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		22DE5BB28A40A7CB51C7F8FF /* CellInputCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CellInputCoordinator.swift; sourceTree = "<group>"; };
 		2D1AA59631DCE4267E282B58 /* sfx_excluded_unmark.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = sfx_excluded_unmark.wav; sourceTree = "<group>"; };
 		306A304622EE6D2E40C394EE /* sfx_heart_broken.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = sfx_heart_broken.wav; sourceTree = "<group>"; };
 		359024E1CF371922D839ACD1 /* LevelProgression.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LevelProgression.swift; sourceTree = "<group>"; };
 		3C28896388C93775D820CC30 /* GameProgressTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameProgressTests.swift; sourceTree = "<group>"; };
 		40B3C76E7B8ACCAA608B77F1 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
 		452AF30018CE7484BA1B7F77 /* BoardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardView.swift; sourceTree = "<group>"; };
+		479BF02CAEEC031573FE474F /* TutorialScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialScreen.swift; sourceTree = "<group>"; };
 		4890F6ACF8E2AA15AC1065D2 /* CellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CellView.swift; sourceTree = "<group>"; };
 		4B02DCA335B2C6D820408417 /* PlaytestLabScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaytestLabScreen.swift; sourceTree = "<group>"; };
 		4EBFFBA4747D918EC133276B /* AllLevelsCompleteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AllLevelsCompleteView.swift; sourceTree = "<group>"; };
@@ -70,10 +87,13 @@
 		54EC177381C04835EF3CE30B /* README.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = README.txt; sourceTree = "<group>"; };
 		5736732213168EFBF1569B70 /* GameProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameProgress.swift; sourceTree = "<group>"; };
 		60948E5F6905F7174661F246 /* GameProgressStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameProgressStore.swift; sourceTree = "<group>"; };
+		6982B25EDA727B5B490F4824 /* TutorialViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialViewModel.swift; sourceTree = "<group>"; };
 		6EDC7F27F972AEFBDF77BC8A /* ScreenshotPixelDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotPixelDecoder.swift; sourceTree = "<group>"; };
 		79E199778440A03E79F13FB5 /* ScreenshotImportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotImportTests.swift; sourceTree = "<group>"; };
 		8AF778737EE6B1DBCED4D141 /* NextLevelScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NextLevelScreen.swift; sourceTree = "<group>"; };
 		90675660D0ABBC7AA0FBE806 /* PuzzleSound.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PuzzleSound.swift; sourceTree = "<group>"; };
+		90DF38482F16C926E275D439 /* TutorialViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialViewModelTests.swift; sourceTree = "<group>"; };
+		91B889C16CC3BA1C69439A51 /* TutorialFingerGuide.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialFingerGuide.swift; sourceTree = "<group>"; };
 		9652A30F3001182CE5043784 /* sfx_excluded_mark.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = sfx_excluded_mark.wav; sourceTree = "<group>"; };
 		96C21EB18333C75975EB261E /* PhotosUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = PhotosUI.framework; path = System/Library/Frameworks/PhotosUI.framework; sourceTree = SDKROOT; };
 		98BFDEFB3AF48A7B82F7BD1F /* CatPuzzleAppTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = CatPuzzleAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -83,6 +103,8 @@
 		B13CCAF096E9BA9016A32D0B /* BoardViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardViewTests.swift; sourceTree = "<group>"; };
 		B5DFA64C5983085816A2B051 /* GameViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameViewModelTests.swift; sourceTree = "<group>"; };
 		BCBEFC522EA66683ABA7A4CA /* sfx_cat_unmark.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = sfx_cat_unmark.wav; sourceTree = "<group>"; };
+		C9BDD51E794CEBEF41C0F3DA /* TutorialFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialFlowTests.swift; sourceTree = "<group>"; };
+		DE9E4DF3165A6B9A47D1F257 /* TutorialCompletionScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialCompletionScreen.swift; sourceTree = "<group>"; };
 		EB30A670056D345A82204A57 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		EB97F24DAA1DF2F9D9609A78 /* GameViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameViewModel.swift; sourceTree = "<group>"; };
 		EC1044B00357B33D373CBE2E /* ScreenshotImportScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotImportScreen.swift; sourceTree = "<group>"; };
@@ -133,11 +155,13 @@
 				016B8CD49A35E29B173C9E01 /* AppSession.swift */,
 				452AF30018CE7484BA1B7F77 /* BoardView.swift */,
 				545D10397B8681B21E643BCE /* CatPuzzleApp.swift */,
+				22DE5BB28A40A7CB51C7F8FF /* CellInputCoordinator.swift */,
 				4890F6ACF8E2AA15AC1065D2 /* CellView.swift */,
 				5736732213168EFBF1569B70 /* GameProgress.swift */,
 				60948E5F6905F7174661F246 /* GameProgressStore.swift */,
 				9C3A14156F40CDC5F819781D /* GameScreen.swift */,
 				EB97F24DAA1DF2F9D9609A78 /* GameViewModel.swift */,
+				09E2C34088FB985FADD42F8C /* LevelPresentation.swift */,
 				359024E1CF371922D839ACD1 /* LevelProgression.swift */,
 				8AF778737EE6B1DBCED4D141 /* NextLevelScreen.swift */,
 				4B02DCA335B2C6D820408417 /* PlaytestLabScreen.swift */,
@@ -145,6 +169,13 @@
 				EB30A670056D345A82204A57 /* RootView.swift */,
 				EC1044B00357B33D373CBE2E /* ScreenshotImportScreen.swift */,
 				6EDC7F27F972AEFBDF77BC8A /* ScreenshotPixelDecoder.swift */,
+				13D603E9BF5F7A42215ACA0B /* TutorialCoach.swift */,
+				DE9E4DF3165A6B9A47D1F257 /* TutorialCompletionScreen.swift */,
+				91B889C16CC3BA1C69439A51 /* TutorialFingerGuide.swift */,
+				479BF02CAEEC031573FE474F /* TutorialScreen.swift */,
+				14339A27815773C5A07118D2 /* TutorialSpotlightMask.swift */,
+				064EF8726351E1A4A5B9C80E /* TutorialTheme.swift */,
+				6982B25EDA727B5B490F4824 /* TutorialViewModel.swift */,
 				10E30566DB2775E1B185A6D3 /* Sounds */,
 			);
 			path = CatPuzzleApp;
@@ -175,6 +206,8 @@
 				3C28896388C93775D820CC30 /* GameProgressTests.swift */,
 				B5DFA64C5983085816A2B051 /* GameViewModelTests.swift */,
 				79E199778440A03E79F13FB5 /* ScreenshotImportTests.swift */,
+				C9BDD51E794CEBEF41C0F3DA /* TutorialFlowTests.swift */,
+				90DF38482F16C926E275D439 /* TutorialViewModelTests.swift */,
 			);
 			path = CatPuzzleAppTests;
 			sourceTree = "<group>";
@@ -293,6 +326,8 @@
 				C8C438165427EC33776E1F9F /* GameProgressTests.swift in Sources */,
 				40E73C916EC8B760EF4821BE /* GameViewModelTests.swift in Sources */,
 				66DAD91E76E2164B56B9981A /* ScreenshotImportTests.swift in Sources */,
+				A097F82F735D4B81C0BE8CC4 /* TutorialFlowTests.swift in Sources */,
+				C5D235D20FDA417D154CE5CB /* TutorialViewModelTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -304,11 +339,13 @@
 				7843EADFD8218B9A0D4E791E /* AppSession.swift in Sources */,
 				7194BF384CAA2A41AB4B6405 /* BoardView.swift in Sources */,
 				A94CB5D90C5FC0056CE052F5 /* CatPuzzleApp.swift in Sources */,
+				567DFECC614F8D46DBEC247B /* CellInputCoordinator.swift in Sources */,
 				10451F62935AF7116308039E /* CellView.swift in Sources */,
 				6F542BA0A78A5F87ED5F3ACB /* GameProgress.swift in Sources */,
 				723C238077FB97EEFB0D2E0F /* GameProgressStore.swift in Sources */,
 				378DDAA4C21235D4BA867AFA /* GameScreen.swift in Sources */,
 				FB4426A15886909952E0E62D /* GameViewModel.swift in Sources */,
+				F5809B3EE13EA6E8E32A29D6 /* LevelPresentation.swift in Sources */,
 				5D7F2458E337A2A4EC31EB06 /* LevelProgression.swift in Sources */,
 				50859F75D2D48D2162DABD55 /* NextLevelScreen.swift in Sources */,
 				9B203FE0002125437D0B22E3 /* PlaytestLabScreen.swift in Sources */,
@@ -316,6 +353,13 @@
 				ED15BAF9A2D9614E4E857A92 /* RootView.swift in Sources */,
 				33801A431E1843D619D10078 /* ScreenshotImportScreen.swift in Sources */,
 				89F9291107E234DAE666B9D6 /* ScreenshotPixelDecoder.swift in Sources */,
+				E227E80D3B889C6C0D55C8E9 /* TutorialCoach.swift in Sources */,
+				DDFAA2F76C4BBD401CA3FE8E /* TutorialCompletionScreen.swift in Sources */,
+				3512AD04103A8070BAB87B76 /* TutorialFingerGuide.swift in Sources */,
+				A0EF1B794680A30AF9F794F8 /* TutorialScreen.swift in Sources */,
+				CCC5E9BA0E4B0C5BEE53BF2B /* TutorialSpotlightMask.swift in Sources */,
+				5D086D9719F6818778ECD424 /* TutorialTheme.swift in Sources */,
+				49A946C5E3E5068941849003 /* TutorialViewModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

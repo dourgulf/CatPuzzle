@@ -7,7 +7,7 @@ import UIKit
 /// pixels, and turning an import failure into something a player can act on.
 /// The detection itself is covered in `CatPuzzleCoreTests`.
 final class ScreenshotImportTests: XCTestCase {
-    private let regionIDs = BuiltInLevels.meadow.regionIDs
+    private let regionIDs = SampleLevels.meadow.regionIDs
 
     // MARK: - Decoding
 

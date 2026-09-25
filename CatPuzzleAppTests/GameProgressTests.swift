@@ -102,7 +102,7 @@ final class GameProgressTests: XCTestCase {
     }
 
     func testNextLevelIsMeadowWhenNothingIsCompleted() {
-        let progression = LevelProgression(levels: BuiltInLevels.all)
+        let progression = LevelProgression(levels: SampleLevels.all)
 
         XCTAssertEqual(
             progression.nextUncompletedLevel(completedLevelIDs: [])?.id,
@@ -111,7 +111,7 @@ final class GameProgressTests: XCTestCase {
     }
 
     func testNextLevelIsRiverAfterMeadow() {
-        let progression = LevelProgression(levels: BuiltInLevels.all)
+        let progression = LevelProgression(levels: SampleLevels.all)
 
         XCTAssertEqual(
             progression.nextUncompletedLevel(completedLevelIDs: ["meadow"])?.id,
@@ -120,7 +120,7 @@ final class GameProgressTests: XCTestCase {
     }
 
     func testNextLevelIsTerracesAfterMeadowAndRiver() {
-        let progression = LevelProgression(levels: BuiltInLevels.all)
+        let progression = LevelProgression(levels: SampleLevels.all)
 
         XCTAssertEqual(
             progression.nextUncompletedLevel(
@@ -131,12 +131,46 @@ final class GameProgressTests: XCTestCase {
     }
 
     func testNextLevelIsNilWhenAllLevelsAreCompleted() {
-        let progression = LevelProgression(levels: BuiltInLevels.all)
+        let progression = LevelProgression(levels: SampleLevels.all)
 
         XCTAssertNil(
             progression.nextUncompletedLevel(
                 completedLevelIDs: ["meadow", "river", "terraces"]
             )
         )
+    }
+
+    func testLadderDoesNotWrapWhileLevelsRemain() {
+        let progression = LevelProgression(levels: SampleLevels.all)
+
+        let next = progression.nextLevel(completedLevelIDs: ["meadow"])
+
+        XCTAssertEqual(next?.level.id, "river")
+        XCTAssertEqual(next?.didWrap, false)
+    }
+
+    func testLadderWrapsToTheFirstLevelOnceEveryLevelIsCompleted() {
+        let progression = LevelProgression(levels: SampleLevels.all)
+
+        let next = progression.nextLevel(
+            completedLevelIDs: ["meadow", "river", "terraces"]
+        )
+
+        XCTAssertEqual(next?.level.id, "meadow")
+        XCTAssertEqual(next?.didWrap, true)
+    }
+
+    func testEmptyLadderHasNoNextLevel() {
+        let progression = LevelProgression(levels: [])
+
+        XCTAssertNil(progression.nextLevel(completedLevelIDs: []))
+    }
+
+    func testLadderPositionIsOneBased() {
+        let progression = LevelProgression(levels: SampleLevels.all)
+
+        XCTAssertEqual(progression.position(ofLevelWithID: "meadow"), 1)
+        XCTAssertEqual(progression.position(ofLevelWithID: "terraces"), 3)
+        XCTAssertNil(progression.position(ofLevelWithID: "nope"))
     }
 }

@@ -15,6 +15,10 @@ struct CellMarkerMetrics: Equatable {
 
 struct CellView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Drives the nudge's pulse. Held here rather than animated from
+    /// `isNudged` directly so the repeating animation starts and stops with
+    /// the nudge instead of running forever once triggered.
+    @State private var isPulsing = false
 
     let state: CellState
     let regionID: Int
@@ -24,6 +28,11 @@ struct CellView: View {
     let showsRegionIcon: Bool
     let isLocked: Bool
     let hintEmphasis: CellHintEmphasis
+    /// Covered by a guided tutorial step, which leaves only the cells the
+    /// step is about reachable.
+    let isMasked: Bool
+    /// Pulsing because the player has stalled on an unguided tutorial step.
+    let isNudged: Bool
     let allowsInteraction: Bool
     let onTap: () -> Void
     let onToggleCatAccessibility: () -> Void
@@ -62,7 +71,7 @@ struct CellView: View {
                     .accessibilityHidden(true)
             }
 
-            if hintEmphasis == .dimmed {
+            if hintEmphasis == .dimmed || isMasked {
                 Color.black.opacity(0.62)
                     .accessibilityHidden(true)
             }
@@ -81,6 +90,19 @@ struct CellView: View {
                         lineWidth: hintEmphasis == .result ? 4 : 1
                     )
             }
+            .overlay {
+                if isNudged {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(CatPuzzleTheme.action, lineWidth: 4)
+                        .opacity(reduceMotion || isPulsing ? 1 : 0.2)
+                        .animation(pulseAnimation, value: isPulsing)
+                        .accessibilityHidden(true)
+                }
+            }
+            .onAppear { isPulsing = isNudged && !reduceMotion }
+            .onChange(of: isNudged) { _, nudged in
+                isPulsing = nudged && !reduceMotion
+            }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(
                 "Row \(row + 1), Column \(column + 1), "
@@ -92,7 +114,7 @@ struct CellView: View {
             )
             .accessibilityValue(accessibilityValue)
             .accessibilityHint(accessibilityHintText)
-            .accessibilityAddTraits(isLocked ? [] : .isButton)
+            .accessibilityAddTraits(isLocked || isMasked ? [] : .isButton)
             .accessibilityIdentifier("cell-\(row)-\(column)")
             .accessibilityAction {
                 if allowsInteraction, !isLocked {
@@ -148,9 +170,21 @@ struct CellView: View {
         }
     }
 
+    /// Reduce Motion gets a steady ring instead of a pulse: the point is to
+    /// point, and that survives losing the animation.
+    private var pulseAnimation: Animation? {
+        reduceMotion
+            ? nil
+            : .easeInOut(duration: 0.65).repeatForever(autoreverses: true)
+    }
+
     private var accessibilityHintText: String {
         if isLocked {
             "Fixed at the start of this level."
+        } else if isMasked {
+            "Not part of this tutorial step."
+        } else if isNudged {
+            "This is the cell the tutorial is waiting for."
         } else if allowsInteraction {
             "Activate to mark excluded."
         } else {

@@ -5,7 +5,7 @@ import CatPuzzleCore
 @MainActor
 final class GameViewModelTests: XCTestCase {
     func testInitializationExposesSelectedLevel() throws {
-        let viewModel = try GameViewModel(level: BuiltInLevels.river)
+        let viewModel = try GameViewModel(level: SampleLevels.river)
 
         XCTAssertEqual(viewModel.level.id, "river")
         XCTAssertEqual(viewModel.puzzle.size, 6)
@@ -118,7 +118,7 @@ final class GameViewModelTests: XCTestCase {
     }
 
     func testSingleTapIntentTogglesExcludedState() throws {
-        let viewModel = try GameViewModel()
+        let viewModel = try GameViewModel(level: SampleLevels.meadow)
 
         viewModel.toggleExcluded(atRow: 0, column: 0)
         XCTAssertEqual(viewModel.puzzle.state(atRow: 0, column: 0), .excluded)
@@ -133,7 +133,7 @@ final class GameViewModelTests: XCTestCase {
     }
 
     func testDoubleTapIntentTogglesCatState() throws {
-        let viewModel = try GameViewModel()
+        let viewModel = try GameViewModel(level: SampleLevels.meadow)
         viewModel.toggleExcluded(atRow: 0, column: 1)
 
         viewModel.toggleCat(atRow: 0, column: 1)
@@ -144,7 +144,7 @@ final class GameViewModelTests: XCTestCase {
     }
 
     func testExcludeDragMarksCellsWithoutChangingCats() throws {
-        let viewModel = try GameViewModel()
+        let viewModel = try GameViewModel(level: SampleLevels.meadow)
         viewModel.toggleCat(atRow: 0, column: 1)
         viewModel.toggleExcluded(atRow: 0, column: 2)
 
@@ -159,7 +159,7 @@ final class GameViewModelTests: XCTestCase {
 
     func testExcludeDragPlaysAndSignalsFeedbackForEveryChangedCell() throws {
         let sounds = RecordingPuzzleSoundPlayer()
-        let viewModel = try GameViewModel(soundPlayer: sounds)
+        let viewModel = try GameViewModel(level: SampleLevels.meadow, soundPlayer: sounds)
 
         viewModel.setExcludedDuringDrag(true, atRow: 0, column: 0)
         viewModel.setExcludedDuringDrag(true, atRow: 0, column: 2)
@@ -174,7 +174,7 @@ final class GameViewModelTests: XCTestCase {
 
     func testExcludeDragDoesNotRepeatFeedbackForAnUnchangedCell() throws {
         let sounds = RecordingPuzzleSoundPlayer()
-        let viewModel = try GameViewModel(soundPlayer: sounds)
+        let viewModel = try GameViewModel(level: SampleLevels.meadow, soundPlayer: sounds)
 
         viewModel.setExcludedDuringDrag(true, atRow: 0, column: 0)
         viewModel.setExcludedDuringDrag(true, atRow: 0, column: 0)
@@ -184,7 +184,7 @@ final class GameViewModelTests: XCTestCase {
     }
 
     func testClearDragClearsExcludedWithoutChangingCats() throws {
-        let viewModel = try GameViewModel()
+        let viewModel = try GameViewModel(level: SampleLevels.meadow)
         viewModel.toggleCat(atRow: 0, column: 1)
         viewModel.toggleExcluded(atRow: 0, column: 2)
 
@@ -201,6 +201,7 @@ final class GameViewModelTests: XCTestCase {
 
     func testFirstRawTapShowsExcludedPreviewBeforeDomainCommit() throws {
         let viewModel = try GameViewModel(
+            level: SampleLevels.meadow,
             doubleTapInterval: .seconds(5)
         )
 
@@ -220,7 +221,7 @@ final class GameViewModelTests: XCTestCase {
     func testRawDoubleTapCommitsOnlyCatAndCreatesOneUndoEntry() throws {
         var changedStates: [GameState] = []
         let viewModel = GameViewModel(
-            engine: try GameEngine(level: BuiltInLevels.meadow),
+            engine: try GameEngine(level: SampleLevels.meadow),
             doubleTapInterval: .seconds(5),
             onGameStateChanged: { changedStates.append($0) }
         )
@@ -246,6 +247,7 @@ final class GameViewModelTests: XCTestCase {
 
     func testRapidTapsOnDifferentCellsRemainIndependentPreviews() throws {
         let viewModel = try GameViewModel(
+            level: SampleLevels.meadow,
             doubleTapInterval: .seconds(5)
         )
 
@@ -259,6 +261,7 @@ final class GameViewModelTests: XCTestCase {
 
     func testRawSingleTapCommitsAfterDoubleTapInterval() async throws {
         let viewModel = try GameViewModel(
+            level: SampleLevels.meadow,
             doubleTapInterval: .milliseconds(10)
         )
 
@@ -278,6 +281,7 @@ final class GameViewModelTests: XCTestCase {
 
     func testRestartCancelsPendingTapWithoutLateMutation() async throws {
         let viewModel = try GameViewModel(
+            level: SampleLevels.meadow,
             doubleTapInterval: .milliseconds(20)
         )
         viewModel.handleCellTap(atRow: 0, column: 0)
@@ -292,6 +296,7 @@ final class GameViewModelTests: XCTestCase {
 
     func testUndoCancelsPendingTapWithoutCreatingHistory() async throws {
         let viewModel = try GameViewModel(
+            level: SampleLevels.meadow,
             doubleTapInterval: .milliseconds(20)
         )
         viewModel.handleCellTap(atRow: 0, column: 0)
@@ -305,7 +310,7 @@ final class GameViewModelTests: XCTestCase {
     }
 
     func testIllegalCatIntentPreservesPuzzleAndExposesFeedback() throws {
-        let viewModel = try GameViewModel()
+        let viewModel = try GameViewModel(level: SampleLevels.meadow)
         viewModel.toggleCat(atRow: 0, column: 0)
         let puzzleBeforeFailure = viewModel.puzzle
 
@@ -324,7 +329,7 @@ final class GameViewModelTests: XCTestCase {
     func testChallengeWrongCatExposesSolutionFeedbackAndDisablesUndo() throws {
         let viewModel = GameViewModel(
             engine: try GameEngine(
-                fixture: BuiltInLevels.meadowFixture,
+                fixture: SampleLevels.meadowFixture,
                 mode: .challenge
             )
         )
@@ -351,7 +356,7 @@ final class GameViewModelTests: XCTestCase {
     }
 
     func testUndoRestoresPreviousPuzzle() throws {
-        let viewModel = try GameViewModel()
+        let viewModel = try GameViewModel(level: SampleLevels.meadow)
         viewModel.toggleExcluded(atRow: 2, column: 2)
 
         viewModel.undo()
@@ -361,7 +366,7 @@ final class GameViewModelTests: XCTestCase {
     }
 
     func testRestartRestoresInitialPuzzleAndClearsHistory() throws {
-        let viewModel = try GameViewModel()
+        let viewModel = try GameViewModel(level: SampleLevels.meadow)
         viewModel.toggleCat(atRow: 0, column: 1)
         viewModel.toggleExcluded(atRow: 2, column: 2)
 
@@ -374,9 +379,9 @@ final class GameViewModelTests: XCTestCase {
     }
 
     func testSolvedStateReflectsCompletedMeadow() throws {
-        let viewModel = try GameViewModel(level: BuiltInLevels.meadow)
+        let viewModel = try GameViewModel(level: SampleLevels.meadow)
 
-        for position in BuiltInLevels.meadowFixture.solution {
+        for position in SampleLevels.meadowFixture.solution {
             viewModel.toggleCat(atRow: position.row, column: position.column)
         }
 
@@ -384,7 +389,7 @@ final class GameViewModelTests: XCTestCase {
     }
 
     func testFailureStateIsExposedAfterMaximumMistakes() throws {
-        let viewModel = try GameViewModel()
+        let viewModel = try GameViewModel(level: SampleLevels.meadow)
         viewModel.toggleCat(atRow: 0, column: 0)
 
         for _ in 0..<viewModel.level.maxMistakes {
@@ -406,7 +411,7 @@ final class GameViewModelTests: XCTestCase {
 
     func testCommittedExcludedTogglePlaysDistinctMarkAndUnmarkSounds() throws {
         let sounds = RecordingPuzzleSoundPlayer()
-        let viewModel = try GameViewModel(soundPlayer: sounds)
+        let viewModel = try GameViewModel(level: SampleLevels.meadow, soundPlayer: sounds)
 
         viewModel.toggleExcluded(atRow: 0, column: 0)
         viewModel.toggleExcluded(atRow: 0, column: 0)
@@ -416,7 +421,7 @@ final class GameViewModelTests: XCTestCase {
 
     func testCommittedCatTogglePlaysDistinctMarkAndUnmarkSounds() throws {
         let sounds = RecordingPuzzleSoundPlayer()
-        let viewModel = try GameViewModel(soundPlayer: sounds)
+        let viewModel = try GameViewModel(level: SampleLevels.meadow, soundPlayer: sounds)
 
         viewModel.toggleCat(atRow: 0, column: 1)
         viewModel.toggleCat(atRow: 0, column: 1)
@@ -427,6 +432,7 @@ final class GameViewModelTests: XCTestCase {
     func testPreviewSingleTapPlaysSoundImmediatelyAndNotAgainAtCommit() async throws {
         let sounds = RecordingPuzzleSoundPlayer()
         let viewModel = try GameViewModel(
+            level: SampleLevels.meadow,
             doubleTapInterval: .milliseconds(10),
             soundPlayer: sounds
         )
@@ -447,6 +453,7 @@ final class GameViewModelTests: XCTestCase {
     func testRawSingleTapUnmarkPlaysImmediatelyAndNotAgainAtCommit() async throws {
         let sounds = RecordingPuzzleSoundPlayer()
         let viewModel = try GameViewModel(
+            level: SampleLevels.meadow,
             doubleTapInterval: .milliseconds(10),
             soundPlayer: sounds
         )
@@ -464,7 +471,7 @@ final class GameViewModelTests: XCTestCase {
     func testRawDoubleTapStopsPreviewSoundAndPlaysCatMarkSound() throws {
         let sounds = RecordingPuzzleSoundPlayer()
         let viewModel = GameViewModel(
-            engine: try GameEngine(level: BuiltInLevels.meadow),
+            engine: try GameEngine(level: SampleLevels.meadow),
             doubleTapInterval: .seconds(5),
             soundPlayer: sounds
         )
@@ -480,7 +487,7 @@ final class GameViewModelTests: XCTestCase {
     func testRawDoubleTapOnCatPlaysUnmarkSoundWithoutAPreview() throws {
         let sounds = RecordingPuzzleSoundPlayer()
         let viewModel = GameViewModel(
-            engine: try GameEngine(level: BuiltInLevels.meadow),
+            engine: try GameEngine(level: SampleLevels.meadow),
             doubleTapInterval: .seconds(5),
             soundPlayer: sounds
         )
@@ -497,7 +504,7 @@ final class GameViewModelTests: XCTestCase {
 
     func testIllegalCatPlaysCatPlacementFailedSound() throws {
         let sounds = RecordingPuzzleSoundPlayer()
-        let viewModel = try GameViewModel(soundPlayer: sounds)
+        let viewModel = try GameViewModel(level: SampleLevels.meadow, soundPlayer: sounds)
         viewModel.toggleCat(atRow: 0, column: 0)
         sounds.reset()
 
@@ -508,7 +515,7 @@ final class GameViewModelTests: XCTestCase {
 
     func testIllegalCatThatExhaustsMistakesPlaysGameOverSound() throws {
         let sounds = RecordingPuzzleSoundPlayer()
-        let viewModel = try GameViewModel(soundPlayer: sounds)
+        let viewModel = try GameViewModel(level: SampleLevels.meadow, soundPlayer: sounds)
         viewModel.toggleCat(atRow: 0, column: 0)
 
         for _ in 0..<(viewModel.level.maxMistakes - 1) {
@@ -524,7 +531,7 @@ final class GameViewModelTests: XCTestCase {
 
     func testExcludedToggleOnCatIsSilent() throws {
         let sounds = RecordingPuzzleSoundPlayer()
-        let viewModel = try GameViewModel(soundPlayer: sounds)
+        let viewModel = try GameViewModel(level: SampleLevels.meadow, soundPlayer: sounds)
         viewModel.toggleCat(atRow: 0, column: 0)
         sounds.reset()
 
@@ -536,7 +543,7 @@ final class GameViewModelTests: XCTestCase {
 
     func testUndoAndRestartDoNotPlayMarkSounds() throws {
         let sounds = RecordingPuzzleSoundPlayer()
-        let viewModel = try GameViewModel(soundPlayer: sounds)
+        let viewModel = try GameViewModel(level: SampleLevels.meadow, soundPlayer: sounds)
         viewModel.toggleExcluded(atRow: 2, column: 2)
         sounds.reset()
 
@@ -551,6 +558,7 @@ final class GameViewModelTests: XCTestCase {
     func testRestartStopsAnAlreadyPlayingPreviewSound() throws {
         let sounds = RecordingPuzzleSoundPlayer()
         let viewModel = try GameViewModel(
+            level: SampleLevels.meadow,
             doubleTapInterval: .seconds(5),
             soundPlayer: sounds
         )
@@ -573,18 +581,18 @@ final class GameViewModelTests: XCTestCase {
         )
         givenStates[row][column] = .cat
         let level = LevelDefinition(
-            id: BuiltInLevels.meadow.id,
-            size: BuiltInLevels.meadow.size,
-            catCount: BuiltInLevels.meadow.catCount,
-            maxMistakes: BuiltInLevels.meadow.maxMistakes,
-            regionIDs: BuiltInLevels.meadow.regionIDs,
+            id: SampleLevels.meadow.id,
+            size: SampleLevels.meadow.size,
+            catCount: SampleLevels.meadow.catCount,
+            maxMistakes: SampleLevels.meadow.maxMistakes,
+            regionIDs: SampleLevels.meadow.regionIDs,
             givenStates: givenStates
         )
         return try GameViewModel(level: level)
     }
 
     func testRequestHintExplainsAContradictoryBoardInsteadOfStayingSilent() throws {
-        let level = BuiltInLevels.meadow
+        let level = SampleLevels.meadow
         var puzzle = try level.makePuzzle()
         // The player wrongly excludes an entire row.
         for column in 0..<level.size {
@@ -607,7 +615,7 @@ final class GameViewModelTests: XCTestCase {
     private func viewModelWithRowSingle(
         onGameStateChanged: @escaping (GameState) -> Void = { _ in }
     ) throws -> GameViewModel {
-        let level = BuiltInLevels.meadow
+        let level = SampleLevels.meadow
         var puzzle = try level.makePuzzle()
         for column in 0..<level.size where column != 1 {
             try puzzle.setState(.excluded, atRow: 0, column: column)

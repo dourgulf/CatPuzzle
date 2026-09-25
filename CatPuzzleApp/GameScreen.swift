@@ -3,6 +3,7 @@ import SwiftUI
 
 struct GameScreen: View {
     @ObservedObject var viewModel: GameViewModel
+    let presentation: LevelPresentation
     let showsRegionIcons: Bool
     let onContinue: () -> Void
 
@@ -36,10 +37,11 @@ struct GameScreen: View {
                             onCancel: viewModel.dismissHint
                         )
                     } else {
-                        Text("Tap to mark ×  ·  Double-tap to place a paw")
+                        Text(gestureReminder)
                             .font(.footnote.weight(.medium))
                             .foregroundStyle(CatPuzzleTheme.textSecondary)
                             .multilineTextAlignment(.center)
+                            .accessibilityIdentifier("gesture-reminder")
                     }
 
                     feedback
@@ -95,9 +97,9 @@ struct GameScreen: View {
                     .font(.caption2.bold())
                     .tracking(1.5)
                     .foregroundStyle(CatPuzzleTheme.textSecondary)
-                Text(viewModel.level.id.capitalized)
+                Text(presentation.title)
                     .font(.title2.bold())
-                Text(viewModel.mode == .exploration ? "EXPLORE" : "CHALLENGE")
+                Text(headerSubtitle)
                     .font(.caption2.bold())
                     .tracking(1.2)
                     .foregroundStyle(CatPuzzleTheme.action)
@@ -123,11 +125,29 @@ struct GameScreen: View {
         .padding(.trailing, 44)
     }
 
+    private var headerSubtitle: String {
+        viewModel.mode == .exploration ? "EXPLORE" : "CHALLENGE"
+    }
+
+    private var gestureReminder: String {
+        "Tap to mark ×  ·  Double-tap to place a paw"
+    }
+
+    @ViewBuilder
     private var ruleReminder: some View {
         HStack(spacing: 4) {
-            RuleBadge(icon: "paintpalette.fill", text: "1 per region")
-            RuleBadge(icon: "rectangle.split.3x3.fill", text: "1 per row & column")
-            RuleBadge(icon: "square.grid.3x3.fill", text: "No touching")
+            RuleBadge(
+                icon: "paintpalette.fill",
+                text: PuzzleRule.oneCatPerRegion.badgeText
+            )
+            RuleBadge(
+                icon: "rectangle.split.3x3.fill",
+                text: PuzzleRule.oneCatPerRowAndColumn.badgeText
+            )
+            RuleBadge(
+                icon: "square.grid.3x3.fill",
+                text: PuzzleRule.noTouchingCats.badgeText
+            )
         }
         .padding(8)
         .background(
