@@ -1,39 +1,6 @@
 import Combine
 import CatPuzzleCore
 
-enum CellTapResolution: Equatable {
-    case pendingSingle(token: Int)
-    case doubleTap
-}
-
-struct CellTapInterpreter {
-    private var pendingTokens: [CellPosition: Int] = [:]
-    private var nextToken = 0
-
-    mutating func registerTap(at position: CellPosition) -> CellTapResolution {
-        if pendingTokens.removeValue(forKey: position) != nil {
-            return .doubleTap
-        }
-
-        nextToken &+= 1
-        pendingTokens[position] = nextToken
-        return .pendingSingle(token: nextToken)
-    }
-
-    mutating func commitSingle(
-        at position: CellPosition,
-        token: Int
-    ) -> Bool {
-        guard pendingTokens[position] == token else { return false }
-        pendingTokens.removeValue(forKey: position)
-        return true
-    }
-
-    mutating func cancelAll() {
-        pendingTokens.removeAll()
-    }
-}
-
 @MainActor
 final class GameViewModel: ObservableObject {
     let level: LevelDefinition
@@ -62,15 +29,12 @@ final class GameViewModel: ObservableObject {
     }
 
     private var engine: GameEngine
-    private var tapInterpreter = CellTapInterpreter()
-    private var pendingTapTasks: [CellPosition: Task<Void, Never>] = [:]
-    private var pendingPreviewSounds: [CellPosition: PuzzleSound] = [:]
-    private let doubleTapInterval: Duration
+    private let input: CellInputCoordinator
     private let soundPlayer: any PuzzleSoundPlaying
     private let onGameStateChanged: (GameState) -> Void
 
     convenience init(
-        level: LevelDefinition = BuiltInLevels.meadow,
+        level: LevelDefinition,
         doubleTapInterval: Duration = .milliseconds(300),
         soundPlayer: any PuzzleSoundPlaying = PuzzleSoundPlayer.shared,
         onGameStateChanged: @escaping (GameState) -> Void = { _ in }
@@ -91,9 +55,12 @@ final class GameViewModel: ObservableObject {
     ) {
         self.engine = engine
         self.level = engine.state.level
-        self.doubleTapInterval = doubleTapInterval
         self.soundPlayer = soundPlayer
         self.onGameStateChanged = onGameStateChanged
+        self.input = CellInputCoordinator(
+            doubleTapInterval: doubleTapInterval,
+            soundPlayer: soundPlayer
+        )
         mode = engine.state.mode
         puzzle = engine.state.puzzle
         canUndo = engine.canUndo
@@ -102,6 +69,29 @@ final class GameViewModel: ObservableObject {
         mistakeCount = engine.state.mistakeCount
         remainingMistakes = engine.state.remainingMistakes
         feedbackMessage = nil
+        input.configure(
+            onPreviewStatesChanged: { [weak self] in
+                self?.previewStates = self?.input.previewStates ?? [:]
+            },
+            onMarkerFeedback: { [weak self] in
+                self?.markerFeedbackSequence &+= 1
+            }
+        )
+    }
+
+    private func makeInputEnvironment() -> CellInputCoordinator.Environment {
+        CellInputCoordinator.Environment(
+            currentState: { [weak self] position in
+                self?.puzzle.state(atRow: position.row, column: position.column)
+            },
+            isLocked: { [weak self] position in
+                self?.isLocked(atRow: position.row, column: position.column) ?? true
+            },
+            isInteractable: { _ in true },
+            commit: { [weak self] state, position, playSound in
+                self?.apply(state, atRow: position.row, column: position.column, playSound: playSound)
+            }
+        )
     }
 
     func displayState(atRow row: Int, column: Int) -> CellState? {
@@ -115,41 +105,28 @@ final class GameViewModel: ObservableObject {
     }
 
     func handleCellTap(atRow row: Int, column: Int) {
-        guard let currentState = puzzle.state(atRow: row, column: column) else {
+        guard puzzle.state(atRow: row, column: column) != nil else {
             feedbackMessage = "That cell is outside the board."
             return
         }
-        guard !isLocked(atRow: row, column: column) else { return }
-
-        let position = CellPosition(row: row, column: column)
-        switch tapInterpreter.registerTap(at: position) {
-        case let .pendingSingle(token):
-            previewStates[position] = excludedToggleResult(for: currentState)
-            if let sound = previewExcludedSound(for: currentState) {
-                playMarkerFeedback(sound)
-                pendingPreviewSounds[position] = sound
-            }
-            scheduleSingleTapCommit(at: position, token: token)
-        case .doubleTap:
-            pendingTapTasks.removeValue(forKey: position)?.cancel()
-            previewStates.removeValue(forKey: position)
-            if let previewSound = pendingPreviewSounds.removeValue(forKey: position) {
-                soundPlayer.stop(previewSound)
-            }
-            applyCatToggle(atRow: row, column: column)
-        }
+        input.handleTap(
+            at: CellPosition(row: row, column: column),
+            environment: makeInputEnvironment()
+        )
     }
 
     func toggleExcluded(atRow row: Int, column: Int) {
-        guard !isLocked(atRow: row, column: column) else { return }
-        cancelPendingTaps()
-        applyExcludedToggle(atRow: row, column: column)
+        input.toggleExcluded(
+            at: CellPosition(row: row, column: column),
+            environment: makeInputEnvironment()
+        )
     }
 
     func toggleCat(atRow row: Int, column: Int) {
-        guard !isLocked(atRow: row, column: column) else { return }
-        cancelPendingTaps()
-        applyCatToggle(atRow: row, column: column)
+        input.toggleCat(
+            at: CellPosition(row: row, column: column),
+            environment: makeInputEnvironment()
+        )
     }
 
     func setExcludedDuringDrag(
@@ -157,17 +134,15 @@ final class GameViewModel: ObservableObject {
         atRow row: Int,
         column: Int
     ) {
-        cancelPendingTaps()
-        guard let currentState = puzzle.state(atRow: row, column: column),
-              currentState != .cat,
-              !isLocked(atRow: row, column: column) else {
-            return
-        }
-        apply(excluded ? .excluded : .empty, atRow: row, column: column)
+        input.setExcludedDuringDrag(
+            excluded,
+            at: CellPosition(row: row, column: column),
+            environment: makeInputEnvironment()
+        )
     }
 
     func undo() {
-        cancelPendingTaps()
+        input.cancelAll()
         hint = nil
         hintDiagnosis = nil
         guard engine.undo() else { return }
@@ -176,7 +151,7 @@ final class GameViewModel: ObservableObject {
     }
 
     func restart() {
-        cancelPendingTaps()
+        input.cancelAll()
         hint = nil
         hintDiagnosis = nil
         engine.restart()
@@ -185,7 +160,7 @@ final class GameViewModel: ObservableObject {
     }
 
     func setMode(_ mode: GameplayMode) {
-        cancelPendingTaps()
+        input.cancelAll()
         hint = nil
         hintDiagnosis = nil
         engine.setMode(mode)
@@ -194,7 +169,7 @@ final class GameViewModel: ObservableObject {
     }
 
     func requestHint() {
-        cancelPendingTaps()
+        input.cancelAll()
         guard !isSolved, !isFailed else { return }
         switch LogicalHintEngine.nextHint(level: level, puzzle: puzzle) {
         case let .hint(next):
@@ -221,7 +196,7 @@ final class GameViewModel: ObservableObject {
 
     func applyHint() {
         guard let hint else { return }
-        cancelPendingTaps()
+        input.cancelAll()
         let previousPuzzle = engine.state.puzzle
         do {
             try engine.applyHint(hint)
@@ -232,7 +207,7 @@ final class GameViewModel: ObservableObject {
                 notifyChange: engine.state.puzzle != previousPuzzle
             )
             if isSolved || isFailed {
-                cancelPendingTaps()
+                input.cancelAll()
             }
         } catch {
             self.hint = nil
@@ -240,102 +215,6 @@ final class GameViewModel: ObservableObject {
             feedbackMessage = "This hint can no longer be applied."
             synchronizeFromEngine(notifyChange: false)
         }
-    }
-
-    private func applyExcludedToggle(
-        atRow row: Int,
-        column: Int,
-        playSound: Bool = true
-    ) {
-        guard let currentState = puzzle.state(atRow: row, column: column) else {
-            feedbackMessage = "That cell is outside the board."
-            return
-        }
-
-        switch currentState {
-        case .empty:
-            apply(.excluded, atRow: row, column: column, playSound: playSound)
-        case .excluded:
-            apply(.empty, atRow: row, column: column, playSound: playSound)
-        case .cat:
-            feedbackMessage = nil
-        }
-    }
-
-    private func applyCatToggle(atRow row: Int, column: Int) {
-        guard let currentState = puzzle.state(atRow: row, column: column) else {
-            feedbackMessage = "That cell is outside the board."
-            return
-        }
-
-        let nextState: CellState = currentState == .cat ? .empty : .cat
-        apply(nextState, atRow: row, column: column)
-    }
-
-    private func excludedToggleResult(for state: CellState) -> CellState {
-        switch state {
-        case .empty:
-            .excluded
-        case .excluded:
-            .empty
-        case .cat:
-            .cat
-        }
-    }
-
-    private func previewExcludedSound(for state: CellState) -> PuzzleSound? {
-        switch state {
-        case .empty:
-            .markExcluded
-        case .excluded:
-            .unmarkExcluded
-        case .cat:
-            nil
-        }
-    }
-
-    private func scheduleSingleTapCommit(
-        at position: CellPosition,
-        token: Int
-    ) {
-        let interval = doubleTapInterval
-        pendingTapTasks[position] = Task { [weak self] in
-            do {
-                try await Task.sleep(for: interval)
-            } catch {
-                return
-            }
-            guard !Task.isCancelled else { return }
-            self?.commitSingleTap(at: position, token: token)
-        }
-    }
-
-    private func commitSingleTap(at position: CellPosition, token: Int) {
-        guard tapInterpreter.commitSingle(at: position, token: token) else {
-            return
-        }
-
-        pendingTapTasks.removeValue(forKey: position)
-        previewStates.removeValue(forKey: position)
-        let alreadyPlayedSound = pendingPreviewSounds.removeValue(forKey: position) != nil
-        applyExcludedToggle(
-            atRow: position.row,
-            column: position.column,
-            playSound: !alreadyPlayedSound
-        )
-    }
-
-    private func cancelPendingTaps() {
-        for task in pendingTapTasks.values {
-            task.cancel()
-        }
-        pendingTapTasks.removeAll()
-        previewStates.removeAll()
-        for sound in pendingPreviewSounds.values {
-            soundPlayer.stop(sound)
-        }
-        pendingPreviewSounds.removeAll()
-        tapInterpreter.cancelAll()
     }
 
     private func apply(
@@ -358,21 +237,21 @@ final class GameViewModel: ObservableObject {
                 )
             }
             if isSolved || isFailed {
-                cancelPendingTaps()
+                input.cancelAll()
             }
         } catch GameEngineError.illegalCatPlacement {
             feedbackMessage = "That cat conflicts with another cat."
             synchronizeFromEngine(notifyChange: true)
             soundPlayer.play(isFailed ? .gameOver : .catPlacementFailed)
             if isFailed {
-                cancelPendingTaps()
+                input.cancelAll()
             }
         } catch GameEngineError.incorrectCatPlacement {
             feedbackMessage = "That cat is not in the solution."
             synchronizeFromEngine(notifyChange: true)
             soundPlayer.play(isFailed ? .gameOver : .catPlacementFailed)
             if isFailed {
-                cancelPendingTaps()
+                input.cancelAll()
             }
         } catch GameEngineError.gameAlreadyFailed {
             feedbackMessage = "Restart to try again."

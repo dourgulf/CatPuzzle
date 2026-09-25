@@ -148,18 +148,30 @@ struct RootView: View {
                 .ignoresSafeArea()
 
             switch session.destination {
-            case .playing:
-                if let viewModel = session.gameViewModel {
-                    GameScreen(
+            case .tutorial:
+                if let viewModel = session.tutorialViewModel {
+                    TutorialScreen(
                         viewModel: viewModel,
                         showsRegionIcons: session.showsRegionIcons,
                         onContinue: session.continueAfterCompletion
                     )
                 }
+            case .playing:
+                if let viewModel = session.gameViewModel,
+                   let presentation = session.currentPresentation {
+                    GameScreen(
+                        viewModel: viewModel,
+                        presentation: presentation,
+                        showsRegionIcons: session.showsRegionIcons,
+                        onContinue: session.continueAfterCompletion
+                    )
+                }
             case .readyForNextLevel:
-                if let level = session.nextLevel {
+                if let level = session.nextLevel,
+                   let presentation = session.nextPresentation {
                     NextLevelScreen(
-                        levelName: level.id.capitalized,
+                        presentation: presentation,
+                        boardSize: level.size,
                         onStart: session.startNextLevel
                     )
                 }
@@ -173,7 +185,7 @@ struct RootView: View {
         .foregroundStyle(CatPuzzleTheme.textPrimary)
         .fontDesign(.rounded)
         .tint(CatPuzzleTheme.action)
-        .preferredColorScheme(.light)
+        .preferredColorScheme(session.destination == .tutorial ? .dark : .light)
         .sheet(item: $presentedSheet) { sheet in
             switch sheet {
             case .settings:
@@ -234,6 +246,9 @@ private struct SettingsScreen: View {
                 gameplaySection
                 boardSection
                 actionsSection
+                #if DEBUG
+                debugSection
+                #endif
             }
             .navigationTitle("Settings")
             .toolbar {
@@ -279,7 +294,7 @@ private struct SettingsScreen: View {
 
     private var actionsSection: some View {
         Section("Actions") {
-            if session.gameViewModel != nil {
+            if session.gameViewModel != nil || session.tutorialViewModel != nil {
                 Button("Restart Level", systemImage: "arrow.clockwise") {
                     showsRestartConfirmation = true
                 }
@@ -298,6 +313,26 @@ private struct SettingsScreen: View {
             .accessibilityIdentifier("open-playtest-lab")
         }
     }
+
+    #if DEBUG
+    /// Debug builds only. The tutorial is played once ever, which makes it the
+    /// one thing in the app that cannot be tried again without wiping the
+    /// install — inconvenient precisely while it is being worked on.
+    private var debugSection: some View {
+        Section {
+            Button("Reset Tutorial", systemImage: "graduationcap.fill") {
+                session.resetTutorial()
+                dismiss()
+            }
+            .foregroundStyle(CatPuzzleTheme.warning)
+            .accessibilityIdentifier("reset-tutorial-setting")
+        } header: {
+            Text("Debug")
+        } footer: {
+            Text("Offer the tutorial again from the beginning. Any level in progress is abandoned; finished levels are kept.")
+        }
+    }
+    #endif
 
     private var challengeModeBinding: Binding<Bool> {
         Binding(

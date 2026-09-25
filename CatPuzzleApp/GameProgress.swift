@@ -96,12 +96,17 @@ enum SavedGameError: Error, Equatable {
 struct GameProgress: Codable, Equatable {
     var activeGame: SavedGame?
     var completedLevelIDs: Set<String>
+    /// Tutorial levels are played once, ever. Kept apart from
+    /// `completedLevelIDs` because that set is cleared every time the ladder
+    /// loops, and the tutorial must not come back with it.
+    var completedTutorialIDs: Set<String>
     var preferredMode: GameplayMode
     var showsRegionIcons: Bool
 
     static let empty = GameProgress(
         activeGame: nil,
         completedLevelIDs: [],
+        completedTutorialIDs: [],
         preferredMode: .challenge,
         showsRegionIcons: false
     )
@@ -109,11 +114,13 @@ struct GameProgress: Codable, Equatable {
     init(
         activeGame: SavedGame?,
         completedLevelIDs: Set<String>,
+        completedTutorialIDs: Set<String> = [],
         preferredMode: GameplayMode = .challenge,
         showsRegionIcons: Bool = false
     ) {
         self.activeGame = activeGame
         self.completedLevelIDs = completedLevelIDs
+        self.completedTutorialIDs = completedTutorialIDs
         self.preferredMode = preferredMode
         self.showsRegionIcons = showsRegionIcons
     }
@@ -121,6 +128,7 @@ struct GameProgress: Codable, Equatable {
     private enum CodingKeys: String, CodingKey {
         case activeGame
         case completedLevelIDs
+        case completedTutorialIDs
         case preferredMode
         case showsRegionIcons
     }
@@ -135,6 +143,12 @@ struct GameProgress: Codable, Equatable {
             Set<String>.self,
             forKey: .completedLevelIDs
         )
+        // Absent for players whose progress predates the tutorial: they have
+        // already been playing, so replaying the introduction would be noise.
+        completedTutorialIDs = try container.decodeIfPresent(
+            Set<String>.self,
+            forKey: .completedTutorialIDs
+        ) ?? (completedLevelIDs.isEmpty ? [] : Set(TutorialLevels.all.map(\.level.id)))
         preferredMode = try container.decodeIfPresent(
             GameplayMode.self,
             forKey: .preferredMode

@@ -7,7 +7,11 @@ import XCTest
 final class AppSessionTests: XCTestCase {
     func testFirstLaunchOffersMeadow() {
         let store = InMemoryGameProgressStore()
-        let session = AppSession(progressStore: store)
+        let session = AppSession(
+            progressStore: store,
+            fixtures: SampleLevels.fixtures,
+            tutorials: []
+        )
 
         XCTAssertEqual(session.destination, .readyForNextLevel)
         XCTAssertEqual(session.nextLevel?.id, "meadow")
@@ -25,7 +29,11 @@ final class AppSessionTests: XCTestCase {
             )
         )
 
-        let session = AppSession(progressStore: store)
+        let session = AppSession(
+            progressStore: store,
+            fixtures: SampleLevels.fixtures,
+            tutorials: []
+        )
 
         XCTAssertEqual(session.destination, .playing)
         XCTAssertEqual(session.gameViewModel?.level.id, "meadow")
@@ -53,7 +61,11 @@ final class AppSessionTests: XCTestCase {
             )
         )
 
-        let session = AppSession(progressStore: store)
+        let session = AppSession(
+            progressStore: store,
+            fixtures: SampleLevels.fixtures,
+            tutorials: []
+        )
 
         XCTAssertEqual(session.destination, .readyForNextLevel)
         XCTAssertEqual(session.nextLevel?.id, "meadow")
@@ -63,7 +75,11 @@ final class AppSessionTests: XCTestCase {
 
     func testStartingNextLevelCreatesAndSavesEmptyActiveGame() {
         let store = InMemoryGameProgressStore()
-        let session = AppSession(progressStore: store)
+        let session = AppSession(
+            progressStore: store,
+            fixtures: SampleLevels.fixtures,
+            tutorials: []
+        )
 
         session.startNextLevel()
 
@@ -80,13 +96,21 @@ final class AppSessionTests: XCTestCase {
 
     func testStartingExplorationPersistsModeAndRestoresIt() {
         let store = InMemoryGameProgressStore()
-        let session = AppSession(progressStore: store)
+        let session = AppSession(
+            progressStore: store,
+            fixtures: SampleLevels.fixtures,
+            tutorials: []
+        )
 
         session.setGameplayMode(.exploration)
         session.startNextLevel()
         session.gameViewModel?.toggleExcluded(atRow: 1, column: 2)
 
-        let restoredSession = AppSession(progressStore: store)
+        let restoredSession = AppSession(
+            progressStore: store,
+            fixtures: SampleLevels.fixtures,
+            tutorials: []
+        )
 
         XCTAssertEqual(store.progress.activeGame?.mode, .exploration)
         XCTAssertEqual(restoredSession.gameViewModel?.mode, .exploration)
@@ -96,7 +120,11 @@ final class AppSessionTests: XCTestCase {
 
     func testChallengeWrongCatAutosavesMistakeWithoutChangingCell() {
         let store = InMemoryGameProgressStore()
-        let session = AppSession(progressStore: store)
+        let session = AppSession(
+            progressStore: store,
+            fixtures: SampleLevels.fixtures,
+            tutorials: []
+        )
         session.startNextLevel()
 
         session.gameViewModel?.toggleCat(atRow: 0, column: 0)
@@ -111,7 +139,11 @@ final class AppSessionTests: XCTestCase {
 
     func testSettingsModeChangeUpdatesActiveGameAndPersistsPreference() {
         let store = InMemoryGameProgressStore()
-        let session = AppSession(progressStore: store)
+        let session = AppSession(
+            progressStore: store,
+            fixtures: SampleLevels.fixtures,
+            tutorials: []
+        )
         session.startNextLevel()
 
         session.setGameplayMode(.exploration)
@@ -126,12 +158,20 @@ final class AppSessionTests: XCTestCase {
 
     func testRegionIconsAreHiddenByDefaultAndPreferencePersists() {
         let store = InMemoryGameProgressStore()
-        let session = AppSession(progressStore: store)
+        let session = AppSession(
+            progressStore: store,
+            fixtures: SampleLevels.fixtures,
+            tutorials: []
+        )
 
         XCTAssertFalse(session.showsRegionIcons)
 
         session.setShowsRegionIcons(true)
-        let restoredSession = AppSession(progressStore: store)
+        let restoredSession = AppSession(
+            progressStore: store,
+            fixtures: SampleLevels.fixtures,
+            tutorials: []
+        )
 
         XCTAssertTrue(store.progress.showsRegionIcons)
         XCTAssertTrue(restoredSession.showsRegionIcons)
@@ -200,7 +240,11 @@ final class AppSessionTests: XCTestCase {
                 completedLevelIDs: []
             )
         )
-        let session = AppSession(progressStore: store)
+        let session = AppSession(
+            progressStore: store,
+            fixtures: SampleLevels.fixtures,
+            tutorials: []
+        )
 
         session.gameViewModel?.restart()
 
@@ -233,7 +277,9 @@ final class AppSessionTests: XCTestCase {
         XCTAssertEqual(session.nextLevel?.id, "river")
     }
 
-    func testAllCompletedProgressShowsCompletionState() {
+    /// The ladder loops: finishing the last level starts a fresh lap from the
+    /// first one instead of ending the game.
+    func testCompletingEveryLevelStartsTheLadderOverFromTheFirst() {
         let store = InMemoryGameProgressStore(
             progress: GameProgress(
                 activeGame: nil,
@@ -241,10 +287,48 @@ final class AppSessionTests: XCTestCase {
             )
         )
 
-        let session = AppSession(progressStore: store)
+        let session = AppSession(
+            progressStore: store,
+            fixtures: SampleLevels.fixtures,
+            tutorials: []
+        )
+
+        XCTAssertEqual(session.destination, .readyForNextLevel)
+        XCTAssertEqual(session.nextLevel?.id, "meadow")
+        XCTAssertEqual(session.nextPresentation, .ladder(number: 1))
+        XCTAssertEqual(
+            store.progress.completedLevelIDs,
+            [],
+            "the finished lap must be cleared and persisted, or the wrap repeats every launch"
+        )
+    }
+
+    func testCompletionStateOnlyAppearsWhenThereAreNoLevelsAtAll() {
+        let store = InMemoryGameProgressStore()
+
+        let session = AppSession(progressStore: store, fixtures: [], tutorials: [])
 
         XCTAssertEqual(session.destination, .allCompleted)
         XCTAssertNil(session.nextLevel)
+        XCTAssertNil(session.nextPresentation)
+    }
+
+    func testLevelNumberFollowsLadderPosition() {
+        let store = InMemoryGameProgressStore(
+            progress: GameProgress(
+                activeGame: nil,
+                completedLevelIDs: ["meadow", "river"]
+            )
+        )
+
+        let session = AppSession(
+            progressStore: store,
+            fixtures: SampleLevels.fixtures,
+            tutorials: []
+        )
+
+        XCTAssertEqual(session.nextLevel?.id, "terraces")
+        XCTAssertEqual(session.nextPresentation, .ladder(number: 3))
     }
 
     func testUnknownActiveLevelIsDiscardedWhileCompletedLevelsRemain() {
@@ -258,7 +342,11 @@ final class AppSessionTests: XCTestCase {
             )
         )
 
-        let session = AppSession(progressStore: store)
+        let session = AppSession(
+            progressStore: store,
+            fixtures: SampleLevels.fixtures,
+            tutorials: []
+        )
 
         XCTAssertEqual(session.destination, .readyForNextLevel)
         XCTAssertEqual(session.nextLevel?.id, "river")
@@ -277,7 +365,11 @@ final class AppSessionTests: XCTestCase {
             )
         )
 
-        let session = AppSession(progressStore: store)
+        let session = AppSession(
+            progressStore: store,
+            fixtures: SampleLevels.fixtures,
+            tutorials: []
+        )
 
         XCTAssertEqual(session.destination, .readyForNextLevel)
         XCTAssertEqual(session.nextLevel?.id, "meadow")
@@ -296,7 +388,11 @@ final class AppSessionTests: XCTestCase {
             )
         )
 
-        let session = AppSession(progressStore: store)
+        let session = AppSession(
+            progressStore: store,
+            fixtures: SampleLevels.fixtures,
+            tutorials: []
+        )
 
         XCTAssertEqual(session.destination, .readyForNextLevel)
         XCTAssertEqual(session.nextLevel?.id, "meadow")
@@ -309,12 +405,16 @@ final class AppSessionTests: XCTestCase {
         defaults.set(Data("not-json".utf8), forKey: "gameProgress")
         defer { defaults.removePersistentDomain(forName: suiteName) }
 
+        // Deliberately uses the shipped content rather than SampleLevels:
+        // this covers the real default path a player hits on a corrupt store,
+        // which for a fresh install starts at the first tutorial.
         let session = AppSession(
             progressStore: UserDefaultsGameProgressStore(defaults: defaults)
         )
 
         XCTAssertEqual(session.destination, .readyForNextLevel)
-        XCTAssertEqual(session.nextLevel?.id, "meadow")
+        XCTAssertEqual(session.nextLevel?.id, TutorialLevels.basics.level.id)
+        XCTAssertEqual(session.nextPresentation?.title, "Tutorial")
     }
 
     func testIllegalPlacementAutosavesMistakeCount() {
@@ -335,15 +435,19 @@ final class AppSessionTests: XCTestCase {
         let store = InMemoryGameProgressStore()
         let firstSession = startedSession(store: store)
         firstSession.gameViewModel?.toggleCat(atRow: 0, column: 0)
-        for _ in 0..<BuiltInLevels.meadow.maxMistakes {
+        for _ in 0..<SampleLevels.meadow.maxMistakes {
             firstSession.gameViewModel?.toggleCat(atRow: 0, column: 4)
         }
 
-        let restoredSession = AppSession(progressStore: store)
+        let restoredSession = AppSession(
+            progressStore: store,
+            fixtures: SampleLevels.fixtures,
+            tutorials: []
+        )
 
         XCTAssertEqual(
             restoredSession.gameViewModel?.mistakeCount,
-            BuiltInLevels.meadow.maxMistakes
+            SampleLevels.meadow.maxMistakes
         )
         XCTAssertEqual(restoredSession.gameViewModel?.isFailed, true)
         XCTAssertEqual(restoredSession.destination, .playing)
@@ -355,7 +459,7 @@ final class AppSessionTests: XCTestCase {
         let store = InMemoryGameProgressStore()
         let session = startedSession(store: store)
         session.gameViewModel?.toggleCat(atRow: 0, column: 0)
-        for _ in 0..<BuiltInLevels.meadow.maxMistakes {
+        for _ in 0..<SampleLevels.meadow.maxMistakes {
             session.gameViewModel?.toggleCat(atRow: 0, column: 4)
         }
 
@@ -371,14 +475,18 @@ final class AppSessionTests: XCTestCase {
     private func startedSession(
         store: InMemoryGameProgressStore
     ) -> AppSession {
-        let session = AppSession(progressStore: store)
+        let session = AppSession(
+            progressStore: store,
+            fixtures: SampleLevels.fixtures,
+            tutorials: []
+        )
         session.setGameplayMode(.exploration)
         session.startNextLevel()
         return session
     }
 
     private func solveMeadow(in session: AppSession) {
-        for position in BuiltInLevels.meadowFixture.solution {
+        for position in SampleLevels.meadowFixture.solution {
             session.gameViewModel?.toggleCat(
                 atRow: position.row,
                 column: position.column

@@ -1,7 +1,8 @@
 import SwiftUI
 
 struct NextLevelScreen: View {
-    let levelName: String
+    let presentation: LevelPresentation
+    let boardSize: Int
     let onStart: () -> Void
 
     var body: some View {
@@ -16,26 +17,36 @@ struct NextLevelScreen: View {
                         y: 8
                     )
 
-                Image(systemName: "pawprint.fill")
+                Image(systemName: presentation.isTutorial ? "graduationcap.fill" : "pawprint.fill")
                     .font(.system(size: 52, weight: .semibold))
                     .foregroundStyle(CatPuzzleTheme.action)
             }
 
             VStack(spacing: 8) {
-                Text("NEXT LEVEL")
+                Text(presentation.isTutorial ? "LEARN THE RULES" : "NEXT LEVEL")
                     .font(.caption.weight(.bold))
                     .tracking(1.6)
                     .foregroundStyle(CatPuzzleTheme.textSecondary)
-                Text(levelName)
+                Text(presentation.title)
                     .font(.largeTitle.bold())
-                Text("A fresh puzzle is ready for you.")
-                    .font(.body)
-                    .foregroundStyle(CatPuzzleTheme.textSecondary)
+
+                if presentation.isTutorial {
+                    Text("Three rules, one board")
+                        .font(.headline)
+                        .foregroundStyle(CatPuzzleTheme.action)
+                    Text("Start with one cat. Mark its row, column, and corners, then find the rest.")
+                        .font(.subheadline)
+                        .foregroundStyle(CatPuzzleTheme.textSecondary)
+                } else {
+                    Text("A fresh \(boardSize)x\(boardSize) puzzle is ready for you.")
+                        .font(.body)
+                        .foregroundStyle(CatPuzzleTheme.textSecondary)
+                }
             }
             .multilineTextAlignment(.center)
 
             Button(action: onStart) {
-                Label("Start", systemImage: "play.fill")
+                Label(presentation.isTutorial ? "Start Tutorial" : "Start", systemImage: "play.fill")
                     .font(.headline)
                     .frame(maxWidth: .infinity, minHeight: 52)
             }

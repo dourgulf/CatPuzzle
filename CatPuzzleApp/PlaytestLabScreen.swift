@@ -258,6 +258,7 @@ private struct PlaytestPlayView: View {
     var body: some View {
         GameScreen(
             viewModel: viewModel,
+            presentation: .scratch(title: "Puzzle Lab"),
             showsRegionIcons: showsRegionIcons,
             onContinue: { dismiss() }
         )
