@@ -34,7 +34,7 @@ struct NextLevelScreen: View {
                     Text("Three rules, one board")
                         .font(.headline)
                         .foregroundStyle(CatPuzzleTheme.action)
-                    Text("I will walk you through the opening moves, then hand the board over to you.")
+                    Text("Start with one cat. Mark its row, column, and corners, then find the rest.")
                         .font(.subheadline)
                         .foregroundStyle(CatPuzzleTheme.textSecondary)
                 } else {
@@ -46,7 +46,7 @@ struct NextLevelScreen: View {
             .multilineTextAlignment(.center)
 
             Button(action: onStart) {
-                Label(presentation.isTutorial ? "Let's go" : "Start", systemImage: "play.fill")
+                Label(presentation.isTutorial ? "Start Tutorial" : "Start", systemImage: "play.fill")
                     .font(.headline)
                     .frame(maxWidth: .infinity, minHeight: 52)
             }

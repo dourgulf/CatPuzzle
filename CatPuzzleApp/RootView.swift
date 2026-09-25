@@ -185,7 +185,7 @@ struct RootView: View {
         .foregroundStyle(CatPuzzleTheme.textPrimary)
         .fontDesign(.rounded)
         .tint(CatPuzzleTheme.action)
-        .preferredColorScheme(.light)
+        .preferredColorScheme(session.destination == .tutorial ? .dark : .light)
         .sheet(item: $presentedSheet) { sheet in
             switch sheet {
             case .settings:

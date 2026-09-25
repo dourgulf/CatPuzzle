@@ -2,12 +2,9 @@ import CatPuzzleCore
 import SwiftUI
 
 /// The tutorial's own screen: dark, full-bleed, spotlighted — visually
-/// nothing like `GameScreen`, on purpose (see the tutorial-redesign plan and
-/// `Docs/Tutorial.md`). A guided step darkens the whole screen but for its
-/// spotlighted cells and plays a one-shot finger-guide animation over the
-/// exact gesture it wants; a discovery step leaves the board live and falls
-/// back to the existing stall-triggered nudge. Finishing the script hands off
-/// to the single graduation page, `TutorialCompletionScreen`.
+/// nothing like `GameScreen`, on purpose (see `Docs/Tutorial.md`). A guided
+/// step spotlights the relevant cells and demonstrates one move. Discovery
+/// leaves the board live and offers a clue on request.
 struct TutorialScreen: View {
     @ObservedObject var viewModel: TutorialViewModel
     let showsRegionIcons: Bool
@@ -72,8 +69,9 @@ struct TutorialScreen: View {
                         if let step = viewModel.step, step.coaching == .guided {
                             TutorialFingerGuide(
                                 task: step.task,
+                                target: viewModel.guidedTarget,
                                 cellFrames: cellFrames,
-                                playbackID: viewModel.stepNumber
+                                playbackID: viewModel.guidancePlaybackID
                             )
                         }
                     }
@@ -91,11 +89,16 @@ struct TutorialScreen: View {
             Text("Tutorial")
                 .font(.title2.bold())
                 .foregroundStyle(TutorialTheme.textPrimary)
-            if viewModel.step != nil {
-                Text("STEP \(viewModel.stepNumber) / \(viewModel.stepCount)")
+            if let step = viewModel.step {
+                Text(
+                    step.coaching == .guided
+                        ? "LEARN \(viewModel.stepNumber) / \(viewModel.guidedStepCount)"
+                        : "YOUR TURN · \(viewModel.placedCatCount) / \(viewModel.level.catCount) CATS"
+                )
                     .font(.caption2.bold())
                     .tracking(1.2)
                     .foregroundStyle(TutorialTheme.accent)
+                    .accessibilityIdentifier("tutorial-progress")
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -109,13 +112,15 @@ struct TutorialScreen: View {
             lockedPositions: viewModel.level.givenPositions,
             hint: nil,
             maskedPositions: maskedPositions,
-            nudgedPositions: viewModel.nudgedPositions,
+            nudgedPositions: viewModel.autoMarkedPosition.map { Set([$0]) }
+                ?? viewModel.nudgedPositions,
             onTap: viewModel.handleCellTap,
             onDragSetExcluded: viewModel.setExcludedDuringDrag,
             onToggleCatAccessibility: viewModel.toggleCat
         )
         .frame(maxWidth: 430)
         .aspectRatio(1, contentMode: .fit)
+        .allowsHitTesting(!viewModel.isAutoMarking)
     }
 
     /// VoiceOver has no scrim to look at, so a guided step's masking still has
@@ -145,9 +150,49 @@ struct TutorialScreen: View {
                 )
                 .font(.subheadline)
                 .foregroundStyle(TutorialTheme.textSecondary)
-                Text(step.actionHint)
-                    .font(.footnote.weight(.medium))
-                    .foregroundStyle(TutorialTheme.textPrimary)
+                if !viewModel.isAutoMarking {
+                    Text(step.actionHint)
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(TutorialTheme.textPrimary)
+                }
+                if step.coaching == .guided,
+                   case let .exclude(positions) = step.task {
+                    Text("\(positions.count - step.remainingPositions(in: viewModel.puzzle).count) / \(positions.count) marked")
+                        .font(.caption.bold())
+                        .foregroundStyle(TutorialTheme.accent)
+                        .accessibilityIdentifier("tutorial-mark-progress")
+                }
+                if step.coaching == .discovery {
+                    if viewModel.isAutoMarking {
+                        Text("Watch the row, then column, then nearby cells fill in one by one.")
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(TutorialTheme.accent)
+                            .padding(.top, 4)
+                            .accessibilityIdentifier("tutorial-auto-marking")
+                    } else if viewModel.nudgedPositions.isEmpty {
+                        Button {
+                            viewModel.revealClue()
+                        } label: {
+                            Label("Show one cell", systemImage: "lightbulb")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(TutorialTheme.background)
+                                .padding(.horizontal, 12)
+                                .frame(minHeight: 36)
+                                .background(
+                                    TutorialTheme.accent,
+                                    in: RoundedRectangle(cornerRadius: 10)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.top, 4)
+                        .accessibilityIdentifier("tutorial-show-clue")
+                    } else {
+                        Text("One cell is outlined on the board.")
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(TutorialTheme.accent)
+                            .padding(.top, 4)
+                    }
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(14)
@@ -160,7 +205,7 @@ struct TutorialScreen: View {
                     .stroke(TutorialTheme.spotlightRing.opacity(0.14), lineWidth: 1)
             }
             .multilineTextAlignment(.leading)
-            .accessibilityElement(children: .combine)
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("tutorial-step-panel")
         }
     }

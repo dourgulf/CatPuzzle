@@ -21,12 +21,17 @@ final class TutorialViewModel: ObservableObject {
     /// The scripted step the tutorial is waiting on, or nil once the script
     /// is finished.
     @Published private(set) var step: TutorialStep?
-    /// 1-based position of `step` in the script, for "Step 3 of 12".
+    /// 1-based position of `step` in the script.
     @Published private(set) var stepNumber = 0
     var stepCount: Int { coach.stepCount }
-    /// Cells pulsing because the player has been sitting on a `.discovery`
-    /// step without acting. Empty at every other moment.
+    var guidedStepCount: Int {
+        coach.script.steps.prefix { $0.coaching == .guided }.count
+    }
+    var placedCatCount: Int { puzzle.states.filter { $0 == .cat }.count }
+    /// The single cell revealed when the player requests a discovery hint.
     @Published private(set) var nudgedPositions: Set<CellPosition> = []
+    @Published private(set) var isAutoMarking = false
+    @Published private(set) var autoMarkedPosition: CellPosition?
 
     /// Cells the board leaves lit while masking the rest. Empty when nothing
     /// is masked, which is every moment but a guided step.
@@ -40,20 +45,29 @@ final class TutorialViewModel: ObservableObject {
     /// explained. Nil when every cell is live.
     var interactivePositions: Set<CellPosition>? {
         guard let step, step.coaching == .guided else { return nil }
-        return Set(step.task.positions)
+        return Set(step.remainingPositions(in: puzzle))
+    }
+
+    var guidedTarget: CellPosition? {
+        guard let step, step.coaching == .guided else { return nil }
+        return step.remainingPositions(in: puzzle).first
+    }
+
+    /// Replays the hand whenever one guided mark makes its next target change.
+    var guidancePlaybackID: Int {
+        guard let step else { return 0 }
+        return stepNumber * 100 + step.remainingPositions(in: puzzle).count
     }
 
     private var engine: GameEngine
     private let coach: TutorialCoach
+    private let tutorialCatPositions: Set<CellPosition>
     private let input: CellInputCoordinator
     private let soundPlayer: any PuzzleSoundPlaying
     private let onGameStateChanged: (GameState) -> Void
-    private let nudgeDelay: Duration
-    private var nudgeTask: Task<Void, Never>?
-    /// The step a nudge has already fired for. Once the player has been
-    /// shown where to look, every later mark in the same step re-shows it
-    /// right away instead of making them wait out the delay again.
-    private var nudgedStepNumber: Int?
+    private let autoMarkInterval: Duration
+    private var autoMarkTask: Task<Void, Never>?
+    private var autoMarkGeneration = 0
 
     /// `script` is required and assumed non-empty — callers only build a
     /// `TutorialViewModel` when `TutorialScript.isEmpty == false`, falling
@@ -62,17 +76,21 @@ final class TutorialViewModel: ObservableObject {
     init(
         engine: GameEngine,
         script: TutorialScript,
-        nudgeDelay: Duration = .seconds(3),
         doubleTapInterval: Duration = .milliseconds(300),
+        autoMarkInterval: Duration = .milliseconds(220),
         soundPlayer: any PuzzleSoundPlaying = PuzzleSoundPlayer.shared,
         onGameStateChanged: @escaping (GameState) -> Void = { _ in }
     ) {
         self.engine = engine
         self.level = engine.state.level
         self.coach = TutorialCoach(script: script)
-        self.nudgeDelay = nudgeDelay
+        self.tutorialCatPositions = Set(script.steps.compactMap { step in
+            if case let .placeCat(position) = step.task { return position }
+            return nil
+        })
         self.soundPlayer = soundPlayer
         self.onGameStateChanged = onGameStateChanged
+        self.autoMarkInterval = autoMarkInterval
         self.input = CellInputCoordinator(
             doubleTapInterval: doubleTapInterval,
             soundPlayer: soundPlayer
@@ -142,10 +160,20 @@ final class TutorialViewModel: ObservableObject {
     }
 
     func restart() {
+        cancelAutoMarking()
         input.cancelAll()
         engine.restart()
         feedbackMessage = nil
         synchronizeFromEngine(notifyChange: true)
+    }
+
+    func revealClue() {
+        guard !isAutoMarking,
+              let step, step.coaching == .discovery,
+              let position = step.remainingPositions(in: puzzle).first else {
+            return
+        }
+        nudgedPositions = [position]
     }
 
     private func makeInputEnvironment() -> CellInputCoordinator.Environment {
@@ -158,7 +186,7 @@ final class TutorialViewModel: ObservableObject {
             },
             isInteractable: { [weak self] position in
                 guard let self else { return false }
-                return !self.isMasked(position)
+                return !self.isAutoMarking && !self.isMasked(position)
             },
             commit: { [weak self] state, position, playSound in
                 self?.apply(state, atRow: position.row, column: position.column, playSound: playSound)
@@ -172,9 +200,19 @@ final class TutorialViewModel: ObservableObject {
         column: Int,
         playSound: Bool
     ) {
+        guard !isAutoMarking else { return }
         do {
             let previousPuzzle = engine.state.puzzle
             let previousCellState = previousPuzzle.state(atRow: row, column: column)
+            let position = CellPosition(row: row, column: column)
+            if state == .excluded,
+               previousCellState != .excluded,
+               tutorialCatPositions.contains(position) {
+                feedbackMessage = "This cell could still hold a cat. Try another empty cell."
+                soundPlayer.play(.catPlacementFailed)
+                return
+            }
+            let currentStep = step
             try engine.setState(state, atRow: row, column: column)
             feedbackMessage = nil
             let puzzleChanged = engine.state.puzzle != previousPuzzle
@@ -187,6 +225,13 @@ final class TutorialViewModel: ObservableObject {
             }
             if isSolved || isFailed {
                 input.cancelAll()
+            } else if state == .excluded,
+                      previousCellState != .excluded,
+                      let currentStep,
+                      currentStep.coaching == .discovery,
+                      case let .exclude(positions) = currentStep.task,
+                      positions.contains(position) {
+                beginAutoMarking(positions)
             }
         } catch GameEngineError.illegalCatPlacement {
             // Challenge mode: a wrong cat is refused rather than landed and
@@ -229,49 +274,74 @@ final class TutorialViewModel: ObservableObject {
         markerFeedbackSequence &+= 1
     }
 
+    /// Keep the player's first mark visible, then sweep the remaining cells
+    /// one by one in the script's row → column → neighbour order. Each engine
+    /// update is published separately so the board animates each new ×.
+    private func beginAutoMarking(_ positions: [CellPosition]) {
+        let remaining = positions.filter {
+            puzzle.state(atRow: $0.row, column: $0.column) == .empty
+        }
+        guard !remaining.isEmpty else { return }
+        input.cancelAll()
+        isAutoMarking = true
+        autoMarkGeneration &+= 1
+        let generation = autoMarkGeneration
+        autoMarkTask = Task { [weak self] in
+            guard let self else { return }
+            for position in remaining {
+                do {
+                    try await Task.sleep(for: self.autoMarkInterval)
+                } catch {
+                    return
+                }
+                guard !Task.isCancelled, self.autoMarkGeneration == generation else {
+                    return
+                }
+                do {
+                    try self.engine.setState(
+                        .excluded,
+                        atRow: position.row,
+                        column: position.column
+                    )
+                    self.autoMarkedPosition = position
+                    self.synchronizeFromEngine(notifyChange: true)
+                } catch {
+                    self.cancelAutoMarking()
+                    self.feedbackMessage = "Unable to finish marking these cells."
+                    return
+                }
+            }
+            guard self.autoMarkGeneration == generation else { return }
+            self.isAutoMarking = false
+            self.autoMarkedPosition = nil
+            self.autoMarkTask = nil
+        }
+    }
+
+    private func cancelAutoMarking() {
+        autoMarkGeneration &+= 1
+        autoMarkTask?.cancel()
+        autoMarkTask = nil
+        isAutoMarking = false
+        autoMarkedPosition = nil
+    }
+
     // MARK: - Coaching
 
-    /// Re-reads the board to find the step the tutorial is on. Every board
-    /// change also restarts the nudge delay, so a player who is working is
-    /// never interrupted — only one who has stopped.
+    /// Re-reads the board to find the step the tutorial is on. A requested
+    /// clue stays visible only while it points at an unfinished move.
     private func refreshCoaching() {
         let index = coach.currentStepIndex(for: puzzle)
         // A solved board has nothing left to teach, even if the player got
         // there without marking every × the script asked for.
         let current = isSolved ? nil : coach.step(at: index)
         if current != step {
-            nudgedStepNumber = nil
+            nudgedPositions = []
+        } else if let current {
+            nudgedPositions.formIntersection(current.remainingPositions(in: puzzle))
         }
         step = current
         stepNumber = min(index + 1, coach.stepCount)
-        scheduleNudge()
-    }
-
-    private func scheduleNudge() {
-        nudgeTask?.cancel()
-        nudgeTask = nil
-        nudgedPositions = []
-
-        guard let step, step.coaching == .discovery, !isSolved else {
-            return
-        }
-        guard nudgedStepNumber != stepNumber else {
-            showNudge(for: step)
-            return
-        }
-
-        let delay = nudgeDelay
-        nudgeTask = Task { [weak self] in
-            try? await Task.sleep(for: delay)
-            guard !Task.isCancelled else { return }
-            self?.showNudge(for: step)
-        }
-    }
-
-    private func showNudge(for step: TutorialStep) {
-        guard self.step == step else { return }
-        nudgedStepNumber = stepNumber
-        nudgedPositions = Set(step.remainingPositions(in: puzzle))
     }
 
     /// True when a guided step has masked this cell off. The check lives

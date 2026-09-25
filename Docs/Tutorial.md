@@ -28,16 +28,17 @@ then hands over:
 | Step | Coaching | Rule | Move |
 | --- | --- | --- | --- |
 | 1 | guided | Regions | The pink block is a single cell — its cat goes there |
-| 2 | guided | Rows | That row has its cat, so the rest of it is out |
-| 3 | guided | Columns | And so is the rest of that column |
-| 4 | guided | Regions | Which leaves the green block exactly one cell |
-| 5 | guided | No touching | So the cells around that new cat are out |
-| 6+ | discovery | all three | The player runs the loop themselves |
+| 2 | guided | Rows | Mark every other cell of the first cat's row, one by one |
+| 3 | guided | Columns | On the same board, mark every other cell of its column |
+| 4 | guided | No touching | The straight neighbours are already crossed out; mark all four diagonal corners around that same cat |
+| 5 | guided | Regions | Those crosses leave the green block exactly one cell |
+| 6 | discovery | all three | The player marks one cell ruled out by the second cat; the rest of its row, column and nearby cells appear in sequence |
+| 7+ | discovery | all three | The player runs the loop themselves |
 
-Steps 1 and 4 are the same rule on purpose. The first is free — a one-cell
-block needs no deduction to see. The second is the same rule arrived at, and it
-only works because steps 2 and 3 emptied the block out. That is the moment the
-tutorial exists for.
+Steps 1 and 5 are the same rule on purpose. The first is free — a one-cell
+block needs no deduction to see. The second is the same rule reached by
+marking the first cat's row, column and four corners. The board stays visible
+throughout so the player can see those deductions accumulate.
 
 From step 6 the script is just the loop the rest of the game is played in:
 mark everything the cats on the board rule out, then place the cat some block,
@@ -49,15 +50,22 @@ the rule that does the most work.
 
 A **guided** step masks the board down to its `spotlight` — the whole row,
 column or block the lesson is about, so the player sees the reason and not just
-the answer — and leaves only the cells it is actually asking for tappable. The
-move cannot be got wrong, and neither can the ones before it be undone.
+the answer — and leaves only the cells it is actually asking for tappable. On
+an exclusion step, the player must mark every requested cell. The hand moves
+to the next unmarked cell after each tap and stays there until the player acts.
+Progress is shown after each mark, and previously marked cells remain visible
+while the spotlight changes from row to column to the cat's neighbourhood. Earlier
+guided moves cannot be undone until discovery begins.
 
-A **discovery** step masks nothing and points at nothing. If the player sits on
-it for three seconds without marking anything, the cells still outstanding
-pulse (`GameViewModel.tutorialNudge`). Every mark restarts that delay, so
-somebody who is working is never interrupted; once a step has nudged, later
-marks in the same step re-show it immediately rather than making the player
-wait the delay out again.
+A **discovery** step masks nothing and leaves the board live. The player can
+request a clue with **Show one cell**; only one unfinished answer is outlined,
+and nothing is revealed automatically. The first discovery step asks the
+player to find one cell ruled out by the second cat. Its other ruled-out cells
+then appear one by one: row from left to right, column from top to bottom,
+then remaining neighbours. Later discovery exclusions use the same sequence
+after one correct example. The board pauses input during this brief sweep and
+cancels it if the player restarts. Placement
+steps still require the player to find and place the cat.
 
 ## Where the player is in the script
 
@@ -78,17 +86,22 @@ land — and a wrong cat left on the board would leave every later step pointing
 at a deduction that is no longer there. The preference the player sets during
 the tutorial is remembered and applies to the next real level.
 
-It still cannot be lost: `maxMistakes` is 9,999 and `GameScreen` hides the
-mistake counter on a tutorial. The Hint button is hidden too — the tutorial
-already *is* a hint, step by step, and a hint preview would fight with the
-step's own mask. Undo is absent because challenge mode has none; every
-exclusion is undone by tapping it again.
+The tutorial also refuses an exclusion on a cell that will need a cat later,
+with a short explanation. A mistaken × should not silently make an upcoming
+lesson impossible.
+
+It still cannot be lost: `maxMistakes` is 9,999 and `TutorialScreen` omits the
+mistake counter. It also omits the ordinary Hint control, whose preview would
+fight with the step's own mask; discovery offers its own one-cell clue instead.
+Undo is absent because challenge mode has none; every exclusion is undone by
+tapping it again.
 
 ## A board that cannot teach
 
 `TutorialScript.build` returns an empty script rather than inventing a lesson
 when the board does not fit the curriculum — no single-cell Region, pre-placed
-cats, no Region left with one cell after step 3, and so on. `GameViewModel`
+cats, no four open diagonal corners after the row and column, no Region left
+with one cell after step 4, and so on. `GameViewModel`
 then plays the level uncoached instead of pointing at deductions that are not
 there. `TutorialLevelTests` rules this out for the shipped board and checks the
 fallback with boards that deliberately do not fit.
@@ -107,7 +120,7 @@ fallback with boards that deliberately do not fit.
   spotlight more than their own answer; discovery steps mask nothing.
 
 `CatPuzzleAppTests/TutorialFlowTests.swift` covers the app side: the masking,
-the step advancing and reopening, restart, resume, the nudge delay, challenge
+the step advancing and reopening, restart, resume, requested clues, challenge
 mode refusing a wrong cat, and the progression rules below.
 
 ## Progression

@@ -1,24 +1,18 @@
 import CatPuzzleCore
 import SwiftUI
 
-/// A one-shot demonstration of the gesture a guided step is asking for: a
-/// double-tap pulse over a `.placeCat` cell, or a sequential single-tap pulse
-/// over each cell of a multi-cell `.exclude`. Plays once whenever
-/// `playbackID` changes — the caller passes `TutorialViewModel.stepNumber`,
-/// so a fresh guided step always replays it from the start — and disappears
-/// once it has walked every target cell. `.discovery` steps never construct
-/// this view; they keep the existing stall-triggered nudge instead.
+/// Demonstrates the next guided move. For exclusions, the hand moves to each
+/// remaining cell as the player marks the previous one and stays there until
+/// they act. Placement shows a double-tap pulse once. Discovery has no hand.
 struct TutorialFingerGuide: View {
     let task: TutorialTask
+    let target: CellPosition?
     let cellFrames: [CellPosition: CGRect]
     let playbackID: Int
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var targetIndex = 0
     @State private var scale: CGFloat = 1
     @State private var opacity: Double = 0
-
-    private var targets: [CellPosition] { task.positions }
 
     private var isDoubleTap: Bool {
         if case .placeCat = task { return true }
@@ -26,8 +20,7 @@ struct TutorialFingerGuide: View {
     }
 
     private var currentFrame: CGRect? {
-        guard targets.indices.contains(targetIndex) else { return nil }
-        return cellFrames[targets[targetIndex]]
+        target.flatMap { cellFrames[$0] }
     }
 
     var body: some View {
@@ -40,40 +33,45 @@ struct TutorialFingerGuide: View {
                     .scaleEffect(scale)
                     .opacity(opacity)
                     .position(x: frame.midX, y: frame.midY)
+                    .animation(.easeInOut(duration: 0.22), value: target)
             }
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
         .task(id: playbackID) {
-            guard !reduceMotion else { return }
             await play()
         }
     }
 
     @MainActor
     private func play() async {
-        opacity = 0
-        for index in targets.indices {
-            targetIndex = index
-            guard currentFrame != nil else { continue }
+        guard currentFrame != nil else {
+            opacity = 0
+            return
+        }
+        if reduceMotion {
+            opacity = 1
+            scale = 1
+            return
+        }
 
-            scale = 1.25
-            withAnimation(.easeOut(duration: 0.2)) {
-                opacity = 1
-                scale = 1
-            }
-            if await sleep(.milliseconds(220)) { return }
+        scale = 1.25
+        withAnimation(.easeOut(duration: 0.2)) {
+            opacity = 1
+            scale = 1
+        }
+        if await sleep(.milliseconds(220)) { return }
 
-            for _ in 0..<(isDoubleTap ? 2 : 1) {
-                withAnimation(.easeInOut(duration: 0.11)) { scale = 0.78 }
-                if await sleep(.milliseconds(120)) { return }
-                withAnimation(.easeInOut(duration: 0.11)) { scale = 1 }
-                if await sleep(.milliseconds(150)) { return }
-            }
+        for _ in 0..<(isDoubleTap ? 2 : 1) {
+            withAnimation(.easeInOut(duration: 0.11)) { scale = 0.78 }
+            if await sleep(.milliseconds(120)) { return }
+            withAnimation(.easeInOut(duration: 0.11)) { scale = 1 }
+            if await sleep(.milliseconds(150)) { return }
+        }
 
+        if isDoubleTap {
             if await sleep(.milliseconds(260)) { return }
             withAnimation(.easeIn(duration: 0.18)) { opacity = 0 }
-            if await sleep(.milliseconds(200)) { return }
         }
     }
 

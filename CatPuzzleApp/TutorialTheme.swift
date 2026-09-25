@@ -7,9 +7,9 @@ import SwiftUI
 /// "Tutorial (Dark) Color System" section of `DESIGN.md`.
 enum TutorialTheme {
     static let background = Color(red: 0.07, green: 0.075, blue: 0.09)
-    /// The spotlight mask's fill — dark enough that a cutout cell reads as
-    /// the only lit thing on screen.
-    static let scrim = Color.black.opacity(0.78)
+    /// Keep earlier crosses readable outside the current row, column or
+    /// block, so each lesson still looks like the same evolving board.
+    static let scrim = Color.black.opacity(0.25)
     static let surface = Color(red: 0.16, green: 0.16, blue: 0.19)
     static let textPrimary = Color.white
     static let textSecondary = Color.white.opacity(0.62)

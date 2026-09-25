@@ -28,7 +28,7 @@ extension TutorialStep {
     }
 
     /// The cells of this step the player has not dealt with yet — what is
-    /// left to point at, so a nudge never flashes a cell already marked.
+    /// left to point at when they request a clue.
     func remainingPositions(in puzzle: Puzzle) -> [CellPosition] {
         let wanted: CellState
         switch task {
@@ -40,17 +40,32 @@ extension TutorialStep {
         }
     }
 
-    /// What the player has to do, as the gesture they do it with. The tutorial
-    /// is the only place in the game that teaches the gestures, so every step
-    /// names one.
+    /// What the player has to do, as the gesture they do it with.
     var actionHint: String {
         switch task {
         case .placeCat:
-            "Double-tap the cell to put a cat on it."
-        case let .exclude(positions):
-            positions.count == 1
-                ? "Tap the cell once to mark it ×."
-                : "Tap each of those cells once to mark it ×."
+            return coaching == .guided
+                ? "Double-tap the lit cell to place a cat."
+                : "Double-tap the right cell to place a cat."
+        case .exclude:
+            if coaching == .discovery {
+                switch lesson {
+                case .secondCatRulesOut:
+                    return "Find and tap one empty cell this new cat rules out."
+                default:
+                    return "Tap one ruled-out empty cell. The rest will follow."
+                }
+            }
+            switch lesson {
+            case .rowAlreadyHasItsCat:
+                return "Tap every other cell in this cat's row to mark ×."
+            case .columnAlreadyHasItsCat:
+                return "Tap every other cell in the same cat's column to mark ×."
+            case .catsNeverTouch:
+                return "Tap all four unmarked corners around this cat to mark ×."
+            default:
+                return "Tap each lit empty cell to mark ×."
+            }
         }
     }
 }
@@ -69,7 +84,9 @@ extension TutorialLesson {
         case .catsNeverTouch:
             PuzzleRule.noTouchingCats.headline
         case .everythingTheCatsRuleOut:
-            "Now all three at once"
+            "Your turn: rule out a cell"
+        case .secondCatRulesOut:
+            "Now follow this cat"
         }
     }
 
@@ -85,7 +102,7 @@ extension TutorialLesson {
             "Every colored block holds exactly one cat. The \(block(regionID, showsRegionIcons)) is a single cell, so there is nowhere else its cat could go."
         case let .regionHasOneCellLeft(regionID):
             coaching == .guided
-                ? "Every other cell of the \(block(regionID, showsRegionIcons)) is ruled out now, so only one is left — and that is where its cat goes."
+                ? "The crosses you just made leave the \(block(regionID, showsRegionIcons)) with one open cell. Its cat goes there."
                 : "One colored block has a single cell left. Find it, and put its cat there."
         case let .rowHasOneCellLeft(row):
             coaching == .guided
@@ -96,13 +113,15 @@ extension TutorialLesson {
                 ? "Column \(column + 1) has one cell left, so that is where its cat goes."
                 : "One column has a single cell left. Find it, and put its cat there."
         case let .rowAlreadyHasItsCat(row):
-            "Every row holds exactly one cat, and row \(row + 1) has got its own. No other cell in that row can hold one."
+            "The cat you just placed fills row \(row + 1). Every row holds exactly one cat, so no other cell in its row can hold one."
         case let .columnAlreadyHasItsCat(column):
-            "Every column holds exactly one cat too, and column \(column + 1) has got its own. No other cell in that column can hold one."
+            "Stay with the same cat. It fills column \(column + 1) too, so no other cell in its column can hold one."
         case .catsNeverTouch:
-            "Cats will not sit next to each other, not even corner to corner. None of the cells around this one can hold a cat."
+            "The row and column crosses cover this cat's four sides. Cats cannot touch at the corners either, so mark the four diagonal cells around this same cat."
         case .everythingTheCatsRuleOut:
-            "The cats on the board rule out their own rows, their own columns, their own blocks, and everything they touch. Mark all of it out."
+            "Look along a cat's row or column, inside its colored block, or at a neighboring square. Which empty cell cannot hold a cat?"
+        case .secondCatRulesOut:
+            "The second cat starts the same pattern. Find one cell it rules out; then watch its row, column, and neighboring cells fill in."
         }
     }
 

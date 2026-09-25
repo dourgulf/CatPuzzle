@@ -3,9 +3,8 @@ public enum TutorialCoaching: Equatable, Sendable {
     /// The board is masked down to the step's `spotlight` and only the cells
     /// the step asks for stay tappable, so the move cannot be got wrong.
     case guided
-    /// The whole board stays live and nothing is pointed at. The player is
-    /// left to find the move; the app only nudges once they have had time to
-    /// look.
+    /// The whole board stays live. The player can request one clue while
+    /// finding the move for themselves.
     case discovery
 }
 
@@ -39,6 +38,9 @@ public enum TutorialLesson: Equatable, Sendable {
     /// Every cell the cats on the board rule out, for whatever reason — the
     /// step where the three rules are used together rather than one at a time.
     case everythingTheCatsRuleOut
+    /// The player makes one deduction from the second cat, then watches its
+    /// row, column and remaining neighbours get marked in that order.
+    case secondCatRulesOut(CellPosition)
 
     /// The rule this lesson is about, or nil where it is about all three.
     public var rule: PuzzleRule? {
@@ -50,7 +52,7 @@ public enum TutorialLesson: Equatable, Sendable {
             .oneCatPerRowAndColumn
         case .catsNeverTouch:
             .noTouchingCats
-        case .everythingTheCatsRuleOut:
+        case .everythingTheCatsRuleOut, .secondCatRulesOut:
             nil
         }
     }
@@ -82,8 +84,8 @@ public struct TutorialStep: Equatable, Sendable {
 /// The tutorial board's lesson, one move at a time.
 ///
 /// The steps are **derived from the board**, not listed alongside it: a
-/// curriculum of five hand-ordered openings (Region, row, column, Region,
-/// no-touching) is resolved against the actual board, and everything after
+/// curriculum of five hand-ordered openings (Region, row, column, no-touching,
+/// Region) is resolved against the actual board, and everything after
 /// that is the same loop the player will use for the rest of their life with
 /// the game — place the cat some block, row or column has been narrowed down
 /// to, then mark everything that cat rules out. So the board can be swapped
@@ -145,7 +147,21 @@ public struct TutorialScript: Equatable, Sendable {
         steps.append(columnStep)
         board.exclude(columnStep.task.positions)
 
-        // 4. Which has to leave exactly one Region with one cell left — and
+        // 4. Stay on the first cat. Its row and column already cover the four
+        //    straight neighbours; mark all four still-open diagonal corners
+        //    to see what "cats never touch" adds to those earlier marks.
+        guard let touchingStep = board.clearingStep(
+            lesson: .catsNeverTouch(first),
+            spotlight: board.block(around: first),
+            minimumCells: 4,
+            from: board.neighbors(of: first)
+        ) else {
+            return TutorialScript(steps: [])
+        }
+        steps.append(touchingStep)
+        board.exclude(touchingStep.task.positions)
+
+        // 5. These exclusions leave exactly one Region with one cell left — and
         //    no other constraint forced at the same time, or the step would
         //    be pointing at one of several equally good moves.
         let forced = board.forcedPlacements()
@@ -164,24 +180,13 @@ public struct TutorialScript: Equatable, Sendable {
         )
         board.placeCat(second)
 
-        // 5. The third rule, on the cat the player just placed: a tutorial
-        //    that showed it on a stale cat would be asking them to look
-        //    somewhere they are not looking.
-        guard let touchingStep = board.clearingStep(
-            lesson: .catsNeverTouch(second),
-            spotlight: board.block(around: second),
-            minimumCells: 2,
-            from: board.neighbors(of: second)
-        ) else {
-            return TutorialScript(steps: [])
-        }
-        steps.append(touchingStep)
-        board.exclude(touchingStep.task.positions)
-
         // 6 onwards. The lesson is over; the loop the game is actually played
         // in begins, and the player is left to run it.
         while board.catCount < fixture.level.catCount {
-            if let cleanup = board.cleanupStep() {
+            let cleanupLesson: TutorialLesson = board.catCount == 2
+                ? .secondCatRulesOut(second)
+                : .everythingTheCatsRuleOut
+            if let cleanup = board.cleanupStep(lesson: cleanupLesson) {
                 steps.append(cleanup)
                 board.exclude(cleanup.task.positions)
             }
@@ -350,11 +355,23 @@ private struct Board {
     /// marked yet, as one unguided step. This is what keeps the next
     /// `forcedPlacements()` honest: a cell left unmarked would still look
     /// open, and the script would point at a deduction the player cannot see.
-    func cleanupStep() -> TutorialStep? {
-        let targets = allPositions.filter { isEmpty($0) && isRuledOut($0) }
+    func cleanupStep(lesson: TutorialLesson) -> TutorialStep? {
+        guard let newestCat = cats.last else { return nil }
+        // A player can follow this sweep with their eyes: left to right on
+        // the new cat's row, top to bottom on its column, then its remaining
+        // neighbours. Other already-ruled-out cells come last.
+        let candidates = cells(inRow: newestCat.row)
+            + cells(inColumn: newestCat.column)
+            + neighbors(of: newestCat)
+            + cells(inRegion: regionID(of: newestCat))
+            + allPositions
+        var seen: Set<CellPosition> = []
+        let targets = candidates.filter {
+            seen.insert($0).inserted && isEmpty($0) && isRuledOut($0)
+        }
         guard !targets.isEmpty else { return nil }
         return TutorialStep(
-            lesson: .everythingTheCatsRuleOut,
+            lesson: lesson,
             task: .exclude(targets),
             coaching: .discovery,
             spotlight: []

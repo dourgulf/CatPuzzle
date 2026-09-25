@@ -28,21 +28,32 @@ final class TutorialFlowTests: XCTestCase {
     private func followScript(
         _ viewModel: TutorialViewModel?,
         stoppingAfter stepCount: Int = .max
-    ) {
+    ) async {
         guard let viewModel else { return XCTFail("no game in progress") }
         for step in tutorial.script.steps.prefix(stepCount) {
             switch step.task {
             case let .placeCat(position):
                 viewModel.toggleCat(atRow: position.row, column: position.column)
             case let .exclude(positions):
-                for position in positions {
+                for position in step.coaching == .guided ? positions : Array(positions.prefix(1)) {
                     viewModel.toggleExcluded(
                         atRow: position.row,
                         column: position.column
                     )
                 }
+                if step.coaching == .discovery {
+                    await waitForAutoMarking(viewModel)
+                }
             }
         }
+    }
+
+    private func waitForAutoMarking(_ viewModel: TutorialViewModel) async {
+        let deadline = ContinuousClock.now + .seconds(10)
+        while viewModel.isAutoMarking && ContinuousClock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        XCTAssertFalse(viewModel.isAutoMarking, "automatic marks did not finish")
     }
 
     private func solve(_ session: AppSession, _ fixture: LevelFixture) {
@@ -64,11 +75,11 @@ final class TutorialFlowTests: XCTestCase {
         XCTAssertEqual(session.nextPresentation, .tutorial)
     }
 
-    func testTheTutorialComesBeforeAnyLadderLevel() {
+    func testTheTutorialComesBeforeAnyLadderLevel() async {
         let session = makeSession(InMemoryGameProgressStore())
         session.startNextLevel()
 
-        followScript(session.tutorialViewModel)
+        await followScript(session.tutorialViewModel)
 
         XCTAssertEqual(session.tutorialViewModel?.isSolved, true)
         session.continueAfterCompletion()
@@ -114,12 +125,12 @@ final class TutorialFlowTests: XCTestCase {
         )
     }
 
-    func testCompletingTheTutorialIsRecordedApartFromLadderProgress() {
+    func testCompletingTheTutorialIsRecordedApartFromLadderProgress() async {
         let store = InMemoryGameProgressStore()
         let session = makeSession(store)
         session.startNextLevel()
 
-        followScript(session.tutorialViewModel)
+        await followScript(session.tutorialViewModel)
 
         XCTAssertEqual(store.progress.completedTutorialIDs, [tutorial.level.id])
         XCTAssertEqual(store.progress.completedLevelIDs, [])
@@ -130,14 +141,14 @@ final class TutorialFlowTests: XCTestCase {
     /// A wrong cat would leave every later step pointing at a deduction that
     /// is no longer on the board, so the tutorial is played in challenge mode,
     /// where such a cat is refused instead of landing.
-    func testAWrongCatIsRefusedRatherThanLeftOnTheBoard() {
+    func testAWrongCatIsRefusedRatherThanLeftOnTheBoard() async {
         let session = makeSession(InMemoryGameProgressStore())
         session.startNextLevel()
         let viewModel = session.tutorialViewModel
 
         // The one cell this step lets the player touch, with the wrong gesture
         // for the step after it: a single tap, which would mark it out.
-        followScript(viewModel, stoppingAfter: 1)
+        await followScript(viewModel, stoppingAfter: 1)
         let wrongCat = tutorial.script.steps[1].task.positions[0]
         viewModel?.toggleCat(atRow: wrongCat.row, column: wrongCat.column)
 
@@ -217,34 +228,38 @@ final class TutorialFlowTests: XCTestCase {
         XCTAssertEqual(viewModel.stepNumber, 1)
     }
 
-    func testMakingAStepsMoveAdvancesToTheNextStep() throws {
+    func testMakingAStepsMoveAdvancesToTheNextStep() async throws {
         let session = makeSession(InMemoryGameProgressStore())
         session.startNextLevel()
         let viewModel = try XCTUnwrap(session.tutorialViewModel)
 
-        followScript(viewModel, stoppingAfter: 1)
+        await followScript(viewModel, stoppingAfter: 1)
 
         XCTAssertEqual(viewModel.stepNumber, 2)
         XCTAssertEqual(viewModel.step, tutorial.script.steps[1])
     }
 
-    /// Part-finishing a step is not finishing it: the tutorial keeps waiting
-    /// on the cells that are still unmarked.
-    func testAStepStaysCurrentUntilEveryOneOfItsCellsIsMarked() throws {
+    func testGuidedExclusionShowsEachMarkBeforeAdvancing() async throws {
         let session = makeSession(InMemoryGameProgressStore())
         session.startNextLevel()
         let viewModel = try XCTUnwrap(session.tutorialViewModel)
-        followScript(viewModel, stoppingAfter: 1)
+        await followScript(viewModel, stoppingAfter: 1)
 
         let step = tutorial.script.steps[1]
         let first = try XCTUnwrap(step.task.positions.first)
         viewModel.toggleExcluded(atRow: first.row, column: first.column)
 
         XCTAssertEqual(viewModel.stepNumber, 2)
-        XCTAssertEqual(
-            step.remainingPositions(in: viewModel.puzzle).count,
-            step.task.positions.count - 1
-        )
+        XCTAssertEqual(step.remainingPositions(in: viewModel.puzzle).count, step.task.positions.count - 1)
+        XCTAssertTrue(step.task.positions.dropFirst().allSatisfy {
+            viewModel.puzzle.state(atRow: $0.row, column: $0.column) == .empty
+        })
+
+        for position in step.task.positions.dropFirst() {
+            viewModel.toggleExcluded(atRow: position.row, column: position.column)
+        }
+        XCTAssertEqual(viewModel.stepNumber, 3)
+        XCTAssertTrue(step.remainingPositions(in: viewModel.puzzle).isEmpty)
     }
 
     /// Clearing a mark walks the tutorial back: the current step is read off
@@ -253,12 +268,12 @@ final class TutorialFlowTests: XCTestCase {
     /// is nothing stopping a player from clearing an earlier mark, and the
     /// tutorial has to go back and ask for it again rather than wait forever
     /// on a step whose reason has gone.
-    func testClearingAnEarlierMarkDuringDiscoveryReopensThatStep() throws {
+    func testClearingAnEarlierMarkDuringDiscoveryReopensThatStep() async throws {
         let session = makeSession(InMemoryGameProgressStore())
         session.startNextLevel()
         let viewModel = try XCTUnwrap(session.tutorialViewModel)
         let guided = tutorial.script.steps.prefix { $0.coaching == .guided }.count
-        followScript(viewModel, stoppingAfter: guided)
+        await followScript(viewModel, stoppingAfter: guided)
         XCTAssertEqual(viewModel.stepNumber, guided + 1)
 
         let cleared = try XCTUnwrap(tutorial.script.steps[1].task.positions.first)
@@ -274,11 +289,11 @@ final class TutorialFlowTests: XCTestCase {
 
     /// While the lesson is still running, though, the mask is what stops a
     /// player from undoing their way out of it.
-    func testAGuidedStepWillNotLetAnEarlierMarkBeCleared() throws {
+    func testAGuidedStepWillNotLetAnEarlierMarkBeCleared() async throws {
         let session = makeSession(InMemoryGameProgressStore())
         session.startNextLevel()
         let viewModel = try XCTUnwrap(session.tutorialViewModel)
-        followScript(viewModel, stoppingAfter: 2)
+        await followScript(viewModel, stoppingAfter: 2)
         XCTAssertEqual(viewModel.stepNumber, 3)
 
         let marked = try XCTUnwrap(tutorial.script.steps[1].task.positions.first)
@@ -291,11 +306,11 @@ final class TutorialFlowTests: XCTestCase {
         XCTAssertEqual(viewModel.stepNumber, 3)
     }
 
-    func testRestartingTheLevelReturnsToTheFirstStep() throws {
+    func testRestartingTheLevelReturnsToTheFirstStep() async throws {
         let session = makeSession(InMemoryGameProgressStore())
         session.startNextLevel()
         let viewModel = try XCTUnwrap(session.tutorialViewModel)
-        followScript(viewModel, stoppingAfter: 3)
+        await followScript(viewModel, stoppingAfter: 3)
         XCTAssertGreaterThan(viewModel.stepNumber, 1)
 
         session.restartCurrentGame()
@@ -304,12 +319,12 @@ final class TutorialFlowTests: XCTestCase {
         XCTAssertEqual(viewModel.step, tutorial.script.steps.first)
     }
 
-    func testTheCoachingStopsOnceTheBoardIsFinished() throws {
+    func testTheCoachingStopsOnceTheBoardIsFinished() async throws {
         let session = makeSession(InMemoryGameProgressStore())
         session.startNextLevel()
         let viewModel = try XCTUnwrap(session.tutorialViewModel)
 
-        followScript(viewModel)
+        await followScript(viewModel)
 
         XCTAssertTrue(viewModel.isSolved)
         XCTAssertNil(viewModel.step)
@@ -320,12 +335,12 @@ final class TutorialFlowTests: XCTestCase {
     /// Nothing says the player has to mark every × on their way. Once the
     /// last cat is down the board is finished and the coaching goes with it,
     /// rather than sitting there asking for marks that no longer matter.
-    func testCoachingStopsEvenIfTheBoardIsFinishedWithMarksLeftUnmade() throws {
+    func testCoachingStopsEvenIfTheBoardIsFinishedWithMarksLeftUnmade() async throws {
         let session = makeSession(InMemoryGameProgressStore())
         session.startNextLevel()
         let viewModel = try XCTUnwrap(session.tutorialViewModel)
         let guided = tutorial.script.steps.prefix { $0.coaching == .guided }.count
-        followScript(viewModel, stoppingAfter: guided)
+        await followScript(viewModel, stoppingAfter: guided)
 
         // Straight to the cats still missing, skipping every remaining
         // exclusion step.
@@ -341,80 +356,97 @@ final class TutorialFlowTests: XCTestCase {
 
     /// Once the lesson is over the board is handed over whole: nothing masked,
     /// every cell live.
-    func testDiscoveryStepsLeaveTheWholeBoardLive() throws {
+    func testDiscoveryStepsLeaveTheWholeBoardLive() async throws {
         let session = makeSession(InMemoryGameProgressStore())
         session.startNextLevel()
         let viewModel = try XCTUnwrap(session.tutorialViewModel)
 
         let guided = tutorial.script.steps.prefix { $0.coaching == .guided }.count
-        followScript(viewModel, stoppingAfter: guided)
+        await followScript(viewModel, stoppingAfter: guided)
 
         XCTAssertEqual(viewModel.step?.coaching, .discovery)
         XCTAssertTrue(viewModel.spotlight.isEmpty)
         XCTAssertNil(viewModel.interactivePositions)
     }
 
-    // MARK: - Nudging
-
-    /// A player left alone on an unguided step gets shown where to look, but
-    /// only after they have had time to look for themselves.
-    func testAnUnguidedStepPointsAtItsCellsOnlyAfterThePlayerHasStalled() async throws {
+    func testExcludingAFutureCatIsRejectedDuringDiscovery() async throws {
         let viewModel = try makeCoachedViewModel()
         let guided = tutorial.script.steps.prefix { $0.coaching == .guided }.count
-        followScript(viewModel, stoppingAfter: guided)
-        let step = try XCTUnwrap(viewModel.step)
+        await followScript(viewModel, stoppingAfter: guided)
+        let futureCat = try XCTUnwrap(
+            tutorial.script.steps.dropFirst(guided).compactMap { step -> CellPosition? in
+                if case let .placeCat(position) = step.task { return position }
+                return nil
+            }.first
+        )
 
-        XCTAssertTrue(viewModel.nudgedPositions.isEmpty, "the nudge fired immediately")
-        try await Task.sleep(for: .milliseconds(120))
+        viewModel.toggleExcluded(atRow: futureCat.row, column: futureCat.column)
 
-        XCTAssertEqual(viewModel.nudgedPositions, Set(step.task.positions))
+        XCTAssertEqual(
+            viewModel.puzzle.state(atRow: futureCat.row, column: futureCat.column),
+            .empty
+        )
+        XCTAssertEqual(viewModel.stepNumber, guided + 1)
+        XCTAssertNotNil(viewModel.feedbackMessage)
     }
 
-    /// A guided step is already pointing — with the whole board masked around
-    /// it — so it never pulses on top of that.
-    func testAGuidedStepNeverNudges() async throws {
-        let viewModel = try makeCoachedViewModel()
+    // MARK: - Player-requested clue
 
+    func testDiscoveryShowsOnlyOneCellAfterThePlayerRequestsAClue() async throws {
+        let viewModel = try makeCoachedViewModel()
+        let guided = tutorial.script.steps.prefix { $0.coaching == .guided }.count
+        await followScript(viewModel, stoppingAfter: guided)
+        let step = try XCTUnwrap(viewModel.step)
+
+        XCTAssertTrue(viewModel.nudgedPositions.isEmpty)
         try await Task.sleep(for: .milliseconds(120))
+        XCTAssertTrue(viewModel.nudgedPositions.isEmpty)
+
+        viewModel.revealClue()
+
+        XCTAssertEqual(
+            viewModel.nudgedPositions,
+            Set(step.remainingPositions(in: viewModel.puzzle).prefix(1))
+        )
+    }
+
+    func testAGuidedStepCannotRevealAClue() throws {
+        let viewModel = try makeCoachedViewModel()
+        viewModel.revealClue()
 
         XCTAssertEqual(viewModel.step?.coaching, .guided)
         XCTAssertTrue(viewModel.nudgedPositions.isEmpty)
     }
 
-    /// Once the player is moving again the nudge narrows to what is left,
-    /// rather than going on flashing cells they have already dealt with.
-    func testNudgingFollowsTheCellsStillLeftInTheStep() async throws {
+    func testClueClearsWhenThePlayerAdvances() async throws {
         let viewModel = try makeCoachedViewModel()
         let guided = tutorial.script.steps.prefix { $0.coaching == .guided }.count
-        followScript(viewModel, stoppingAfter: guided)
+        await followScript(viewModel, stoppingAfter: guided)
         let step = try XCTUnwrap(viewModel.step)
-        try await Task.sleep(for: .milliseconds(120))
+        viewModel.revealClue()
 
         let done = try XCTUnwrap(step.task.positions.first)
         viewModel.toggleExcluded(atRow: done.row, column: done.column)
+        await waitForAutoMarking(viewModel)
 
-        XCTAssertEqual(
-            viewModel.nudgedPositions,
-            Set(step.task.positions.dropFirst()),
-            "a cell the player has already marked is still being pointed at"
-        )
+        XCTAssertTrue(viewModel.nudgedPositions.isEmpty)
+        XCTAssertNotEqual(viewModel.step, step)
     }
 
     private func makeCoachedViewModel() throws -> TutorialViewModel {
         TutorialViewModel(
             engine: try GameEngine(fixture: tutorial.fixture, mode: .challenge),
-            script: tutorial.script,
-            nudgeDelay: .milliseconds(40)
+            script: tutorial.script
         )
     }
 
     // MARK: - Resume
 
-    func testAnInterruptedTutorialResumesOnTheStepItWasLeftOn() throws {
+    func testAnInterruptedTutorialResumesOnTheStepItWasLeftOn() async throws {
         let store = InMemoryGameProgressStore()
         let session = makeSession(store)
         session.startNextLevel()
-        followScript(session.tutorialViewModel, stoppingAfter: 2)
+        await followScript(session.tutorialViewModel, stoppingAfter: 2)
 
         XCTAssertEqual(store.progress.activeGame?.levelID, tutorial.level.id)
 
@@ -489,11 +521,11 @@ final class TutorialFlowTests: XCTestCase {
 
     /// A saved game left behind would be resumed on the next launch, which
     /// routes straight past the tutorial the reset just re-offered.
-    func testResettingTheTutorialDropsTheGameInProgress() {
+    func testResettingTheTutorialDropsTheGameInProgress() async {
         let store = InMemoryGameProgressStore()
         let session = makeSession(store)
         session.startNextLevel()
-        followScript(session.tutorialViewModel, stoppingAfter: 2)
+        await followScript(session.tutorialViewModel, stoppingAfter: 2)
         XCTAssertNotNil(store.progress.activeGame)
 
         session.resetTutorial()

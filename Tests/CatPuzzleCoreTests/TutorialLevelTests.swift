@@ -139,8 +139,8 @@ final class TutorialLevelTests: XCTestCase {
 
     /// The opening five steps are the lesson itself, in the order a beginner
     /// can follow: a Region small enough to need no deduction, the row and
-    /// column that cat settles, the Region those exclusions then empty out,
-    /// and only then the rule about cats refusing neighbours.
+    /// column that cat settles, all four corners around that same cat, and
+    /// then the Region those exclusions leave with one open cell.
     func testTheLessonOpensWithOneRuleAtATimeInTeachingOrder() throws {
         XCTAssertGreaterThan(steps.count, 5)
 
@@ -162,13 +162,51 @@ final class TutorialLevelTests: XCTestCase {
             .columnAlreadyHasItsCat(column: first.column)
         )
 
-        guard case .regionHasOneCellLeft = steps[3].lesson else {
-            return XCTFail("step 4 is \(steps[3].lesson), not a Region running out")
+        XCTAssertEqual(steps[3].lesson, .catsNeverTouch(first))
+
+        guard case .regionHasOneCellLeft = steps[4].lesson else {
+            return XCTFail("step 5 is \(steps[4].lesson), not a Region running out")
         }
-        guard case let .placeCat(second) = steps[3].task else {
-            return XCTFail("step 4 does not place a cat")
+        guard case .placeCat = steps[4].task else {
+            return XCTFail("step 5 does not place a cat")
         }
-        XCTAssertEqual(steps[4].lesson, .catsNeverTouch(second))
+    }
+
+    /// The player makes fourteen visible marks on one evolving board. The
+    /// fourth step must add exactly the four diagonal corners left open after
+    /// the row and column have already covered the straight neighbours.
+    func testFirstCatRowColumnAndFourCornersAreMarkedIndividually() throws {
+        guard case let .placeCat(cat) = steps[0].task else {
+            return XCTFail("step 1 does not place a cat")
+        }
+        let row = Set(steps[1].task.positions)
+        let column = Set(steps[2].task.positions)
+        let corners = Set(steps[3].task.positions)
+
+        XCTAssertEqual(
+            row,
+            Set((0..<level.size).filter { $0 != cat.column }.map {
+                CellPosition(row: cat.row, column: $0)
+            })
+        )
+        XCTAssertEqual(
+            column,
+            Set((0..<level.size).filter { $0 != cat.row }.map {
+                CellPosition(row: $0, column: cat.column)
+            })
+        )
+        XCTAssertEqual(
+            corners,
+            Set([-1, 1].flatMap { rowOffset in
+                [-1, 1].map { columnOffset in
+                    CellPosition(
+                        row: cat.row + rowOffset,
+                        column: cat.column + columnOffset
+                    )
+                }
+            })
+        )
+        XCTAssertEqual(steps[3].spotlight.count, 9)
     }
 
     func testTheLessonCoversAllThreeRulesBeforeLeavingThePlayerToIt() {
@@ -229,11 +267,13 @@ final class TutorialLevelTests: XCTestCase {
         for (index, step) in discovery.enumerated() {
             switch step.task {
             case .exclude:
-                XCTAssertEqual(
-                    step.lesson,
-                    .everythingTheCatsRuleOut,
-                    "discovery step \(index + 1) marks cells for a narrower reason"
-                )
+                if index == 0 {
+                    guard case .secondCatRulesOut = step.lesson else {
+                        return XCTFail("first discovery step does not reinforce the second cat")
+                    }
+                } else {
+                    XCTAssertEqual(step.lesson, .everythingTheCatsRuleOut)
+                }
             case .placeCat:
                 switch step.lesson {
                 case .regionHasOneCellLeft, .rowHasOneCellLeft, .columnHasOneCellLeft:
@@ -243,6 +283,26 @@ final class TutorialLevelTests: XCTestCase {
                 }
             }
         }
+    }
+
+    func testSecondCatCleanupOrdersRowThenColumnThenNeighbors() throws {
+        guard case let .placeCat(second) = steps[4].task else {
+            return XCTFail("step 5 does not place the second cat")
+        }
+        let cleanup = steps[5]
+        XCTAssertEqual(cleanup.lesson, .secondCatRulesOut(second))
+        let phases = cleanup.task.positions.map { position in
+            if position.row == second.row { return 0 }
+            if position.column == second.column { return 1 }
+            if abs(position.row - second.row) <= 1,
+               abs(position.column - second.column) <= 1 { return 2 }
+            return 3
+        }
+
+        XCTAssertEqual(phases, phases.sorted())
+        XCTAssertTrue(phases.contains(0))
+        XCTAssertTrue(phases.contains(1))
+        XCTAssertTrue(phases.contains(2))
     }
 
     // MARK: - A board that cannot teach produces nothing

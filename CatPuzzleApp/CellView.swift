@@ -71,8 +71,11 @@ struct CellView: View {
                     .accessibilityHidden(true)
             }
 
-            if hintEmphasis == .dimmed || isMasked {
+            if hintEmphasis == .dimmed {
                 Color.black.opacity(0.62)
+                    .accessibilityHidden(true)
+            } else if isMasked {
+                Color.black.opacity(0.4)
                     .accessibilityHidden(true)
             }
         }

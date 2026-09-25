@@ -19,9 +19,9 @@ struct TutorialCompletionScreen: View {
                     .opacity(hasAppeared ? 1 : 0)
 
                 VStack(spacing: 6) {
-                    Text("Excellent!")
+                    Text("Puzzle solved!")
                         .font(.largeTitle.bold())
-                    Text("You've mastered the rules!")
+                    Text("You used all three rules to find every cat.")
                         .font(.title3)
                         .foregroundStyle(TutorialTheme.textSecondary)
                 }
