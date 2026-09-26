@@ -167,6 +167,8 @@ struct RootView: View {
                         viewModel: viewModel,
                         presentation: presentation,
                         showsRegionIcons: session.showsRegionIcons,
+                        onBackToLevelStart: session.returnToCurrentLevelStart,
+                        onOpenSettings: { presentedSheet = .settings },
                         onContinue: session.continueAfterCompletion
                     )
                 }
@@ -184,7 +186,9 @@ struct RootView: View {
             }
         }
         .overlay(alignment: .topTrailing) {
-            settingsEntryButton
+            if session.destination != .playing {
+                settingsEntryButton
+            }
         }
         .foregroundStyle(CatPuzzleTheme.textPrimary)
         .fontDesign(.rounded)
@@ -243,11 +247,18 @@ private enum PresentedSheet: String, Identifiable {
 
 private struct SettingsScreen: View {
     @Environment(\.dismiss) private var dismiss
+    #if DEBUG
+    @Environment(\.locale) private var locale
+    #endif
     @ObservedObject var session: AppSession
     let onOpenLab: () -> Void
     let onOpenScreenshotImport: () -> Void
 
     @State private var showsRestartConfirmation = false
+    #if DEBUG
+    @State private var selectedResetLevel = 1
+    @State private var showsProgressResetConfirmation = false
+    #endif
 
     var body: some View {
         NavigationStack {
@@ -289,6 +300,11 @@ private struct SettingsScreen: View {
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("Your current board and mistake count will be cleared.")
+            }
+            .onAppear {
+                #if DEBUG
+                selectedResetLevel = session.displayedOrdinaryLevelNumber
+                #endif
             }
         }
     }
@@ -335,11 +351,39 @@ private struct SettingsScreen: View {
     }
 
     #if DEBUG
-    /// Debug builds only. The tutorial is played once ever, which makes it the
-    /// one thing in the app that cannot be tried again without wiping the
-    /// install — inconvenient precisely while it is being worked on.
+    /// Testing tools are absent from release builds.
     private var debugSection: some View {
         Section {
+            if session.ordinaryLevelCount > 0 {
+                Picker("Start at Level", selection: $selectedResetLevel) {
+                    ForEach(1...session.ordinaryLevelCount, id: \.self) { number in
+                        Text(verbatim: LevelPresentation.ladder(number: number)
+                            .localizedTitle(locale: locale))
+                            .tag(number)
+                    }
+                }
+                .accessibilityIdentifier("reset-start-level-picker")
+
+                Button("Reset Progress", systemImage: "arrow.uturn.backward") {
+                    showsProgressResetConfirmation = true
+                }
+                .foregroundStyle(CatPuzzleTheme.warning)
+                .accessibilityIdentifier("reset-progress-setting")
+                .alert("Reset Progress?", isPresented: $showsProgressResetConfirmation) {
+                    Button("Reset Progress", role: .destructive) {
+                        session.resetProgress(startingAt: selectedResetLevel)
+                        dismiss()
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text(verbatim: L10n.format(
+                        "Restart at level %@? This clears the current board and marks the tutorial and earlier levels complete.",
+                        [String(selectedResetLevel)],
+                        locale: locale
+                    ))
+                }
+            }
+
             Button("Reset Tutorial", systemImage: "graduationcap.fill") {
                 session.resetTutorial()
                 dismiss()
@@ -349,7 +393,7 @@ private struct SettingsScreen: View {
         } header: {
             Text("Debug")
         } footer: {
-            Text("Offer the tutorial again from the beginning. Any level in progress is abandoned; finished levels are kept.")
+            Text("Choose a level to replay, or offer the tutorial again.")
         }
     }
     #endif

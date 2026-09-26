@@ -1,8 +1,9 @@
 /// Compact hand-authored 6x6 boards kept as a stable reference set for tests
 /// and tooling. They are deliberately *not* shipped content: the levels players
-/// actually play live in `BuiltInLevels`, which is generated offline. Keeping a
-/// small fixed board here means engine, solver, and view-model tests do not
-/// have to be rewritten whenever the shipped ladder is regenerated.
+/// actually play live in `BuiltInLevels`, which joins a hand-authored opening
+/// with a generated ladder. Keeping a small fixed board here means engine,
+/// solver, and view-model tests do not have to be rewritten whenever the
+/// generated ladder is regenerated.
 public enum SampleLevels {
     public static let meadowFixture = LevelFixture(
         level: LevelDefinition(

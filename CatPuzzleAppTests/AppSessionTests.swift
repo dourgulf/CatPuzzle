@@ -5,6 +5,113 @@ import XCTest
 
 @MainActor
 final class AppSessionTests: XCTestCase {
+    func testShippedProgressionStartsWithOpeningAndThenGeneratedLevels() {
+        let completedTutorials = Set(TutorialLevels.all.map { $0.level.id })
+        let openingStore = InMemoryGameProgressStore(
+            progress: GameProgress(
+                activeGame: nil,
+                completedLevelIDs: [],
+                completedTutorialIDs: completedTutorials
+            )
+        )
+        let openingSession = AppSession(progressStore: openingStore)
+
+        XCTAssertEqual(openingSession.nextLevel?.id, "opening-01")
+        XCTAssertEqual(openingSession.nextPresentation, .ladder(number: 1))
+
+        let laterStore = InMemoryGameProgressStore(
+            progress: GameProgress(
+                activeGame: nil,
+                completedLevelIDs: Set(OpeningLevels.fixtures.map(\.level.id)),
+                completedTutorialIDs: completedTutorials
+            )
+        )
+        let laterSession = AppSession(progressStore: laterStore)
+
+        XCTAssertEqual(laterSession.nextLevel?.id, "ladder-01")
+        XCTAssertEqual(laterSession.nextPresentation, .ladder(number: 11))
+    }
+
+    #if DEBUG
+    func testDebugResetProgressStartsAnyShippedLevelAndPersists() {
+        let store = InMemoryGameProgressStore(
+            progress: GameProgress(
+                activeGame: nil,
+                completedLevelIDs: [],
+                completedTutorialIDs: Set(TutorialLevels.all.map(\.level.id))
+            )
+        )
+        let session = AppSession(progressStore: store)
+        XCTAssertEqual(session.ordinaryLevelCount, 40)
+
+        session.resetProgress(startingAt: 11)
+        XCTAssertEqual(session.nextLevel?.id, "ladder-01")
+        XCTAssertEqual(session.nextPresentation, .ladder(number: 11))
+        XCTAssertEqual(store.progress.completedLevelIDs.count, 10)
+
+        session.startNextLevel()
+        session.gameViewModel?.toggleExcluded(atRow: 0, column: 0)
+        XCTAssertNotNil(store.progress.activeGame)
+        session.resetProgress(startingAt: 40)
+        XCTAssertNil(store.progress.activeGame)
+        XCTAssertNil(session.gameViewModel)
+        XCTAssertEqual(session.nextLevel?.id, GeneratedLadderLevels.fixtures.last?.level.id)
+        XCTAssertEqual(session.nextPresentation, .ladder(number: 40))
+        XCTAssertEqual(store.progress.completedLevelIDs.count, 39)
+
+        let restoredSession = AppSession(progressStore: store)
+        XCTAssertEqual(restoredSession.nextPresentation, .ladder(number: 40))
+        XCTAssertEqual(restoredSession.nextLevel?.id, session.nextLevel?.id)
+
+        session.resetProgress(startingAt: 1)
+        XCTAssertEqual(session.nextLevel?.id, "opening-01")
+        XCTAssertEqual(session.nextPresentation, .ladder(number: 1))
+        XCTAssertTrue(store.progress.completedLevelIDs.isEmpty)
+    }
+
+    func testDebugResetProgressSkipsTutorialAndKeepsSettings() {
+        let store = InMemoryGameProgressStore()
+        let session = AppSession(
+            progressStore: store,
+            fixtures: SampleLevels.fixtures
+        )
+        XCTAssertEqual(session.nextPresentation, .tutorial)
+        session.startNextLevel()
+        XCTAssertNotNil(session.tutorialViewModel)
+        session.setGameplayMode(.exploration)
+        session.setShowsRegionIcons(true)
+        session.setLanguage(.simplifiedChinese)
+
+        session.resetProgress(startingAt: 2)
+
+        XCTAssertEqual(session.destination, .readyForNextLevel)
+        XCTAssertNil(session.tutorialViewModel)
+        XCTAssertNil(store.progress.activeGame)
+        XCTAssertEqual(store.progress.completedTutorialIDs, ["tutorial-basics"])
+        XCTAssertEqual(store.progress.completedLevelIDs, ["meadow"])
+        XCTAssertEqual(session.nextLevel?.id, "river")
+        XCTAssertEqual(session.nextPresentation, .ladder(number: 2))
+        XCTAssertEqual(session.gameplayMode, .exploration)
+        XCTAssertTrue(session.showsRegionIcons)
+        XCTAssertEqual(session.language, .simplifiedChinese)
+    }
+
+    func testDebugResetProgressRejectsOutOfRangeLevelsWithoutChangingGame() {
+        let store = InMemoryGameProgressStore()
+        let session = startedSession(store: store)
+        session.gameViewModel?.toggleExcluded(atRow: 1, column: 2)
+        let activeGame = session.gameViewModel
+        let savedProgress = store.progress
+
+        session.resetProgress(startingAt: 0)
+        session.resetProgress(startingAt: 4)
+
+        XCTAssertTrue(session.gameViewModel === activeGame)
+        XCTAssertEqual(session.destination, .playing)
+        XCTAssertEqual(store.progress, savedProgress)
+    }
+    #endif
+
     func testFirstLaunchOffersMeadow() {
         let store = InMemoryGameProgressStore()
         let session = AppSession(
@@ -16,6 +123,36 @@ final class AppSessionTests: XCTestCase {
         XCTAssertEqual(session.destination, .readyForNextLevel)
         XCTAssertEqual(session.nextLevel?.id, "meadow")
         XCTAssertNil(session.gameViewModel)
+    }
+
+    func testBackToLevelStartAbandonsAttemptAndKeepsLevel() {
+        let store = InMemoryGameProgressStore()
+        let session = startedSession(store: store)
+        session.gameViewModel?.toggleExcluded(atRow: 0, column: 0)
+        XCTAssertNotNil(store.progress.activeGame)
+
+        session.returnToCurrentLevelStart()
+
+        XCTAssertEqual(session.destination, .readyForNextLevel)
+        XCTAssertEqual(session.nextLevel?.id, "meadow")
+        XCTAssertEqual(session.nextPresentation, .ladder(number: 1))
+        XCTAssertNil(session.gameViewModel)
+        XCTAssertNil(store.progress.activeGame)
+        XCTAssertTrue(store.progress.completedLevelIDs.isEmpty)
+
+        session.startNextLevel()
+        XCTAssertEqual(session.gameViewModel?.puzzle.state(atRow: 0, column: 0), .empty)
+    }
+
+    func testBackToLevelStartOutsideGameIsNoOp() {
+        let store = InMemoryGameProgressStore()
+        let session = AppSession(progressStore: store, fixtures: SampleLevels.fixtures, tutorials: [])
+        let originalProgress = store.progress
+
+        session.returnToCurrentLevelStart()
+
+        XCTAssertEqual(session.destination, .readyForNextLevel)
+        XCTAssertEqual(store.progress, originalProgress)
     }
 
     func testActiveGameResumesItsLevelAndCellStatesWithoutUndo() {

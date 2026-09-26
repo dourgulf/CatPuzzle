@@ -1,12 +1,15 @@
 # Level Ladder
 
-The shipped levels in `Sources/CatPuzzleCore/BuiltInLevels.swift` are generated
-offline. This document says what the ladder promises, how to regenerate it, and
-which judgement calls the generator makes on the designer's behalf.
+The ordinary game starts with ten hand-authored rule-practice boards in
+`Sources/CatPuzzleCore/OpeningLevels.swift`. They are followed by the 30
+generated levels in `Sources/CatPuzzleCore/GeneratedLadderLevels.swift`.
+`BuiltInLevels.fixtures` joins the two sets in play order. See
+`Docs/OpeningLevels.md` for the first ten. This document describes the
+generated part and how to regenerate it.
 
 ## Shape
 
-The player experience is a repeating ten-level cycle:
+After the ten opening levels, the generated section has this ten-level cycle:
 
 | Slot | Board | Notes |
 | --- | --- | --- |
@@ -15,10 +18,10 @@ The player experience is a repeating ten-level cycle:
 | 5-9 | 10x10 | Full size, rising through the middle of the cycle |
 | 10 | 10x10 | The finale, generated from the `hard` deduction blueprint |
 
-Three cycles ship, so `BuiltInLevels.fixtures` holds 30 levels and
-`BuiltInLevels.levelsPerCycle` is 10. Every cycle covers the same shape with
-different boards. Progress loops: finishing the last shipped level clears the
-lap and starts again from level 1 (`LevelProgression.nextLevel`).
+Three generated cycles ship, so `GeneratedLadderLevels.fixtures` holds 30
+levels and `GeneratedLadderLevels.levelsPerCycle` is 10. The complete ordinary
+progression has 40 levels. Progress loops: finishing level 40 clears the lap
+and starts again from opening level 1 (`LevelProgression.nextLevel`).
 
 ## Two difficulty axes, and why both are needed
 
@@ -61,9 +64,9 @@ score is used here, and only to order boards of comparable size — see
 
 ```bash
 swift run -c release CatPuzzleGenerator \
-  --ladder Sources/CatPuzzleCore/BuiltInLevels.swift \
+  --ladder Sources/CatPuzzleCore/GeneratedLadderLevels.swift \
   --ladder-json /tmp/ladder.json \
-  --cycles 3 --pool 6 --seed 20260914
+  --cycles 3 --pool 6 --seed 20260914 --max-mistakes 3
 ```
 
 - `--pool N` generates N candidates per shipped level. A wider pool gives the
@@ -77,16 +80,17 @@ Every regeneration must keep `Tests/CatPuzzleCoreTests/LevelLadderTests.swift`
 green — it asserts the shape above (whole cycles, distinct ids, Region layouts
 and solutions, the board-size pattern, a non-decreasing score inside each cycle, and
 each cycle ending on its hardest level) — plus the uniqueness and
-logic-only-solvability contracts in `BuiltInLogicalAnalysisTests`.
+logic-only-solvability contracts in `BuiltInLogicalAnalysisTests`. It does not
+rewrite the hand-authored opening levels.
 
 ## What the ladder does not do
 
 - **No given anchors.** `ConstructiveGenerationRequest.givenAnchorCount` can
   pre-place locked cats for a gentler opening, and the app renders them, but the
   shipped ladder uses none. Difficulty comes from board selection alone.
-- **No tutorial.** The ladder assumes the player already knows the rules; the
-  three hand-authored 6x6 levels that used to ship first now live in
-  `SampleLevels` as a test reference set only.
+- **No tutorial.** The guided tutorial plays before ordinary level 1. The
+  ten hand-authored opening levels reinforce its three rules. The older three
+  hand-authored 6x6 examples live in `SampleLevels` as test references only.
 - **Only one geometry profile in practice.** The generator alternates
   `dominantBackground` and `balancedMosaic` requests, but every accepted
   candidate at 8x8-10x10 came back `dominantBackground`: `balancedMosaic`

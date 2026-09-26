@@ -1,9 +1,8 @@
 import XCTest
 @testable import CatPuzzleCore
 
-/// The shipped ladder is generated offline, so these assert its *shape* — the
-/// promise the player experience rests on — rather than any individual board.
-/// Regenerating `BuiltInLevels` must keep every one of them true.
+/// The later ladder is generated offline, so these assert its *shape* rather
+/// than any individual board. The hand-authored opening has separate tests.
 final class LevelLadderTests: XCTestCase {
     /// Board size for each 1-based slot of one cycle: one 8x8 opener, three
     /// 9x9, then six 10x10 ending on the tier bump.
@@ -12,31 +11,38 @@ final class LevelLadderTests: XCTestCase {
     private var cycles: [[LevelFixture]] {
         stride(
             from: 0,
-            to: BuiltInLevels.fixtures.count,
-            by: BuiltInLevels.levelsPerCycle
+            to: GeneratedLadderLevels.fixtures.count,
+            by: GeneratedLadderLevels.levelsPerCycle
         ).map { start in
-            Array(BuiltInLevels.fixtures[start..<start + BuiltInLevels.levelsPerCycle])
+            Array(
+                GeneratedLadderLevels.fixtures[
+                    start..<start + GeneratedLadderLevels.levelsPerCycle
+                ]
+            )
         }
     }
 
     func testLadderIsWholeCyclesOfDistinctLevels() {
-        XCTAssertEqual(BuiltInLevels.levelsPerCycle, expectedSizes.count)
-        XCTAssertFalse(BuiltInLevels.fixtures.isEmpty)
-        XCTAssertEqual(BuiltInLevels.fixtures.count % BuiltInLevels.levelsPerCycle, 0)
+        XCTAssertEqual(GeneratedLadderLevels.levelsPerCycle, expectedSizes.count)
+        XCTAssertFalse(GeneratedLadderLevels.fixtures.isEmpty)
         XCTAssertEqual(
-            Set(BuiltInLevels.fixtures.map(\.level.id)).count,
-            BuiltInLevels.fixtures.count
+            GeneratedLadderLevels.fixtures.count % GeneratedLadderLevels.levelsPerCycle,
+            0
         )
         XCTAssertEqual(
-            Set(BuiltInLevels.fixtures.map(\.level.regionIDs)).count,
-            BuiltInLevels.fixtures.count,
+            Set(GeneratedLadderLevels.fixtures.map(\.level.id)).count,
+            GeneratedLadderLevels.fixtures.count
+        )
+        XCTAssertEqual(
+            Set(GeneratedLadderLevels.fixtures.map(\.level.regionIDs)).count,
+            GeneratedLadderLevels.fixtures.count,
             "two shipped levels share a Region layout"
         )
         // Two boards can differ in Region layout and still put the cats in the
         // same places, which reads as a repeat rather than a new puzzle.
         XCTAssertEqual(
-            Set(BuiltInLevels.fixtures.map { Set($0.solution) }).count,
-            BuiltInLevels.fixtures.count,
+            Set(GeneratedLadderLevels.fixtures.map { Set($0.solution) }).count,
+            GeneratedLadderLevels.fixtures.count,
             "two shipped levels share a solution"
         )
     }

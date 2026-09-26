@@ -14,7 +14,7 @@ final class AppSession: ObservableObject {
     @Published private(set) var gameViewModel: GameViewModel?
     @Published private(set) var tutorialViewModel: TutorialViewModel?
     @Published private(set) var nextLevel: LevelDefinition?
-    /// How `nextLevel` is labelled. Generated levels have slug ids, not names
+    /// How `nextLevel` is labelled. Ordinary levels have slug ids, not names
     /// to show.
     @Published private(set) var nextPresentation: LevelPresentation?
     /// The same, for the level currently being played.
@@ -22,6 +22,13 @@ final class AppSession: ObservableObject {
     @Published private(set) var gameplayMode: GameplayMode = .challenge
     @Published private(set) var showsRegionIcons = false
     @Published private(set) var language: AppLanguage = .system
+
+    #if DEBUG
+    var ordinaryLevelCount: Int { progression.levels.count }
+    var displayedOrdinaryLevelNumber: Int {
+        currentPresentation?.levelNumber ?? nextPresentation?.levelNumber ?? 1
+    }
+    #endif
 
     private let progressStore: any GameProgressStore
     private let progression: LevelProgression
@@ -138,7 +145,31 @@ final class AppSession: ObservableObject {
         tutorialViewModel?.restart()
     }
 
+    func returnToCurrentLevelStart() {
+        guard destination == .playing,
+              let level = gameViewModel?.level else { return }
+        progress.activeGame = nil
+        saveProgress()
+        gameViewModel = nil
+        currentPresentation = nil
+        offer(level: level)
+    }
+
     #if DEBUG
+    /// Start a fresh run at a numbered ordinary level. Previous levels count
+    /// as complete so normal progression continues from the chosen board.
+    func resetProgress(startingAt levelNumber: Int) {
+        guard levelNumber >= 1, levelNumber <= progression.levels.count else { return }
+
+        progress.activeGame = nil
+        progress.completedTutorialIDs = Set(tutorials.map(\.level.id))
+        progress.completedLevelIDs = Set(
+            progression.levels.prefix(levelNumber - 1).map(\.id)
+        )
+        saveProgress()
+        showNextDestination()
+    }
+
     /// Debug builds only: forget that the tutorial was ever played so it can
     /// be replayed. Any level in progress is abandoned along with it — the
     /// tutorial is offered before anything else, and a saved game left behind
@@ -269,7 +300,7 @@ final class AppSession: ObservableObject {
         }
 
         // The ladder loops: finishing the last level starts a fresh lap from
-        // the first 8x8 rather than ending the game. `.allCompleted` is left
+        // the first ordinary level rather than ending the game. `.allCompleted` is left
         // for the degenerate case of no levels at all.
         guard let next = progression.nextLevel(
             completedLevelIDs: progress.completedLevelIDs

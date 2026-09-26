@@ -2,7 +2,7 @@ import CatPuzzleCore
 import Foundation
 
 /// `--ladder` support for the research CLI: produce the shipped level ladder
-/// offline and emit it as `BuiltInLevels.swift` source.
+/// offline and emit it as `GeneratedLadderLevels.swift` source.
 ///
 /// The player experience is a repeating ten-level cycle: one 8x8 opener, three
 /// 9x9 levels, five 10x10 levels, and a final 10x10 at the next difficulty
@@ -181,7 +181,7 @@ private func swiftSource(for entries: [LadderEntry], cycles: Int) -> String {
     lines.append("// \(cycles) cycles of \(LadderSpec.levelsPerCycle) levels. Each cycle opens on an 8x8")
     lines.append("// and climbs to a 10x10 at the next difficulty tier, then the next cycle")
     lines.append("// starts over on a fresh 8x8.")
-    lines.append("public enum BuiltInLevels {")
+    lines.append("public enum GeneratedLadderLevels {")
     lines.append("    public static let fixtures: [LevelFixture] = [")
 
     for entry in entries {

@@ -32,9 +32,9 @@ func printUsageAndExit() -> Never {
       --analyze <path>         Score existing levels from a JSON file (id/size/regionIDs)
                                instead of generating; prints JSON and exits
       --assumption-depth <Int> Assumption depth used by --analyze (default 1, 0 = logic only)
-      --ladder <path>          Generate the shipped level ladder with the
-                               constructive generator and write BuiltInLevels
-                               Swift source to path, then exit
+      --ladder <path>          Generate the later level ladder with the
+                               constructive generator and write
+                               GeneratedLadderLevels Swift source, then exit
       --ladder-json <path>     Write the ladder's review report as JSON
       --cycles <Int>           Ten-level cycles to emit for --ladder (default 3)
       --pool <Int>             Candidates generated per shipped level (default 4)

@@ -263,6 +263,8 @@ private struct PlaytestPlayView: View {
             viewModel: viewModel,
             presentation: .scratch(title: "Puzzle Lab"),
             showsRegionIcons: showsRegionIcons,
+            onBackToLevelStart: { dismiss() },
+            onOpenSettings: nil,
             onContinue: { dismiss() }
         )
     }

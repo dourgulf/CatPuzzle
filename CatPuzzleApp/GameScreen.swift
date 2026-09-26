@@ -6,6 +6,8 @@ struct GameScreen: View {
     @ObservedObject var viewModel: GameViewModel
     let presentation: LevelPresentation
     let showsRegionIcons: Bool
+    let onBackToLevelStart: () -> Void
+    let onOpenSettings: (() -> Void)?
     let onContinue: () -> Void
 
     var body: some View {
@@ -13,7 +15,13 @@ struct GameScreen: View {
             ScrollView {
                 VStack(spacing: 16) {
                     header
-                    ruleReminder
+                    GameStatusBar(
+                        regionIDs: viewModel.regionIDs,
+                        occupiedRegionIDs: viewModel.occupiedRegionIDs,
+                        remainingLives: viewModel.remainingMistakes,
+                        maxLives: viewModel.level.maxMistakes
+                    )
+                    RuleInfoStrip()
 
                     BoardView(
                         puzzle: viewModel.puzzle,
@@ -92,73 +100,42 @@ struct GameScreen: View {
     }
 
     private var header: some View {
-        HStack(spacing: 16) {
-            VStack(alignment: .leading, spacing: 3) {
+        ZStack {
+            VStack(spacing: 3) {
                 Text("CATPUZZLE")
                     .font(.caption2.bold())
                     .tracking(1.5)
                     .foregroundStyle(CatPuzzleTheme.textSecondary)
                 Text(presentation.localizedTitle(locale: locale))
                     .font(.title2.bold())
-                Text(LocalizedStringKey(headerSubtitle))
-                    .font(.caption2.bold())
-                    .tracking(1.2)
-                    .foregroundStyle(CatPuzzleTheme.action)
             }
+            .lineLimit(1)
+            .padding(.horizontal, 52)
 
-            Spacer()
-
-            Label(L10n.format("Mistakes: %@ / %@", [String(viewModel.mistakeCount), String(viewModel.level.maxMistakes)], locale: locale), systemImage: "exclamationmark.circle.fill")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(
-                    viewModel.mistakeCount == 0
-                        ? CatPuzzleTheme.textPrimary
-                        : CatPuzzleTheme.warning
-                )
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(
-                    CatPuzzleTheme.surface,
-                    in: Capsule(style: .continuous)
-                )
-                .accessibilityIdentifier("mistake-count")
+            HStack {
+                headerButton("chevron.left", label: "Back to level start", identifier: "back-to-level-start", action: onBackToLevelStart)
+                Spacer()
+                if let onOpenSettings {
+                    headerButton("gearshape.fill", label: "Settings", identifier: "open-settings", action: onOpenSettings)
+                }
+            }
         }
-        .padding(.trailing, 44)
     }
 
-    private var headerSubtitle: String {
-        viewModel.mode == .exploration ? "EXPLORE" : "CHALLENGE"
+    private func headerButton(_ symbol: String, label: LocalizedStringKey, identifier: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 16, weight: .semibold))
+                .frame(width: 44, height: 44)
+                .background(CatPuzzleTheme.surface, in: Circle())
+                .shadow(color: CatPuzzleTheme.textPrimary.opacity(0.10), radius: 8, y: 4)
+        }
+        .accessibilityLabel(label)
+        .accessibilityIdentifier(identifier)
     }
 
     private var gestureReminder: String {
         "Tap to mark ×  ·  Double-tap to place a paw"
-    }
-
-    @ViewBuilder
-    private var ruleReminder: some View {
-        HStack(spacing: 4) {
-            RuleBadge(
-                icon: "paintpalette.fill",
-                text: PuzzleRule.oneCatPerRegion.badgeText
-            )
-            RuleBadge(
-                icon: "rectangle.split.3x3.fill",
-                text: PuzzleRule.oneCatPerRowAndColumn.badgeText
-            )
-            RuleBadge(
-                icon: "square.grid.3x3.fill",
-                text: PuzzleRule.noTouchingCats.badgeText
-            )
-        }
-        .padding(8)
-        .background(
-            CatPuzzleTheme.surface,
-            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(CatPuzzleTheme.divider, lineWidth: 1)
-        }
     }
 
     /// A broken board is explained here rather than in the hint panel: there
@@ -377,25 +354,5 @@ private extension String {
     var capitalizedFirst: String {
         guard let first else { return self }
         return first.uppercased() + dropFirst()
-    }
-}
-
-private struct RuleBadge: View {
-    let icon: String
-    let text: String
-
-    var body: some View {
-        VStack(spacing: 5) {
-            Image(systemName: icon)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(CatPuzzleTheme.action)
-            Text(LocalizedStringKey(text))
-                .font(.system(size: 10, weight: .semibold, design: .rounded))
-                .foregroundStyle(CatPuzzleTheme.textSecondary)
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
-                .minimumScaleFactor(0.8)
-        }
-        .frame(maxWidth: .infinity, minHeight: 48)
     }
 }

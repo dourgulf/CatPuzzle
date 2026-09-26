@@ -18,6 +18,24 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.hint)
     }
 
+    func testCompletedRegionStatusTracksPlacedAndRemovedCats() throws {
+        let fixture = OpeningLevels.fixtures[0]
+        let viewModel = GameViewModel(
+            engine: try GameEngine(fixture: fixture, mode: .exploration)
+        )
+        let position = fixture.solution[0]
+        let regionID = fixture.level.regionIDs[position.row][position.column]
+
+        XCTAssertEqual(viewModel.regionIDs.count, fixture.level.size)
+        XCTAssertTrue(viewModel.occupiedRegionIDs.isEmpty)
+
+        viewModel.toggleCat(atRow: position.row, column: position.column)
+        XCTAssertEqual(viewModel.occupiedRegionIDs, [regionID])
+
+        viewModel.toggleCat(atRow: position.row, column: position.column)
+        XCTAssertTrue(viewModel.occupiedRegionIDs.isEmpty)
+    }
+
     func testIsLockedReflectsLevelGivenPositions() throws {
         let viewModel = try viewModelWithGivenCat(atRow: 0, column: 1)
 

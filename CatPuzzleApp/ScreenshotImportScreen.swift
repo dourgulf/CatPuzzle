@@ -321,6 +321,8 @@ private struct ScreenshotPlayView: View {
             viewModel: viewModel,
             presentation: .scratch(title: "Screenshot"),
             showsRegionIcons: showsRegionIcons,
+            onBackToLevelStart: { dismiss() },
+            onOpenSettings: nil,
             onContinue: { dismiss() }
         )
     }

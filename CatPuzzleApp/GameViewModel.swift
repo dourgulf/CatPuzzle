@@ -28,6 +28,16 @@ final class GameViewModel: ObservableObject {
         "Mistakes: \(mistakeCount) / \(level.maxMistakes)"
     }
 
+    var regionIDs: [Int] {
+        Array(Set(puzzle.cells.map(\.regionID))).sorted()
+    }
+
+    var occupiedRegionIDs: Set<Int> {
+        Set(zip(puzzle.cells, puzzle.states).compactMap { cell, state in
+            state == .cat ? cell.regionID : nil
+        })
+    }
+
     private var engine: GameEngine
     private let input: CellInputCoordinator
     private let soundPlayer: any PuzzleSoundPlaying

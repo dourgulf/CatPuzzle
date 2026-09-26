@@ -26,12 +26,13 @@ Builds the iOS app without requiring signing. Run app tests from Xcode or select
 
 ```bash
 swift run -c release CatPuzzleGenerator \
-  --ladder Sources/CatPuzzleCore/BuiltInLevels.swift \
-  --cycles 3 --pool 6 --seed 20260914
+  --ladder Sources/CatPuzzleCore/GeneratedLadderLevels.swift \
+  --cycles 3 --pool 6 --seed 20260914 --max-mistakes 3
 ```
 
-Regenerates the shipped level ladder. `BuiltInLevels.swift` is generated output —
-never hand-edit it, re-run the command instead. See `Docs/LevelLadder.md`.
+Regenerates the later 30-level ladder. `GeneratedLadderLevels.swift` is generated
+output; re-run this command to change it. The first ten levels are hand-authored
+in `OpeningLevels.swift`. See `Docs/LevelLadder.md` and `Docs/OpeningLevels.md`.
 
 ## Coding Style & Naming Conventions
 

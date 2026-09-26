@@ -162,12 +162,12 @@ struct TutorialScreen: View {
 
     private var ruleSlots: some View {
         HStack(spacing: 8) {
-            ForEach([PuzzleRule.oneCatPerRegion, .oneCatPerRowAndColumn, .noTouchingCats], id: \.self) { rule in
+            ForEach(RuleInfoStrip.rules, id: \.self) { rule in
                 ZStack {
                     Color.clear
                         .accessibilityHidden(true)
                     if viewModel.learnedRules.contains(rule) {
-                        ruleCard(rule)
+                        RuleInfoCard(rule: rule)
                             .matchedGeometryEffect(id: rule, in: ruleFlight)
                             .overlay {
                                 RoundedRectangle(cornerRadius: 12)
@@ -189,25 +189,6 @@ struct TutorialScreen: View {
         case .oneCatPerRowAndColumn: 2
         case .noTouchingCats: 3
         }
-    }
-
-    private func ruleCard(_ rule: PuzzleRule) -> some View {
-        HStack(spacing: 5) {
-            TutorialRuleDiagram(rule: rule)
-                .frame(width: 32, height: 32)
-                .accessibilityHidden(true)
-            Text(LocalizedStringKey(rule.tipText))
-                .font(.caption2.weight(.semibold))
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .foregroundStyle(Color(red: 0.62, green: 0.34, blue: 0.31))
-        .padding(.horizontal, 6)
-        .frame(maxWidth: .infinity)
-        .frame(height: 64)
-        .background(Color(red: 0.98, green: 0.95, blue: 0.92), in: RoundedRectangle(cornerRadius: 12))
-        .accessibilityElement(children: .combine)
     }
 
     @ViewBuilder
@@ -248,57 +229,5 @@ struct TutorialScreen: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("tutorial-tip")
-    }
-}
-
-private extension PuzzleRule {
-    var tipText: String {
-        switch self {
-        case .oneCatPerRegion: "One color, one cat"
-        case .oneCatPerRowAndColumn: "One cat per row & column"
-        case .noTouchingCats: "Cats cannot touch"
-        }
-    }
-}
-
-/// Miniature board examples: a single color, a filled row/column, and all
-/// eight neighbours. These use the same paw and × vocabulary as the board.
-private struct TutorialRuleDiagram: View {
-    let rule: PuzzleRule
-
-    var body: some View {
-        Grid(horizontalSpacing: 1.5, verticalSpacing: 1.5) {
-            ForEach(0..<3, id: \.self) { row in
-                GridRow {
-                    ForEach(0..<3, id: \.self) { column in
-                        let isCat = row == (rule == .oneCatPerRowAndColumn ? 0 : 1) && column == 1
-                        let isExcluded = excluded(row: row, column: column)
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(isCat || isExcluded
-                                  ? Color(red: 0.70, green: 0.43, blue: 0.28)
-                                  : Color(red: 0.87, green: 0.73, blue: 0.65))
-                            .overlay {
-                                if isCat {
-                                    Image(systemName: "pawprint.fill")
-                                        .font(.system(size: 7, weight: .bold))
-                                        .foregroundStyle(.white)
-                                } else if isExcluded {
-                                    Image(systemName: "xmark")
-                                        .font(.system(size: 8, weight: .bold))
-                                        .foregroundStyle(.white)
-                                }
-                            }
-                    }
-                }
-            }
-        }
-    }
-
-    private func excluded(row: Int, column: Int) -> Bool {
-        switch rule {
-        case .oneCatPerRegion: row == 0 || column == 0
-        case .oneCatPerRowAndColumn: row == 0 || column == 1
-        case .noTouchingCats: true
-        }
     }
 }

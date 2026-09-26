@@ -56,6 +56,12 @@ final class AppLanguageTests: XCTestCase {
         XCTAssertEqual(L10n.text("Hold & drag down ↓", locale: chinese), "按住向下拖动 ↓")
         XCTAssertEqual(LevelPresentation.ladder(number: 12).localizedTitle(locale: chinese), "第 12 关")
         XCTAssertEqual(LevelPresentation.ladder(number: 12).localizedTitle(locale: english), "Level 12")
+        XCTAssertEqual(L10n.text("Reset Progress", locale: chinese), "重置进度")
+        XCTAssertEqual(L10n.text("Start at Level", locale: chinese), "从指定关卡开始")
+        XCTAssertEqual(L10n.text("Reset Progress", locale: english), "Reset Progress")
+        let resetMessage = "Restart at level %@? This clears the current board and marks the tutorial and earlier levels complete."
+        XCTAssertTrue(L10n.format(resetMessage, ["12"], locale: chinese).contains("第 12 关"))
+        XCTAssertTrue(L10n.format(resetMessage, ["12"], locale: english).contains("level 12"))
         XCTAssertEqual(HintDescription.constraintName(.row(2), false, locale: chinese), "第 3 行")
         XCTAssertEqual(L10n.text("Settings", locale: english), "Settings")
         XCTAssertTrue(ScreenshotImportCopy.message(for: ScreenshotTranscriptionError.unsupportedBoardSize(14), locale: chinese).contains("14×14"))

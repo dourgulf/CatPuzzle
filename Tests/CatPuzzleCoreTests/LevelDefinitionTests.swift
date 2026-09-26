@@ -13,9 +13,9 @@ final class LevelDefinitionTests: XCTestCase {
             let puzzle = try level.makePuzzle()
             let size = level.size
 
-            XCTAssertTrue((8...10).contains(size), level.id)
+            XCTAssertTrue((6...10).contains(size), level.id)
             XCTAssertEqual(level.catCount, size, level.id)
-            XCTAssertEqual(level.maxMistakes, 5, level.id)
+            XCTAssertEqual(level.maxMistakes, 3, level.id)
             XCTAssertEqual(level.regionIDs.count, size, level.id)
             XCTAssertTrue(level.regionIDs.allSatisfy { $0.count == size }, level.id)
             XCTAssertEqual(Set(level.regionIDs.flatMap { $0 }).count, size, level.id)
