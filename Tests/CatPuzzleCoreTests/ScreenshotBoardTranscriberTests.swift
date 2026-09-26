@@ -2,7 +2,7 @@ import XCTest
 @testable import CatPuzzleCore
 
 final class ScreenshotBoardTranscriberTests: XCTestCase {
-    private let regionIDs = BuiltInLevels.meadow.regionIDs
+    private let regionIDs = SampleLevels.meadow.regionIDs
 
     func testReadsTheRegionLayoutOutOfAScreenshot() throws {
         let board = try ScreenshotBoardTranscriber.transcribe(

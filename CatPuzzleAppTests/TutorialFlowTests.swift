@@ -35,26 +35,16 @@ final class TutorialFlowTests: XCTestCase {
             case let .placeCat(position):
                 viewModel.toggleCat(atRow: position.row, column: position.column)
             case let .exclude(positions):
-                for position in step.coaching == .guided ? positions : Array(positions.prefix(1)) {
+                for position in positions {
                     viewModel.toggleExcluded(
                         atRow: position.row,
                         column: position.column
                     )
                 }
-                if step.coaching == .discovery {
-                    await waitForAutoMarking(viewModel)
-                }
             }
         }
     }
 
-    private func waitForAutoMarking(_ viewModel: TutorialViewModel) async {
-        let deadline = ContinuousClock.now + .seconds(10)
-        while viewModel.isAutoMarking && ContinuousClock.now < deadline {
-            try? await Task.sleep(for: .milliseconds(20))
-        }
-        XCTAssertFalse(viewModel.isAutoMarking, "automatic marks did not finish")
-    }
 
     private func solve(_ session: AppSession, _ fixture: LevelFixture) {
         for position in fixture.solution {
@@ -427,9 +417,12 @@ final class TutorialFlowTests: XCTestCase {
 
         let done = try XCTUnwrap(step.task.positions.first)
         viewModel.toggleExcluded(atRow: done.row, column: done.column)
-        await waitForAutoMarking(viewModel)
 
         XCTAssertTrue(viewModel.nudgedPositions.isEmpty)
+        XCTAssertEqual(viewModel.step, step)
+        for position in step.remainingPositions(in: viewModel.puzzle) {
+            viewModel.toggleExcluded(atRow: position.row, column: position.column)
+        }
         XCTAssertNotEqual(viewModel.step, step)
     }
 

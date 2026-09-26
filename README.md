@@ -1,8 +1,8 @@
 # CatPuzzle
 
 CatPuzzle is an original, logic-based iOS puzzle game in development. The
-repository contains a platform-independent Swift rules engine and a playable
-SwiftUI MVP for iOS. It does not yet include a puzzle generator.
+repository contains a platform-independent Swift rules engine, a deduction-guided
+puzzle generator, and a playable SwiftUI MVP for iOS.
 
 ## Core rules
 
@@ -23,8 +23,10 @@ third-party dependencies.
 - `PuzzleValidator` performs side-effect-free placement, conflict, and solved
   state checks.
 - `LevelDefinition` describes a level using an identifier, size, cat count,
-  maximum mistakes, and Region ID grid; `BuiltInLevels` contains three original
-  6×6 `LevelFixture` values, each paired with its own verified solution.
+  maximum mistakes, and Region ID grid; `BuiltInLevels` is generated offline and
+  contains three ten-level cycles (30 `LevelFixture` values), each paired with
+  its own verified solution. `SampleLevels` keeps the three original hand-made
+  6×6 boards as a fixed reference set for tests and tooling.
 - `GameState` exposes the current puzzle, mistake count, and solved/failed
   states.
 - `GameEngine.setState` is the core domain operation. It validates every cat
@@ -53,9 +55,26 @@ allowed; Restart clears the board, history, and mistakes.
 
 The package accepts any square board size so later game modes can reuse the
 same model. `LevelValidator` checks dimensions, cat/Region counts, and mistake
-configuration without imposing Region connectivity. The three built-in levels
-are independently verified as both unique by `PuzzleSolver` and solvable with
+configuration without imposing Region connectivity. Every shipped level is
+independently verified as both unique by `PuzzleSolver` and solvable with
 zero assumptions by `LogicalPuzzleSolver`.
+
+## Levels
+
+One hand-authored 6×6 tutorial board comes first and teaches all three rules
+across a single chain of deductions. It is played once and cannot be lost. The
+opening five moves are guided — the board is masked down to the row, column or
+block being explained, and only the cells the step asks for are tappable — and
+then the board is handed over, with the outstanding cells pulsing if the player
+stalls for three seconds. The lesson is derived from the board rather than
+listed beside it, so the two cannot drift apart; see `Docs/Tutorial.md`.
+
+After the tutorial, shipped levels form a repeating ten-level cycle — one 8×8, three 9×9, five
+10×10, then a 10×10 finale built from the `hard` deduction blueprint. Three
+cycles ship, and progress loops back to level 1 once all of them are complete.
+The ladder is generated offline; see `Docs/LevelLadder.md` for the shape, the
+regeneration command, and why the ladder orders slots by measured difficulty
+rather than by the generator's own tier.
 
 ## Run tests
 
@@ -70,8 +89,9 @@ Relaunching the app resumes that board and mistake count with fresh undo
 history. Single-tap a
 cell to toggle an exclusion mark; double-tap to place or remove a cat. Restart
 always returns to the empty level with zero mistakes. Completing a level
-advances progress to the next fixture; reaching the mistake limit keeps the
-current level active until Restart.
+advances progress to the next fixture, wrapping back to level 1 once every
+level is complete; reaching the mistake limit keeps the current level active
+until Restart.
 
 The project file is generated from `project.yml` with
 [XcodeGen](https://github.com/yonaskolb/XcodeGen). After changing target or

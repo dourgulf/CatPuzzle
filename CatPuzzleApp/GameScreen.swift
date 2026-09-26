@@ -2,6 +2,7 @@ import CatPuzzleCore
 import SwiftUI
 
 struct GameScreen: View {
+    @Environment(\.locale) private var locale
     @ObservedObject var viewModel: GameViewModel
     let presentation: LevelPresentation
     let showsRegionIcons: Bool
@@ -31,13 +32,13 @@ struct GameScreen: View {
                         HintPanel(
                             description: HintDescription.text(
                                 for: hint,
-                                showsRegionIcons: showsRegionIcons
+                                showsRegionIcons: showsRegionIcons, locale: locale
                             ),
                             onApply: viewModel.applyHint,
                             onCancel: viewModel.dismissHint
                         )
                     } else {
-                        Text(gestureReminder)
+                        Text(LocalizedStringKey(gestureReminder))
                             .font(.footnote.weight(.medium))
                             .foregroundStyle(CatPuzzleTheme.textSecondary)
                             .multilineTextAlignment(.center)
@@ -97,9 +98,9 @@ struct GameScreen: View {
                     .font(.caption2.bold())
                     .tracking(1.5)
                     .foregroundStyle(CatPuzzleTheme.textSecondary)
-                Text(presentation.title)
+                Text(presentation.localizedTitle(locale: locale))
                     .font(.title2.bold())
-                Text(headerSubtitle)
+                Text(LocalizedStringKey(headerSubtitle))
                     .font(.caption2.bold())
                     .tracking(1.2)
                     .foregroundStyle(CatPuzzleTheme.action)
@@ -107,7 +108,7 @@ struct GameScreen: View {
 
             Spacer()
 
-            Label(viewModel.mistakeSummary, systemImage: "exclamationmark.circle.fill")
+            Label(L10n.format("Mistakes: %@ / %@", [String(viewModel.mistakeCount), String(viewModel.level.maxMistakes)], locale: locale), systemImage: "exclamationmark.circle.fill")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(
                     viewModel.mistakeCount == 0
@@ -166,7 +167,7 @@ struct GameScreen: View {
         if let diagnosis = viewModel.hintDiagnosis {
             return HintDescription.text(
                 for: diagnosis,
-                showsRegionIcons: showsRegionIcons
+                showsRegionIcons: showsRegionIcons, locale: locale
             )
         }
         return viewModel.feedbackMessage
@@ -175,7 +176,7 @@ struct GameScreen: View {
     @ViewBuilder
     private var feedback: some View {
         if let message = feedbackText {
-            Text(message)
+            Text(LocalizedStringKey(message))
                 .font(.footnote.weight(.medium))
                 .foregroundStyle(CatPuzzleTheme.warning)
                 .multilineTextAlignment(.center)
@@ -292,78 +293,81 @@ private struct HintPanel: View {
 enum HintDescription {
     /// `showsRegionIcons` mirrors the board: with icons off a Region is named
     /// by color alone, since that is all the player can see.
-    static func text(for hint: LogicalHint, showsRegionIcons: Bool) -> String {
+    static func text(for hint: LogicalHint, showsRegionIcons: Bool, locale: Locale = Locale(identifier: "en")) -> String {
         switch hint.reason {
         case let .onlyCandidateInRow(row):
-            "Row \(row + 1) has only one possible cell left. Place a cat there."
+            L10n.format("Row %@ has only one possible cell left. Place a cat there.", [String(row + 1)], locale: locale)
         case let .onlyCandidateInColumn(column):
-            "Column \(column + 1) has only one possible cell left. Place a cat there."
+            L10n.format("Column %@ has only one possible cell left. Place a cat there.", [String(column + 1)], locale: locale)
         case let .onlyCandidateForRegion(regionID):
-            "The \(regionText(regionID, showsRegionIcons)) block has only one possible cell left. Place a cat there."
+            L10n.format("The %@ block has only one possible cell left. Place a cat there.", [String(regionText(regionID, showsRegionIcons, locale: locale))], locale: locale)
         case let .rowAlreadyHasCat(row):
-            "Row \(row + 1) already has its cat. Exclude the highlighted cells."
+            L10n.format("Row %@ already has its cat. Exclude the highlighted cells.", [String(row + 1)], locale: locale)
         case let .columnAlreadyHasCat(column):
-            "Column \(column + 1) already has its cat. Exclude the highlighted cells."
+            L10n.format("Column %@ already has its cat. Exclude the highlighted cells.", [String(column + 1)], locale: locale)
         case let .regionAlreadyHasCat(regionID):
-            "The \(regionText(regionID, showsRegionIcons)) block already has its cat. Exclude the highlighted cells."
+            L10n.format("The %@ block already has its cat. Exclude the highlighted cells.", [String(regionText(regionID, showsRegionIcons, locale: locale))], locale: locale)
         case .adjacentToConfirmedCat:
-            "Cats cannot touch, including diagonally. Exclude the highlighted cells."
+            L10n.text("Cats cannot touch, including diagonally. Exclude the highlighted cells.", locale: locale)
         case let .lockedSet(sources, targets):
-            "The cats in \(constraintList(sources, showsRegionIcons)) are locked into \(constraintList(targets, showsRegionIcons)). Exclude the highlighted cells."
+            L10n.format("The cats in %@ are locked into %@. Exclude the highlighted cells.", [String(constraintList(sources, showsRegionIcons, locale: locale)), String(constraintList(targets, showsRegionIcons, locale: locale))], locale: locale)
         case let .commonAttack(constraint, candidates):
-            "\(constraintName(constraint, showsRegionIcons).capitalizedFirst) has \(candidates.count) possible cells left, and the highlighted cell conflicts with every one of them. Exclude it."
+            L10n.format("%@ has %@ possible cells left, and the highlighted cell conflicts with every one of them. Exclude it.", [String(constraintName(constraint, showsRegionIcons, locale: locale).capitalizedFirst), String(candidates.count)], locale: locale)
         case let .strongLinkCommonElimination(link):
-            "One of \(cellName(link.first)) and \(cellName(link.second)) must hold \(constraintName(link.constraint, showsRegionIcons))'s cat. The highlighted cell conflicts with both, so it can never be a cat."
+            L10n.format("One of %@ and %@ must hold %@'s cat. The highlighted cell conflicts with both, so it can never be a cat.", [String(cellName(link.first, locale: locale)), String(cellName(link.second, locale: locale)), String(constraintName(link.constraint, showsRegionIcons, locale: locale))], locale: locale)
         case let .contradictionFromAssumption(assumed, contradicting):
             if let contradicting {
-                "Try a cat at \(cellName(assumed)): \(constraintName(contradicting, showsRegionIcons)) would then have nowhere left for its own cat. So it cannot be a cat — exclude it."
+                L10n.format("Try a cat at %@: %@ would then have nowhere left for its own cat. So it cannot be a cat — exclude it.", [String(cellName(assumed, locale: locale)), String(constraintName(contradicting, showsRegionIcons, locale: locale))], locale: locale)
             } else {
-                "Try a cat at \(cellName(assumed)): the board contradicts itself. So it cannot be a cat — exclude it."
+                L10n.format("Try a cat at %@: the board contradicts itself. So it cannot be a cat — exclude it.", [String(cellName(assumed, locale: locale))], locale: locale)
             }
         }
     }
 
     static func text(
         for diagnosis: LogicalHintDiagnosis,
-        showsRegionIcons: Bool
+        showsRegionIcons: Bool,
+        locale: Locale = Locale(identifier: "en")
     ) -> String {
         switch diagnosis {
         case let .starvedConstraint(constraint):
-            "\(constraintName(constraint, showsRegionIcons).capitalizedFirst) has no cell left for a cat, so one of your ✕ marks must be wrong. Undo to fix it."
+            L10n.format("%@ has no cell left for a cat, so one of your ✕ marks must be wrong. Undo to fix it.", [String(constraintName(constraint, showsRegionIcons, locale: locale).capitalizedFirst)], locale: locale)
         case let .clashingCats(first, second):
-            "The cats at \(cellName(first)) and \(cellName(second)) cannot both be right. Undo to fix it."
+            L10n.format("The cats at %@ and %@ cannot both be right. Undo to fix it.", [String(cellName(first, locale: locale)), String(cellName(second, locale: locale))], locale: locale)
         }
     }
 
-    private static func cellName(_ position: CellPosition) -> String {
-        "R\(position.row + 1)C\(position.column + 1)"
+    private static func cellName(_ position: CellPosition, locale: Locale) -> String {
+        L10n.format("R%@C%@", [String(position.row + 1), String(position.column + 1)], locale: locale)
     }
 
     private static func constraintList(
         _ constraints: [ConstraintKind],
-        _ showsRegionIcons: Bool
+        _ showsRegionIcons: Bool,
+        locale: Locale = Locale(identifier: "en")
     ) -> String {
         constraints
-            .map { constraintName($0, showsRegionIcons) }
-            .joined(separator: " and ")
+            .map { constraintName($0, showsRegionIcons, locale: locale) }
+            .joined(separator: L10n.text(" and ", locale: locale))
     }
 
     static func constraintName(
         _ constraint: ConstraintKind,
-        _ showsRegionIcons: Bool
+        _ showsRegionIcons: Bool,
+        locale: Locale = Locale(identifier: "en")
     ) -> String {
         switch constraint {
-        case let .row(row): "row \(row + 1)"
-        case let .column(column): "column \(column + 1)"
+        case let .row(row): L10n.format("row %@", [String(row + 1)], locale: locale)
+        case let .column(column): L10n.format("column %@", [String(column + 1)], locale: locale)
         case let .region(regionID):
-            "the \(regionText(regionID, showsRegionIcons)) block"
+            L10n.format("the %@ block", [String(regionText(regionID, showsRegionIcons, locale: locale))], locale: locale)
         }
     }
 
-    private static func regionText(_ regionID: Int, _ showsRegionIcons: Bool) -> String {
+    private static func regionText(_ regionID: Int, _ showsRegionIcons: Bool, locale: Locale = Locale(identifier: "en")) -> String {
         CatPuzzleTheme.regionDescription(
             for: regionID,
-            includingShape: showsRegionIcons
+            includingShape: showsRegionIcons, locale: locale
         )
     }
 }
@@ -385,7 +389,7 @@ private struct RuleBadge: View {
             Image(systemName: icon)
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(CatPuzzleTheme.action)
-            Text(text)
+            Text(LocalizedStringKey(text))
                 .font(.system(size: 10, weight: .semibold, design: .rounded))
                 .foregroundStyle(CatPuzzleTheme.textSecondary)
                 .multilineTextAlignment(.center)

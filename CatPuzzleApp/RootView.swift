@@ -113,14 +113,16 @@ enum CatPuzzleTheme {
     /// would send the player looking for something that is not there.
     static func regionDescription(
         for regionID: Int,
-        includingShape: Bool
+        includingShape: Bool,
+        locale: Locale = Locale(identifier: "en")
     ) -> String {
-        guard includingShape else { return regionColorName(for: regionID) }
-        return "\(regionColorName(for: regionID)) \(regionShapeName(for: regionID))"
+        let color = L10n.text(regionColorName(for: regionID), locale: locale)
+        guard includingShape else { return color }
+        return L10n.format("%@ %@", [color, L10n.text(regionShapeName(for: regionID), locale: locale)], locale: locale)
     }
 
-    static func regionName(for regionID: Int, includingShape: Bool) -> String {
-        "\(regionDescription(for: regionID, includingShape: includingShape)) Region"
+    static func regionName(for regionID: Int, includingShape: Bool, locale: Locale = Locale(identifier: "en")) -> String {
+        L10n.format("%@ Region", [regionDescription(for: regionID, includingShape: includingShape, locale: locale)], locale: locale)
     }
 
     static func markerColor(for regionID: Int) -> Color {
@@ -141,6 +143,8 @@ enum CatPuzzleTheme {
 struct RootView: View {
     @ObservedObject var session: AppSession
     @State private var presentedSheet: PresentedSheet?
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var systemLanguage = AppLanguage.system.resolvedIdentifier()
 
     var body: some View {
         ZStack {
@@ -205,6 +209,11 @@ struct RootView: View {
                 )
             }
         }
+        .environment(\.locale, Locale(identifier: session.language == .system
+            ? systemLanguage : session.language.resolvedIdentifier()))
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { systemLanguage = AppLanguage.system.resolvedIdentifier() }
+        }
     }
 
     private var settingsEntryButton: some View {
@@ -243,6 +252,17 @@ private struct SettingsScreen: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section("Language") {
+                    Picker("Language", selection: Binding(
+                        get: { session.language },
+                        set: { session.setLanguage($0) }
+                    )) {
+                        ForEach(AppLanguage.allCases) { language in
+                            Text(LocalizedStringKey(language.label)).tag(language)
+                        }
+                    }
+                    .accessibilityIdentifier("app-language-picker")
+                }
                 gameplaySection
                 boardSection
                 actionsSection
@@ -281,7 +301,7 @@ private struct SettingsScreen: View {
         } header: {
             Text("Gameplay")
         } footer: {
-            Text(modeDescription)
+            Text(LocalizedStringKey(modeDescription))
         }
     }
 

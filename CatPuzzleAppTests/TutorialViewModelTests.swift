@@ -17,7 +17,8 @@ final class TutorialViewModelTests: XCTestCase {
     private func makeViewModel() throws -> TutorialViewModel {
         TutorialViewModel(
             engine: try GameEngine(fixture: tutorial.fixture, mode: .challenge),
-            script: tutorial.script
+            script: tutorial.script,
+            soundPlayer: RecordingPuzzleSoundPlayer()
         )
     }
 
@@ -33,25 +34,50 @@ final class TutorialViewModelTests: XCTestCase {
             case let .placeCat(position):
                 viewModel.toggleCat(atRow: position.row, column: position.column)
             case let .exclude(positions):
-                for position in step.coaching == .guided ? positions : Array(positions.prefix(1)) {
+                for position in positions {
                     viewModel.toggleExcluded(
                         atRow: position.row,
                         column: position.column
                     )
                 }
-                if step.coaching == .discovery {
-                    await waitForAutoMarking(viewModel)
-                }
             }
         }
     }
 
-    private func waitForAutoMarking(_ viewModel: TutorialViewModel) async {
-        let deadline = ContinuousClock.now + .seconds(10)
-        while viewModel.isAutoMarking && ContinuousClock.now < deadline {
-            try? await Task.sleep(for: .milliseconds(20))
-        }
-        XCTAssertFalse(viewModel.isAutoMarking, "automatic marks did not finish")
+
+    func testSingleTapOnCatTargetExplainsDoubleTapAndPreservesStep() async throws {
+        let viewModel = try makeViewModel()
+        let target = try XCTUnwrap(viewModel.guidedTarget)
+        viewModel.handleCellTap(atRow: target.row, column: target.column)
+        // Allow the real single/double-tap recognition window to expire.
+        try await Task.sleep(for: .milliseconds(450))
+        XCTAssertEqual(viewModel.feedbackMessage, "Double-tap this cell to place a cat.")
+        XCTAssertEqual(viewModel.stepNumber, 1)
+        XCTAssertEqual(viewModel.puzzle.state(atRow: target.row, column: target.column), .empty)
+
+        viewModel.handleCellTap(atRow: target.row, column: target.column)
+        viewModel.handleCellTap(atRow: target.row, column: target.column)
+        XCTAssertEqual(viewModel.stepNumber, 2)
+        XCTAssertNil(viewModel.feedbackMessage)
+    }
+
+    func testColumnGuideStopsOnlyWhenDraggingStartsAndResetsOnRestart() async throws {
+        let viewModel = try makeViewModel()
+        await followScript(viewModel, stoppingAfter: 2)
+        XCTAssertTrue(viewModel.showsFingerGuide)
+        let first = try XCTUnwrap(viewModel.guidedTarget)
+        viewModel.toggleExcluded(atRow: first.row, column: first.column)
+        XCTAssertTrue(viewModel.showsFingerGuide, "A tap must not stop the drag demonstration")
+        let next = try XCTUnwrap(viewModel.guidedTarget)
+        viewModel.setExcludedDuringDrag(true, atRow: next.row, column: next.column)
+        XCTAssertTrue(viewModel.hasStartedColumnDrag)
+        XCTAssertFalse(viewModel.showsFingerGuide)
+        viewModel.showIdleReminder()
+        XCTAssertFalse(viewModel.showsFingerGuide)
+        viewModel.restart()
+        await followScript(viewModel, stoppingAfter: 2)
+        XCTAssertTrue(viewModel.showsFingerGuide)
+        XCTAssertFalse(viewModel.hasStartedColumnDrag)
     }
 
     // MARK: - The board stays on the script
@@ -164,6 +190,33 @@ final class TutorialViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.stepNumber, 5)
     }
 
+    func testFirstColumnTeachesContinuousDragWithoutChangingTheCat() async throws {
+        let viewModel = try makeViewModel()
+        await followScript(viewModel, stoppingAfter: 1)
+        XCTAssertFalse(viewModel.teachesColumnDrag)
+        XCTAssertNil(viewModel.guidedDragEnd)
+        for position in tutorial.script.steps[1].task.positions {
+            viewModel.toggleExcluded(atRow: position.row, column: position.column)
+        }
+        let columnStep = tutorial.script.steps[2]
+        XCTAssertTrue(viewModel.teachesColumnDrag)
+        XCTAssertEqual(viewModel.guidedTarget, columnStep.task.positions.first)
+        XCTAssertEqual(viewModel.guidedDragEnd, columnStep.task.positions.last)
+        let cat = try XCTUnwrap(tutorial.script.steps[0].task.positions.first)
+        let masked = CellPosition(row: 0, column: (cat.column + 1) % viewModel.level.size)
+        let previous = viewModel.puzzle.state(atRow: masked.row, column: masked.column)
+        viewModel.setExcludedDuringDrag(true, atRow: masked.row, column: masked.column)
+        XCTAssertEqual(viewModel.puzzle.state(atRow: masked.row, column: masked.column), previous)
+        for row in 0..<viewModel.level.size {
+            viewModel.setExcludedDuringDrag(true, atRow: row, column: cat.column)
+        }
+        XCTAssertEqual(viewModel.puzzle.state(atRow: cat.row, column: cat.column), .cat)
+        XCTAssertTrue(columnStep.isSatisfied(by: viewModel.puzzle))
+        XCTAssertEqual(viewModel.step, tutorial.script.steps[3])
+        XCTAssertFalse(viewModel.teachesColumnDrag)
+        XCTAssertNil(viewModel.guidedDragEnd)
+    }
+
     func testNoTouchingStepNeedsAllFourCornersAroundTheFirstCat() async throws {
         let viewModel = try makeViewModel()
         await followScript(viewModel, stoppingAfter: 3)
@@ -274,64 +327,60 @@ final class TutorialViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.interactivePositions)
     }
 
-    func testSecondCatAutoMarksOneCellAtATimeInScriptOrder() async throws {
-        var recording = false
-        var snapshots: [Puzzle] = []
-        let viewModel = TutorialViewModel(
-            engine: try GameEngine(fixture: tutorial.fixture, mode: .challenge),
-            script: tutorial.script,
-            autoMarkInterval: .milliseconds(20),
-            onGameStateChanged: { state in
-                if recording { snapshots.append(state.puzzle) }
-            }
-        )
+    func testSecondCatRequiresEveryManualMarkAndRemindsTheWholeLine() async throws {
+        let viewModel = try makeViewModel()
         await followScript(viewModel, stoppingAfter: 5)
-        let positions = tutorial.script.steps[5].task.positions
-
-        recording = true
-        let first = try XCTUnwrap(positions.first)
+        let step = try XCTUnwrap(viewModel.step)
+        let first = try XCTUnwrap(step.task.positions.first)
         viewModel.toggleExcluded(atRow: first.row, column: first.column)
-        XCTAssertTrue(viewModel.isAutoMarking)
-        XCTAssertEqual(viewModel.stepNumber, 6)
-
-        await waitForAutoMarking(viewModel)
-
-        XCTAssertEqual(snapshots.count, positions.count)
-        for (index, puzzle) in snapshots.enumerated() {
-            for (offset, position) in positions.enumerated() {
-                XCTAssertEqual(
-                    puzzle.state(atRow: position.row, column: position.column),
-                    offset <= index ? .excluded : .empty
-                )
-            }
+        try await Task.sleep(for: .milliseconds(350))
+        XCTAssertEqual(viewModel.step, step)
+        XCTAssertEqual(step.remainingPositions(in: viewModel.puzzle).count, step.task.positions.count - 1)
+        viewModel.showIdleReminder()
+        XCTAssertFalse(viewModel.reminderPositions.isEmpty)
+        XCTAssertEqual(viewModel.reminderPositions.count, viewModel.level.size)
+        XCTAssertTrue(viewModel.reminderPositions.allSatisfy { $0.row == first.row })
+        viewModel.recordInteraction()
+        XCTAssertTrue(viewModel.reminderPositions.isEmpty)
+        for position in step.remainingPositions(in: viewModel.puzzle) {
+            viewModel.toggleExcluded(atRow: position.row, column: position.column)
         }
-        XCTAssertEqual(viewModel.stepNumber, 7)
-        XCTAssertNil(viewModel.autoMarkedPosition)
+        XCTAssertEqual(viewModel.activeRule, .noTouchingCats)
     }
 
-    func testRestartCancelsAutoMarksAndIgnoresTapsDuringTheSweep() async throws {
-        let viewModel = TutorialViewModel(
-            engine: try GameEngine(fixture: tutorial.fixture, mode: .challenge),
-            script: tutorial.script,
-            autoMarkInterval: .milliseconds(300)
-        )
-        await followScript(viewModel, stoppingAfter: 5)
-        let positions = tutorial.script.steps[5].task.positions
-        let first = try XCTUnwrap(positions.first)
-        let next = positions[1]
-
-        viewModel.toggleExcluded(atRow: first.row, column: first.column)
-        XCTAssertTrue(viewModel.isAutoMarking)
-        viewModel.toggleExcluded(atRow: next.row, column: next.column)
-        XCTAssertEqual(viewModel.puzzle.state(atRow: next.row, column: next.column), .empty)
-
+    func testRulesAreCollectedOnlyAfterTheirFullLessonAndResetOnRestart() async throws {
+        let viewModel = try makeViewModel()
+        XCTAssertTrue(viewModel.learnedRules.isEmpty)
+        await followScript(viewModel, stoppingAfter: 2)
+        XCTAssertEqual(viewModel.learnedRules, [.oneCatPerRegion])
+        for position in tutorial.script.steps[2].task.positions {
+            viewModel.toggleExcluded(atRow: position.row, column: position.column)
+        }
+        XCTAssertEqual(viewModel.learnedRules, [.oneCatPerRegion, .oneCatPerRowAndColumn])
+        for position in tutorial.script.steps[3].task.positions {
+            viewModel.toggleExcluded(atRow: position.row, column: position.column)
+        }
+        XCTAssertEqual(viewModel.learnedRules, Set(PuzzleRule.allCases))
         viewModel.restart()
-        try await Task.sleep(for: .milliseconds(400))
+        XCTAssertTrue(viewModel.learnedRules.isEmpty)
+        XCTAssertTrue(viewModel.reminderPositions.isEmpty)
+    }
 
-        XCTAssertFalse(viewModel.isAutoMarking)
-        XCTAssertEqual(viewModel.stepNumber, 1)
-        XCTAssertEqual(viewModel.puzzle.state(atRow: first.row, column: first.column), .empty)
-        XCTAssertEqual(viewModel.puzzle.state(atRow: next.row, column: next.column), .empty)
+    func testThirdCatGetsDelayedClueAndThenManualLinePractice() async throws {
+        let viewModel = try makeViewModel()
+        let thirdIndex = try XCTUnwrap(tutorial.script.steps.indices.first { index in
+            guard index > 4 else { return false }
+            if case .placeCat = tutorial.script.steps[index].task { return true }
+            return false
+        })
+        await followScript(viewModel, stoppingAfter: thirdIndex)
+        XCTAssertTrue(viewModel.reminderPositions.isEmpty)
+        viewModel.showIdleReminder()
+        let target = try XCTUnwrap(viewModel.step?.task.positions.first)
+        XCTAssertEqual(viewModel.reminderPositions, [target])
+        viewModel.toggleCat(atRow: target.row, column: target.column)
+        XCTAssertEqual(viewModel.activeRule, .oneCatPerRowAndColumn)
+        XCTAssertTrue(viewModel.reminderPositions.isEmpty)
     }
 
     // MARK: - Player-requested clue
@@ -369,7 +418,6 @@ final class TutorialViewModelTests: XCTestCase {
 
         let done = try XCTUnwrap(step.task.positions.first)
         viewModel.toggleExcluded(atRow: done.row, column: done.column)
-        await waitForAutoMarking(viewModel)
 
         XCTAssertTrue(viewModel.nudgedPositions.isEmpty)
     }

@@ -102,6 +102,7 @@ struct GameProgress: Codable, Equatable {
     var completedTutorialIDs: Set<String>
     var preferredMode: GameplayMode
     var showsRegionIcons: Bool
+    var language: AppLanguage
 
     static let empty = GameProgress(
         activeGame: nil,
@@ -116,13 +117,15 @@ struct GameProgress: Codable, Equatable {
         completedLevelIDs: Set<String>,
         completedTutorialIDs: Set<String> = [],
         preferredMode: GameplayMode = .challenge,
-        showsRegionIcons: Bool = false
+        showsRegionIcons: Bool = false,
+        language: AppLanguage = .system
     ) {
         self.activeGame = activeGame
         self.completedLevelIDs = completedLevelIDs
         self.completedTutorialIDs = completedTutorialIDs
         self.preferredMode = preferredMode
         self.showsRegionIcons = showsRegionIcons
+        self.language = language
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -131,6 +134,7 @@ struct GameProgress: Codable, Equatable {
         case completedTutorialIDs
         case preferredMode
         case showsRegionIcons
+        case language
     }
 
     init(from decoder: Decoder) throws {
@@ -153,6 +157,8 @@ struct GameProgress: Codable, Equatable {
             GameplayMode.self,
             forKey: .preferredMode
         ) ?? activeGame?.mode ?? .challenge
+        language = (try container.decodeIfPresent(String.self, forKey: .language))
+            .flatMap(AppLanguage.init(rawValue:)) ?? .system
         showsRegionIcons = try container.decodeIfPresent(
             Bool.self,
             forKey: .showsRegionIcons

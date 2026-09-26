@@ -30,8 +30,39 @@ final class TutorialViewModel: ObservableObject {
     var placedCatCount: Int { puzzle.states.filter { $0 == .cat }.count }
     /// The single cell revealed when the player requests a discovery hint.
     @Published private(set) var nudgedPositions: Set<CellPosition> = []
-    @Published private(set) var isAutoMarking = false
-    @Published private(set) var autoMarkedPosition: CellPosition?
+    @Published private(set) var learnedRules: Set<PuzzleRule> = []
+    @Published private(set) var reminderPositions: Set<CellPosition> = []
+    @Published private(set) var activitySequence = 0
+
+    var activeRule: PuzzleRule? { step?.lesson.rule }
+
+    /// The view owns the cancellable clock; these methods keep its effects testable.
+    func recordInteraction() {
+        activitySequence &+= 1
+        reminderPositions = []
+    }
+
+    func showIdleReminder() {
+        guard let step, step.coaching == .discovery, !isSolved, !isFailed else { return }
+        let remaining = step.remainingPositions(in: puzzle)
+        switch step.task {
+        case .placeCat:
+            reminderPositions = Set(remaining)
+        case .exclude:
+            if case let .secondCatRulesOut(cat) = step.lesson {
+                let row = remaining.filter { $0.row == cat.row }
+                reminderPositions = Set((0..<level.size).map {
+                    row.isEmpty
+                        ? CellPosition(row: $0, column: cat.column)
+                        : CellPosition(row: cat.row, column: $0)
+                })
+            } else {
+                reminderPositions = Set(remaining)
+            }
+        }
+    }
+
+    func clearIdleReminder() { reminderPositions = [] }
 
     /// Cells the board leaves lit while masking the rest. Empty when nothing
     /// is masked, which is every moment but a guided step.
@@ -53,6 +84,23 @@ final class TutorialViewModel: ObservableObject {
         return step.remainingPositions(in: puzzle).first
     }
 
+    var teachesColumnDrag: Bool {
+        guard let step, step.coaching == .guided else { return false }
+        if case .columnAlreadyHasItsCat = step.lesson { return true }
+        return false
+    }
+
+    @Published private(set) var hasStartedColumnDrag = false
+
+    var showsFingerGuide: Bool {
+        step?.coaching == .guided && (!teachesColumnDrag || !hasStartedColumnDrag)
+    }
+
+    var guidedDragEnd: CellPosition? {
+        guard teachesColumnDrag, let step else { return nil }
+        return step.remainingPositions(in: puzzle).last
+    }
+
     /// Replays the hand whenever one guided mark makes its next target change.
     var guidancePlaybackID: Int {
         guard let step else { return 0 }
@@ -65,9 +113,6 @@ final class TutorialViewModel: ObservableObject {
     private let input: CellInputCoordinator
     private let soundPlayer: any PuzzleSoundPlaying
     private let onGameStateChanged: (GameState) -> Void
-    private let autoMarkInterval: Duration
-    private var autoMarkTask: Task<Void, Never>?
-    private var autoMarkGeneration = 0
 
     /// `script` is required and assumed non-empty — callers only build a
     /// `TutorialViewModel` when `TutorialScript.isEmpty == false`, falling
@@ -77,7 +122,6 @@ final class TutorialViewModel: ObservableObject {
         engine: GameEngine,
         script: TutorialScript,
         doubleTapInterval: Duration = .milliseconds(300),
-        autoMarkInterval: Duration = .milliseconds(220),
         soundPlayer: any PuzzleSoundPlaying = PuzzleSoundPlayer.shared,
         onGameStateChanged: @escaping (GameState) -> Void = { _ in }
     ) {
@@ -90,7 +134,6 @@ final class TutorialViewModel: ObservableObject {
         })
         self.soundPlayer = soundPlayer
         self.onGameStateChanged = onGameStateChanged
-        self.autoMarkInterval = autoMarkInterval
         self.input = CellInputCoordinator(
             doubleTapInterval: doubleTapInterval,
             soundPlayer: soundPlayer
@@ -123,6 +166,7 @@ final class TutorialViewModel: ObservableObject {
     }
 
     func handleCellTap(atRow row: Int, column: Int) {
+        recordInteraction()
         guard puzzle.state(atRow: row, column: column) != nil else {
             feedbackMessage = "That cell is outside the board."
             return
@@ -134,6 +178,7 @@ final class TutorialViewModel: ObservableObject {
     }
 
     func toggleExcluded(atRow row: Int, column: Int) {
+        recordInteraction()
         input.toggleExcluded(
             at: CellPosition(row: row, column: column),
             environment: makeInputEnvironment()
@@ -141,6 +186,7 @@ final class TutorialViewModel: ObservableObject {
     }
 
     func toggleCat(atRow row: Int, column: Int) {
+        recordInteraction()
         input.toggleCat(
             at: CellPosition(row: row, column: column),
             environment: makeInputEnvironment()
@@ -152,6 +198,7 @@ final class TutorialViewModel: ObservableObject {
         atRow row: Int,
         column: Int
     ) {
+        if teachesColumnDrag { hasStartedColumnDrag = true }
         input.setExcludedDuringDrag(
             excluded,
             at: CellPosition(row: row, column: column),
@@ -160,7 +207,9 @@ final class TutorialViewModel: ObservableObject {
     }
 
     func restart() {
-        cancelAutoMarking()
+        recordInteraction()
+        learnedRules = []
+        hasStartedColumnDrag = false
         input.cancelAll()
         engine.restart()
         feedbackMessage = nil
@@ -168,8 +217,7 @@ final class TutorialViewModel: ObservableObject {
     }
 
     func revealClue() {
-        guard !isAutoMarking,
-              let step, step.coaching == .discovery,
+        guard let step, step.coaching == .discovery,
               let position = step.remainingPositions(in: puzzle).first else {
             return
         }
@@ -186,7 +234,7 @@ final class TutorialViewModel: ObservableObject {
             },
             isInteractable: { [weak self] position in
                 guard let self else { return false }
-                return !self.isAutoMarking && !self.isMasked(position)
+                return !self.isMasked(position)
             },
             commit: { [weak self] state, position, playSound in
                 self?.apply(state, atRow: position.row, column: position.column, playSound: playSound)
@@ -200,7 +248,7 @@ final class TutorialViewModel: ObservableObject {
         column: Int,
         playSound: Bool
     ) {
-        guard !isAutoMarking else { return }
+        recordInteraction()
         do {
             let previousPuzzle = engine.state.puzzle
             let previousCellState = previousPuzzle.state(atRow: row, column: column)
@@ -208,11 +256,10 @@ final class TutorialViewModel: ObservableObject {
             if state == .excluded,
                previousCellState != .excluded,
                tutorialCatPositions.contains(position) {
-                feedbackMessage = "This cell could still hold a cat. Try another empty cell."
+                feedbackMessage = "Double-tap this cell to place a cat."
                 soundPlayer.play(.catPlacementFailed)
                 return
             }
-            let currentStep = step
             try engine.setState(state, atRow: row, column: column)
             feedbackMessage = nil
             let puzzleChanged = engine.state.puzzle != previousPuzzle
@@ -225,13 +272,6 @@ final class TutorialViewModel: ObservableObject {
             }
             if isSolved || isFailed {
                 input.cancelAll()
-            } else if state == .excluded,
-                      previousCellState != .excluded,
-                      let currentStep,
-                      currentStep.coaching == .discovery,
-                      case let .exclude(positions) = currentStep.task,
-                      positions.contains(position) {
-                beginAutoMarking(positions)
             }
         } catch GameEngineError.illegalCatPlacement {
             // Challenge mode: a wrong cat is refused rather than landed and
@@ -274,58 +314,6 @@ final class TutorialViewModel: ObservableObject {
         markerFeedbackSequence &+= 1
     }
 
-    /// Keep the player's first mark visible, then sweep the remaining cells
-    /// one by one in the script's row → column → neighbour order. Each engine
-    /// update is published separately so the board animates each new ×.
-    private func beginAutoMarking(_ positions: [CellPosition]) {
-        let remaining = positions.filter {
-            puzzle.state(atRow: $0.row, column: $0.column) == .empty
-        }
-        guard !remaining.isEmpty else { return }
-        input.cancelAll()
-        isAutoMarking = true
-        autoMarkGeneration &+= 1
-        let generation = autoMarkGeneration
-        autoMarkTask = Task { [weak self] in
-            guard let self else { return }
-            for position in remaining {
-                do {
-                    try await Task.sleep(for: self.autoMarkInterval)
-                } catch {
-                    return
-                }
-                guard !Task.isCancelled, self.autoMarkGeneration == generation else {
-                    return
-                }
-                do {
-                    try self.engine.setState(
-                        .excluded,
-                        atRow: position.row,
-                        column: position.column
-                    )
-                    self.autoMarkedPosition = position
-                    self.synchronizeFromEngine(notifyChange: true)
-                } catch {
-                    self.cancelAutoMarking()
-                    self.feedbackMessage = "Unable to finish marking these cells."
-                    return
-                }
-            }
-            guard self.autoMarkGeneration == generation else { return }
-            self.isAutoMarking = false
-            self.autoMarkedPosition = nil
-            self.autoMarkTask = nil
-        }
-    }
-
-    private func cancelAutoMarking() {
-        autoMarkGeneration &+= 1
-        autoMarkTask?.cancel()
-        autoMarkTask = nil
-        isAutoMarking = false
-        autoMarkedPosition = nil
-    }
-
     // MARK: - Coaching
 
     /// Re-reads the board to find the step the tutorial is on. A requested
@@ -335,7 +323,14 @@ final class TutorialViewModel: ObservableObject {
         // A solved board has nothing left to teach, even if the player got
         // there without marking every × the script asked for.
         let current = isSolved ? nil : coach.step(at: index)
+        // First acquisition happens only after the complete introductory lesson.
+        for (rule, milestone) in [(PuzzleRule.oneCatPerRegion, 0),
+                                   (.oneCatPerRowAndColumn, 2), (.noTouchingCats, 3)] {
+            if index > milestone { learnedRules.insert(rule) }
+        }
         if current != step {
+            hasStartedColumnDrag = false
+            recordInteraction()
             nudgedPositions = []
         } else if let current {
             nudgedPositions.formIntersection(current.remainingPositions(in: puzzle))

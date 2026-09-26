@@ -272,7 +272,10 @@ final class TutorialLevelTests: XCTestCase {
                         return XCTFail("first discovery step does not reinforce the second cat")
                     }
                 } else {
-                    XCTAssertEqual(step.lesson, .everythingTheCatsRuleOut)
+                    switch step.lesson {
+                    case .secondCatRulesOut, .catsNeverTouch, .everythingTheCatsRuleOut: break
+                    default: XCTFail("unexpected cleanup lesson")
+                    }
                 }
             case .placeCat:
                 switch step.lesson {
@@ -285,7 +288,7 @@ final class TutorialLevelTests: XCTestCase {
         }
     }
 
-    func testSecondCatCleanupOrdersRowThenColumnThenNeighbors() throws {
+    func testSecondCatPracticesLinesBeforeSeparateNeighborStep() throws {
         guard case let .placeCat(second) = steps[4].task else {
             return XCTFail("step 5 does not place the second cat")
         }
@@ -302,7 +305,11 @@ final class TutorialLevelTests: XCTestCase {
         XCTAssertEqual(phases, phases.sorted())
         XCTAssertTrue(phases.contains(0))
         XCTAssertTrue(phases.contains(1))
-        XCTAssertTrue(phases.contains(2))
+        XCTAssertFalse(phases.contains(2))
+        XCTAssertEqual(steps[6].lesson, .catsNeverTouch(second))
+        XCTAssertTrue(steps[6].task.positions.allSatisfy {
+            abs($0.row - second.row) == 1 && abs($0.column - second.column) == 1
+        })
     }
 
     // MARK: - A board that cannot teach produces nothing

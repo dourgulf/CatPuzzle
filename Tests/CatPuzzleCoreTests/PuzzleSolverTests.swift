@@ -90,7 +90,7 @@ final class PuzzleSolverTests: XCTestCase {
 
     func testSolverDoesNotReadFixtureSolution() {
         let incorrectFixture = LevelFixture(
-            level: BuiltInLevels.meadow,
+            level: SampleLevels.meadow,
             solution: [CellPosition(row: 0, column: 0)]
         )
 
@@ -102,7 +102,7 @@ final class PuzzleSolverTests: XCTestCase {
 
     func testZeroBudgetReturnsInconclusiveWithoutVisitingRoot() {
         let report = PuzzleSolver.solve(
-            level: BuiltInLevels.meadow,
+            level: SampleLevels.meadow,
             budget: PuzzleSolverBudget(maxVisitedNodes: 0)
         )
 
@@ -114,7 +114,7 @@ final class PuzzleSolverTests: XCTestCase {
 
     func testExhaustedProofBudgetIsNotReportedAsNoSolution() {
         let report = PuzzleSolver.solve(
-            level: BuiltInLevels.meadow,
+            level: SampleLevels.meadow,
             budget: PuzzleSolverBudget(maxVisitedNodes: 1)
         )
 
@@ -124,12 +124,12 @@ final class PuzzleSolverTests: XCTestCase {
     }
 
     func testSufficientBudgetMatchesUnlimitedSearchDeterministically() {
-        let unlimited = PuzzleSolver.solve(level: BuiltInLevels.river)
+        let unlimited = PuzzleSolver.solve(level: SampleLevels.river)
         let bounded = PuzzleSolver.solve(
-            level: BuiltInLevels.river,
+            level: SampleLevels.river,
             budget: PuzzleSolverBudget(maxVisitedNodes: unlimited.statistics.visitedNodes)
         )
-        let repeated = PuzzleSolver.solve(level: BuiltInLevels.river)
+        let repeated = PuzzleSolver.solve(level: SampleLevels.river)
 
         XCTAssertEqual(bounded, unlimited)
         XCTAssertEqual(repeated, unlimited)

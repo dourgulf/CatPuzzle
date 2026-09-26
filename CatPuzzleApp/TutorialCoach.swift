@@ -51,16 +51,18 @@ extension TutorialStep {
             if coaching == .discovery {
                 switch lesson {
                 case .secondCatRulesOut:
-                    return "Find and tap one empty cell this new cat rules out."
+                    return "Mark every other empty cell in this cat’s row and column with ×."
+                case .catsNeverTouch:
+                    return "Mark the remaining empty cells around this cat with ×."
                 default:
-                    return "Tap one ruled-out empty cell. The rest will follow."
+                    return "Tap or drag across each ruled-out empty cell to mark ×."
                 }
             }
             switch lesson {
             case .rowAlreadyHasItsCat:
                 return "Tap every other cell in this cat's row to mark ×."
             case .columnAlreadyHasItsCat:
-                return "Tap every other cell in the same cat's column to mark ×."
+                return "Hold the first empty cell and drag down the column to mark ×."
             case .catsNeverTouch:
                 return "Tap all four unmarked corners around this cat to mark ×."
             default:
@@ -86,7 +88,7 @@ extension TutorialLesson {
         case .everythingTheCatsRuleOut:
             "Your turn: rule out a cell"
         case .secondCatRulesOut:
-            "Now follow this cat"
+            PuzzleRule.oneCatPerRowAndColumn.headline
         }
     }
 
@@ -117,11 +119,11 @@ extension TutorialLesson {
         case let .columnAlreadyHasItsCat(column):
             "Stay with the same cat. It fills column \(column + 1) too, so no other cell in its column can hold one."
         case .catsNeverTouch:
-            "The row and column crosses cover this cat's four sides. Cats cannot touch at the corners either, so mark the four diagonal cells around this same cat."
+            "Cats cannot touch, even at the corners. Mark every remaining empty neighbor around this cat."
         case .everythingTheCatsRuleOut:
             "Look along a cat's row or column, inside its colored block, or at a neighboring square. Which empty cell cannot hold a cat?"
         case .secondCatRulesOut:
-            "The second cat starts the same pattern. Find one cell it rules out; then watch its row, column, and neighboring cells fill in."
+            "This cat fills its row and column. Use the rule above to mark the other empty cells yourself."
         }
     }
 
