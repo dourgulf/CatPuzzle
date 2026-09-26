@@ -27,6 +27,29 @@ Use semantic tokens rather than colors embedded directly in views.
 
 The six board Regions use clear mid-value colors: pink `#ED86D5`, green `#38AA70`, yellow `#F4CF68`, blue `#5D83B4`, brown `#AE7654`, and lime `#89CF78`. Keep fills at full or near-full opacity; washed-out colors make the rules harder to read. Every Region must also have a subtle visual symbol and an accessibility label because color alone cannot distinguish Regions for all players.
 
+## Tutorial (Dark) Color System
+
+The tutorial is the one screen exempted from the app's forced-light lock: it
+runs full-bleed dark with per-cell spotlight cutouts, closer to the onboarding
+style of the reference competitor recordings than to `GameScreen`. Its tokens
+live in `TutorialTheme`, a separate namespace from the table above — a call
+site should make clear which screen a color belongs to.
+
+| Token | Dark value | Purpose |
+| --- | --- | --- |
+| `background` | near-black | Full-bleed tutorial background |
+| `scrim` | `black` at ~25% opacity | Keep earlier crosses visible outside the current focus |
+| `surface` | dark elevated gray | The step caption card |
+| `textPrimary` | `white` | Primary labels |
+| `textSecondary` | `white` at ~62% opacity | Explanation copy |
+| `accent` | `#20B96B` (`CatPuzzleTheme.action`) | Reused for continuity — the same color the player meets on every ladder level |
+| `spotlightRing` | `white` at ~90% opacity | Emphasis strokes over spotlighted cells |
+| `celebration` | warm gold | The graduation page's checkmark |
+
+The board keeps its Region colors and marker shapes. During guided steps,
+cells outside the focus are lightly shaded and cannot be edited; earlier
+crosses stay readable as the player moves from row to column to corners.
+
 ## Typography & Shape
 
 Use San Francisco Rounded where available and support Dynamic Type. Prefer `.largeTitle` for the product or completion state, `.title2` for level identity, `.headline` for status, and `.body`/`.footnote` for guidance. Body text must remain at least 17 pt at the default size.
@@ -38,7 +61,7 @@ Cards and buttons use 14–20 pt corner radii. Board cells use 6–8 pt radii wi
 Order content vertically:
 
 1. Compact header with level name and mistake status.
-2. Optional concise rule reminder; it must not displace the board on smaller screens.
+2. Optional concise rule reminder; it must not displace the board on smaller screens. A tutorial step's own explanation is a floating callout anchored to the cells it is teaching (with a pointer toward them) rather than inline text, so its length can vary step to step without ever shifting the board or the controls below it.
 3. Centered square 6×6 board using the maximum available width.
 4. Feedback message with reserved height to prevent layout jumps.
 5. Undo and Restart controls in the safe area.
