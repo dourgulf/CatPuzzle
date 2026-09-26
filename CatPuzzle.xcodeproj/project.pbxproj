@@ -20,6 +20,7 @@
 		40E73C916EC8B760EF4821BE /* GameViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5DFA64C5983085816A2B051 /* GameViewModelTests.swift */; };
 		43838DAF0F4374355FF0413F /* CatPuzzleCore in Frameworks */ = {isa = PBXBuildFile; productRef = 66B89727DBD1C8449B53BAA5 /* CatPuzzleCore */; };
 		49A946C5E3E5068941849003 /* TutorialViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6982B25EDA727B5B490F4824 /* TutorialViewModel.swift */; };
+		4E216D5CDA4A6A8C631E7CB6 /* LevelCelebrationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD94F7F45E420E6BC01FB8E3 /* LevelCelebrationView.swift */; };
 		50859F75D2D48D2162DABD55 /* NextLevelScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AF778737EE6B1DBCED4D141 /* NextLevelScreen.swift */; };
 		567DFECC614F8D46DBEC247B /* CellInputCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22DE5BB28A40A7CB51C7F8FF /* CellInputCoordinator.swift */; };
 		5A79A9D331F66AB3B7FB3BC0 /* RuleInfoStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8555F7A8980ED50DC7174623 /* RuleInfoStrip.swift */; };
@@ -38,6 +39,7 @@
 		9B203FE0002125437D0B22E3 /* PlaytestLabScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B02DCA335B2C6D820408417 /* PlaytestLabScreen.swift */; };
 		A097F82F735D4B81C0BE8CC4 /* TutorialFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9BDD51E794CEBEF41C0F3DA /* TutorialFlowTests.swift */; };
 		A0EF1B794680A30AF9F794F8 /* TutorialScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 479BF02CAEEC031573FE474F /* TutorialScreen.swift */; };
+		A160885F650D7B44489D5188 /* CelebrationCatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79E199D261E5F24DA262A224 /* CelebrationCatView.swift */; };
 		A466CD12878B729A7A555E91 /* AllLevelsCompleteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EBFFBA4747D918EC133276B /* AllLevelsCompleteView.swift */; };
 		A94CB5D90C5FC0056CE052F5 /* CatPuzzleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 545D10397B8681B21E643BCE /* CatPuzzleApp.swift */; };
 		AD231919A62CE809CE5EBCF7 /* sfx_excluded_unmark.wav in Resources */ = {isa = PBXBuildFile; fileRef = 2D1AA59631DCE4267E282B58 /* sfx_excluded_unmark.wav */; };
@@ -101,6 +103,7 @@
 		6982B25EDA727B5B490F4824 /* TutorialViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialViewModel.swift; sourceTree = "<group>"; };
 		6EDC7F27F972AEFBDF77BC8A /* ScreenshotPixelDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotPixelDecoder.swift; sourceTree = "<group>"; };
 		79E199778440A03E79F13FB5 /* ScreenshotImportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotImportTests.swift; sourceTree = "<group>"; };
+		79E199D261E5F24DA262A224 /* CelebrationCatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CelebrationCatView.swift; sourceTree = "<group>"; };
 		8555F7A8980ED50DC7174623 /* RuleInfoStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuleInfoStrip.swift; sourceTree = "<group>"; };
 		887A9DFD01CAB85C7650BE51 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		8AF778737EE6B1DBCED4D141 /* NextLevelScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NextLevelScreen.swift; sourceTree = "<group>"; };
@@ -122,6 +125,7 @@
 		EB97F24DAA1DF2F9D9609A78 /* GameViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameViewModel.swift; sourceTree = "<group>"; };
 		EC1044B00357B33D373CBE2E /* ScreenshotImportScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotImportScreen.swift; sourceTree = "<group>"; };
 		EE2E188971F2226FB50517EB /* OffscreenRenderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OffscreenRenderTests.swift; sourceTree = "<group>"; };
+		FD94F7F45E420E6BC01FB8E3 /* LevelCelebrationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LevelCelebrationView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -171,6 +175,7 @@
 				5A8470D2FCEF581CF30EE86B /* Assets.xcassets */,
 				452AF30018CE7484BA1B7F77 /* BoardView.swift */,
 				545D10397B8681B21E643BCE /* CatPuzzleApp.swift */,
+				79E199D261E5F24DA262A224 /* CelebrationCatView.swift */,
 				22DE5BB28A40A7CB51C7F8FF /* CellInputCoordinator.swift */,
 				4890F6ACF8E2AA15AC1065D2 /* CellView.swift */,
 				5736732213168EFBF1569B70 /* GameProgress.swift */,
@@ -178,6 +183,7 @@
 				9C3A14156F40CDC5F819781D /* GameScreen.swift */,
 				1CEB6A6FB931CC7D9BEDB9F0 /* GameStatusBar.swift */,
 				EB97F24DAA1DF2F9D9609A78 /* GameViewModel.swift */,
+				FD94F7F45E420E6BC01FB8E3 /* LevelCelebrationView.swift */,
 				09E2C34088FB985FADD42F8C /* LevelPresentation.swift */,
 				359024E1CF371922D839ACD1 /* LevelProgression.swift */,
 				887A9DFD01CAB85C7650BE51 /* Localizable.xcstrings */,
@@ -366,6 +372,7 @@
 				7843EADFD8218B9A0D4E791E /* AppSession.swift in Sources */,
 				7194BF384CAA2A41AB4B6405 /* BoardView.swift in Sources */,
 				A94CB5D90C5FC0056CE052F5 /* CatPuzzleApp.swift in Sources */,
+				A160885F650D7B44489D5188 /* CelebrationCatView.swift in Sources */,
 				567DFECC614F8D46DBEC247B /* CellInputCoordinator.swift in Sources */,
 				10451F62935AF7116308039E /* CellView.swift in Sources */,
 				6F542BA0A78A5F87ED5F3ACB /* GameProgress.swift in Sources */,
@@ -373,6 +380,7 @@
 				378DDAA4C21235D4BA867AFA /* GameScreen.swift in Sources */,
 				2C59B2E546F343D1918CC4FB /* GameStatusBar.swift in Sources */,
 				FB4426A15886909952E0E62D /* GameViewModel.swift in Sources */,
+				4E216D5CDA4A6A8C631E7CB6 /* LevelCelebrationView.swift in Sources */,
 				F5809B3EE13EA6E8E32A29D6 /* LevelPresentation.swift in Sources */,
 				5D7F2458E337A2A4EC31EB06 /* LevelProgression.swift in Sources */,
 				50859F75D2D48D2162DABD55 /* NextLevelScreen.swift in Sources */,

@@ -7,6 +7,7 @@ struct GameScreen: View {
     let showsRegionIcons: Bool
     let onBackToLevelStart: () -> Void
     let onOpenSettings: (() -> Void)?
+    var nextPresentation: LevelPresentation? = nil
     let onContinue: () -> Void
 
     var body: some View {
@@ -20,9 +21,11 @@ struct GameScreen: View {
                 )
             }
             .scrollBounceBehavior(.basedOnSize)
+            .allowsHitTesting(!viewModel.isSolved && !viewModel.isFailed)
+            .accessibilityHidden(viewModel.isSolved || viewModel.isFailed)
 
             if viewModel.isSolved {
-                overlayBackdrop(content: solvedOverlay)
+                LevelCelebrationView(nextPresentation: nextPresentation, onContinue: onContinue)
             } else if viewModel.isFailed {
                 overlayBackdrop(content: failedOverlay)
             }
@@ -36,35 +39,6 @@ struct GameScreen: View {
                 .ignoresSafeArea()
             content
         }
-    }
-
-    private var solvedOverlay: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 52))
-                .foregroundStyle(CatPuzzleTheme.action)
-            Text("Level Complete")
-                .font(.title.bold())
-                .accessibilityIdentifier("level-complete-message")
-            Text("Every rule is satisfied.")
-                .font(.body)
-                .foregroundStyle(CatPuzzleTheme.textSecondary)
-            Button("Continue", action: onContinue)
-                .buttonStyle(GameActionButtonStyle(prominent: true))
-                .accessibilityIdentifier("continue-after-completion")
-        }
-        .multilineTextAlignment(.center)
-        .padding(24)
-        .frame(maxWidth: 340)
-        .background(
-            CatPuzzleTheme.surface,
-            in: RoundedRectangle(cornerRadius: 24, style: .continuous)
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: 24).strokeBorder(CatPuzzleTheme.divider, lineWidth: 1)
-        }
-        .shadow(color: CatPuzzleTheme.textPrimary.opacity(0.10), radius: 16, y: 8)
-        .padding(24)
     }
 
     private var failedOverlay: some View {

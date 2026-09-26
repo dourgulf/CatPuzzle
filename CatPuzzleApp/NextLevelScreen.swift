@@ -3,59 +3,41 @@ import SwiftUI
 struct NextLevelScreen: View {
     @Environment(\.locale) private var locale
     let presentation: LevelPresentation
-    let boardSize: Int
     let onStart: () -> Void
 
     var body: some View {
-        VStack(spacing: 28) {
-            ZStack {
-                Circle()
-                    .fill(CatPuzzleTheme.surface)
-                    .frame(width: 116, height: 116)
-                    .shadow(
-                        color: CatPuzzleTheme.textPrimary.opacity(0.10),
-                        radius: 18,
-                        y: 8
-                    )
+        GeometryReader { geometry in
+            let logoSide = min(200, geometry.size.width * 0.5)
 
-                Image(systemName: presentation.isTutorial ? "graduationcap.fill" : "pawprint.fill")
-                    .font(.system(size: 52, weight: .semibold))
-                    .foregroundStyle(CatPuzzleTheme.action)
-            }
+            VStack(spacing: 0) {
+                Spacer(minLength: 0)
+                    .frame(height: geometry.size.height * 0.18)
 
-            VStack(spacing: 8) {
-                Text(LocalizedStringKey(presentation.isTutorial ? "LEARN THE RULES" : "NEXT LEVEL"))
-                    .font(.caption.weight(.bold))
-                    .tracking(1.6)
-                    .foregroundStyle(CatPuzzleTheme.textSecondary)
-                Text(presentation.localizedTitle(locale: locale))
-                    .font(.largeTitle.bold())
+                Image("AppLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: logoSide, height: logoSide)
+                    .clipShape(RoundedRectangle(cornerRadius: logoSide * 0.22, style: .continuous))
+                    .accessibilityHidden(true)
 
-                if presentation.isTutorial {
-                    Text("Three rules, one board")
-                        .font(.headline)
-                        .foregroundStyle(CatPuzzleTheme.action)
-                    Text("Start with one cat. Mark its row, column, and corners, then find the rest.")
-                        .font(.subheadline)
-                        .foregroundStyle(CatPuzzleTheme.textSecondary)
-                } else {
-                    Text("A fresh \(boardSize)x\(boardSize) puzzle is ready for you.")
-                        .font(.body)
-                        .foregroundStyle(CatPuzzleTheme.textSecondary)
+                Spacer(minLength: 24)
+
+                Button(action: onStart) {
+                    Text(presentation.isTutorial
+                        ? L10n.text("Start Tutorial", locale: locale)
+                        : presentation.localizedTitle(locale: locale))
+                        .font(.title2.bold())
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                        .frame(maxWidth: .infinity, minHeight: 56)
                 }
+                .buttonStyle(GameActionButtonStyle(prominent: true))
+                .frame(maxWidth: 360)
+                .accessibilityIdentifier("start-next-level")
+                .padding(.bottom, max(24, geometry.size.height * 0.10))
             }
-            .multilineTextAlignment(.center)
-
-            Button(action: onStart) {
-                Label(LocalizedStringKey(presentation.isTutorial ? "Start Tutorial" : "Start"), systemImage: "play.fill")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity, minHeight: 52)
-            }
-            .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.roundedRectangle(radius: 16))
-            .accessibilityIdentifier("start-next-level")
+            .padding(.horizontal, 24)
+            .frame(width: geometry.size.width, height: geometry.size.height)
         }
-        .frame(maxWidth: 420)
-        .padding(32)
     }
 }

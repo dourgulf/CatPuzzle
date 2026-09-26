@@ -70,6 +70,12 @@ Do not add score, timer, advertisements, power-ups, or a level list unless produ
 
 ## Formal Game Visual Details
 
+The level-start screen shows the real App Icon artwork in the upper-middle area
+and one prominent action near the bottom. The action uses the upcoming level's
+localized title; tutorial entry retains its localized Start Tutorial label.
+Settings remains at the top right. Do not add a separate level heading, next-level
+caption, puzzle-size description, or play icon. AppLogo mirrors the AppIcon artwork.
+
 The formal game uses a single quiet rule strip with miniature board diagrams
 and secondary text. Preserve the diagrams' paw and exclusion marks so each rule
 remains visually meaningful. Use the muted theme colors in the formal game;
@@ -99,8 +105,16 @@ font size, with optical centering and visible space around both marks.
 
 Hint previews shade only the rounded cell interior at 24% using `textPrimary`.
 A 3 pt dark inset outline identifies result cells even on green Regions; keep
-the surrounding Region colors readable. Outcome cards share the same surface,
-border, typography, and button style.
+the surrounding Region colors readable. Failure retains the quiet outcome card.
+Success keeps the solved board under a dark scrim. An original orange mascot
+jumps with open arms, catches a paw medal, and hugs it while swaying its tail.
+Warm localized rays and three confetti bursts frame the character. The 252
+particles and character animation settle after seven seconds. At 2.1 seconds,
+show a CTA with the upcoming level's localized title; it starts that level directly
+without the preparation screen. The last level loops to Level 1. Standalone
+playtests retain their Continue action. Reduced Motion immediately shows the
+settled mascot and CTA. Hide the underlying board from touch and accessibility
+while an outcome is presented. Celebration copy ships in both app languages.
 
 ## Cell States & Interaction
 

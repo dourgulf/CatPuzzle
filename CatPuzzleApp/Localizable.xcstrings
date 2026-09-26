@@ -199,16 +199,6 @@
         }
       }
     },
-    "A fresh %@x%@ puzzle is ready for you.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "new",
-            "value": "A fresh %1$@x%2$@ puzzle is ready for you."
-          }
-        }
-      }
-    },
     "A fresh %lldx%lld puzzle is ready for you.": {
       "extractionState": "manual",
       "localizations": {
@@ -3470,6 +3460,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "从指定关卡开始"
+          }
+        }
+      }
+    },
+    "Purrfect!": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Purrfect!"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "太喵了！"
+          }
+        }
+      }
+    },
+    "Every cat found!": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Every cat found!"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "猫咪全部找到啦！"
           }
         }
       }

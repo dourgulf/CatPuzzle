@@ -414,6 +414,52 @@ final class AppSessionTests: XCTestCase {
         XCTAssertEqual(session.nextLevel?.id, "river")
     }
 
+    func testCelebrationStartsDisplayedNextLevelDirectlyAndSavesIt() {
+        let store = InMemoryGameProgressStore()
+        let session = startedSession(store: store)
+        solveMeadow(in: session)
+        XCTAssertEqual(session.completionPresentation, .ladder(number: 2))
+
+        session.startFollowingLevel()
+
+        XCTAssertEqual(session.destination, .playing)
+        XCTAssertEqual(session.currentPresentation, .ladder(number: 2))
+        XCTAssertEqual(session.gameViewModel?.level.id, "river")
+        XCTAssertEqual(store.progress.activeGame?.levelID, "river")
+        XCTAssertEqual(store.progress.completedLevelIDs, ["meadow"])
+        XCTAssertNil(session.completionPresentation)
+        let startedModel = session.gameViewModel
+        session.startFollowingLevel()
+        XCTAssertTrue(session.gameViewModel === startedModel, "A second tap must not restart the new level")
+    }
+
+    func testCelebrationNextLevelIsNoOpBeforeWinning() {
+        let store = InMemoryGameProgressStore()
+        let session = startedSession(store: store)
+        let model = session.gameViewModel
+        session.startFollowingLevel()
+        XCTAssertTrue(session.gameViewModel === model)
+        XCTAssertNil(session.completionPresentation)
+        XCTAssertEqual(store.progress.completedLevelIDs, [])
+    }
+
+    func testCelebrationWrapsDirectlyToLevelOneAfterFinalLevel() {
+        let store = InMemoryGameProgressStore()
+        let fixture = SampleLevels.fixtures[0]
+        let session = AppSession(progressStore: store, fixtures: [fixture], tutorials: [])
+        session.startNextLevel()
+        for position in fixture.solution {
+            session.gameViewModel?.toggleCat(atRow: position.row, column: position.column)
+        }
+        XCTAssertEqual(session.completionPresentation, .ladder(number: 1))
+        session.startFollowingLevel()
+        XCTAssertEqual(session.destination, .playing)
+        XCTAssertEqual(session.currentPresentation, .ladder(number: 1))
+        XCTAssertEqual(session.gameViewModel?.isSolved, false)
+        XCTAssertEqual(store.progress.completedLevelIDs, [])
+        XCTAssertEqual(store.progress.activeGame?.levelID, fixture.level.id)
+    }
+
     /// The ladder loops: finishing the last level starts a fresh lap from the
     /// first one instead of ending the game.
     func testCompletingEveryLevelStartsTheLadderOverFromTheFirst() {

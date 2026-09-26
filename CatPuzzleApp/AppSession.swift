@@ -19,6 +19,7 @@ final class AppSession: ObservableObject {
     @Published private(set) var nextPresentation: LevelPresentation?
     /// The same, for the level currently being played.
     @Published private(set) var currentPresentation: LevelPresentation?
+    @Published private(set) var completionPresentation: LevelPresentation?
     @Published private(set) var gameplayMode: GameplayMode = .challenge
     @Published private(set) var showsRegionIcons = false
     @Published private(set) var language: AppLanguage = .system
@@ -109,6 +110,12 @@ final class AppSession: ObservableObject {
     func continueAfterCompletion() {
         guard gameViewModel?.isSolved == true || tutorialViewModel?.isSolved == true else { return }
         showNextDestination()
+    }
+
+    func startFollowingLevel() {
+        guard gameViewModel?.isSolved == true else { return }
+        showNextDestination()
+        startNextLevel()
     }
 
     func setLanguage(_ language: AppLanguage) {
@@ -232,6 +239,7 @@ final class AppSession: ObservableObject {
     }
 
     private func showGame(engine: GameEngine) {
+        completionPresentation = nil
         let levelID = engine.state.level.id
         currentPresentation = presentationByLevelID[levelID]
         nextLevel = nil
@@ -273,7 +281,11 @@ final class AppSession: ObservableObject {
         if state.isSolved {
             markCompleted(levelID)
             progress.activeGame = nil
+            let upcoming = tutorials.first { !progress.completedTutorialIDs.contains($0.level.id) }?.level
+                ?? progression.nextLevel(completedLevelIDs: progress.completedLevelIDs)?.level
+            completionPresentation = upcoming.flatMap { presentationByLevelID[$0.id] }
         } else {
+            completionPresentation = nil
             progress.activeGame = SavedGame(
                 levelID: levelID,
                 puzzle: state.puzzle,
@@ -285,6 +297,7 @@ final class AppSession: ObservableObject {
     }
 
     private func showNextDestination() {
+        completionPresentation = nil
         gameViewModel = nil
         tutorialViewModel = nil
         currentPresentation = nil

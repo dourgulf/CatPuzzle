@@ -171,15 +171,15 @@ struct RootView: View {
                         showsRegionIcons: session.showsRegionIcons,
                         onBackToLevelStart: session.returnToCurrentLevelStart,
                         onOpenSettings: { presentedSheet = .settings },
-                        onContinue: session.continueAfterCompletion
+                        nextPresentation: session.completionPresentation,
+                        onContinue: session.startFollowingLevel
                     )
                 }
             case .readyForNextLevel:
-                if let level = session.nextLevel,
+                if session.nextLevel != nil,
                    let presentation = session.nextPresentation {
                     NextLevelScreen(
                         presentation: presentation,
-                        boardSize: level.size,
                         onStart: session.startNextLevel
                     )
                 }
