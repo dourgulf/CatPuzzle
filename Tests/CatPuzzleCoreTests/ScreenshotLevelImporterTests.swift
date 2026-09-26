@@ -2,7 +2,7 @@ import XCTest
 @testable import CatPuzzleCore
 
 final class ScreenshotLevelImporterTests: XCTestCase {
-    private let fixture = BuiltInLevels.meadowFixture
+    private let fixture = SampleLevels.meadowFixture
     private var regionIDs: [[Int]] { fixture.level.regionIDs }
 
     private func blankStates() -> [[CellState]] {

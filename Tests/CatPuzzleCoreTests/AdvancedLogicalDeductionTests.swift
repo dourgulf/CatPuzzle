@@ -302,8 +302,8 @@ final class AdvancedLogicalDeductionTests: XCTestCase {
     /// The higher-order tier is deliberately last-resort: a shipped level that
     /// solves with the standard toolkit must report zero, proving the new scan
     /// does not perturb the existing pair/triple/attack/link sequence.
-    func testBuiltInLevelRecordsNoHigherOrderLockedSet() throws {
-        for level in BuiltInLevels.all {
+    func testSampleLevelRecordsNoHigherOrderLockedSet() throws {
+        for level in SampleLevels.all {
             let result = LogicalPuzzleSolver.solve(level: level)
             XCTAssertTrue(result.isSolved)
             XCTAssertEqual(result.report.statistics.higherOrderLockedSetCount, 0)

@@ -2,24 +2,25 @@ import XCTest
 @testable import CatPuzzleCore
 
 final class LevelDefinitionTests: XCTestCase {
-    func testBuiltInLevelsCreateEmptySixBySixPuzzles() throws {
+    func testBuiltInLevelsCreateEmptySquarePuzzles() throws {
         let fixtures = BuiltInLevels.fixtures
 
-        XCTAssertEqual(fixtures.count, 3)
-        XCTAssertEqual(Set(fixtures.map { $0.level.id }).count, 3)
+        XCTAssertFalse(fixtures.isEmpty)
+        XCTAssertEqual(Set(fixtures.map { $0.level.id }).count, fixtures.count)
 
         for fixture in fixtures {
             let level = fixture.level
             let puzzle = try level.makePuzzle()
+            let size = level.size
 
-            XCTAssertEqual(level.size, 6)
-            XCTAssertEqual(level.catCount, 6)
-            XCTAssertEqual(level.maxMistakes, 5)
-            XCTAssertEqual(level.regionIDs.count, 6)
-            XCTAssertTrue(level.regionIDs.allSatisfy { $0.count == 6 })
-            XCTAssertEqual(Set(level.regionIDs.flatMap { $0 }).count, 6)
-            XCTAssertEqual(puzzle.size, 6)
-            XCTAssertTrue(puzzle.states.allSatisfy { $0 == .empty })
+            XCTAssertTrue((8...10).contains(size), level.id)
+            XCTAssertEqual(level.catCount, size, level.id)
+            XCTAssertEqual(level.maxMistakes, 5, level.id)
+            XCTAssertEqual(level.regionIDs.count, size, level.id)
+            XCTAssertTrue(level.regionIDs.allSatisfy { $0.count == size }, level.id)
+            XCTAssertEqual(Set(level.regionIDs.flatMap { $0 }).count, size, level.id)
+            XCTAssertEqual(puzzle.size, size, level.id)
+            XCTAssertTrue(puzzle.states.allSatisfy { $0 == .empty }, level.id)
         }
     }
 
@@ -83,7 +84,7 @@ final class LevelDefinitionTests: XCTestCase {
     }
 
     func testNoGivenStatesReportsEmptyGivenPositions() {
-        XCTAssertEqual(BuiltInLevels.meadow.givenPositions, [])
+        XCTAssertEqual(SampleLevels.meadow.givenPositions, [])
     }
 
     func testVariableSizeLevelCreatesMatchingPuzzle() throws {

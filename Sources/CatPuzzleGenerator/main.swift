@@ -16,6 +16,7 @@ struct CLIOptions {
     var jsonPath: String?
     var analyzePath: String?
     var assumptionDepth = 1
+    var ladder: LadderOptions?
 }
 
 func printUsageAndExit() -> Never {
@@ -31,6 +32,12 @@ func printUsageAndExit() -> Never {
       --analyze <path>         Score existing levels from a JSON file (id/size/regionIDs)
                                instead of generating; prints JSON and exits
       --assumption-depth <Int> Assumption depth used by --analyze (default 1, 0 = logic only)
+      --ladder <path>          Generate the shipped level ladder with the
+                               constructive generator and write BuiltInLevels
+                               Swift source to path, then exit
+      --ladder-json <path>     Write the ladder's review report as JSON
+      --cycles <Int>           Ten-level cycles to emit for --ladder (default 3)
+      --pool <Int>             Candidates generated per shipped level (default 4)
     """)
     exit(1)
 }
@@ -80,6 +87,20 @@ func parseArguments(_ arguments: [String]) -> CLIOptions {
         case "--assumption-depth":
             guard let value = Int(nextValue()) else { printUsageAndExit() }
             options.assumptionDepth = value
+        case "--ladder":
+            options.ladder = (options.ladder ?? LadderOptions())
+            options.ladder?.swiftPath = nextValue()
+        case "--ladder-json":
+            options.ladder = (options.ladder ?? LadderOptions())
+            options.ladder?.jsonPath = nextValue()
+        case "--cycles":
+            guard let value = Int(nextValue()) else { printUsageAndExit() }
+            options.ladder = (options.ladder ?? LadderOptions())
+            options.ladder?.cycles = value
+        case "--pool":
+            guard let value = Int(nextValue()) else { printUsageAndExit() }
+            options.ladder = (options.ladder ?? LadderOptions())
+            options.ladder?.poolMultiplier = value
         case "--help", "-h":
             printUsageAndExit()
         default:
@@ -96,6 +117,14 @@ let options = parseArguments(Array(CommandLine.arguments.dropFirst()))
 // generator's own 6x6-only path.
 if let analyzePath = options.analyzePath {
     runAnalyze(path: analyzePath, assumptionDepth: options.assumptionDepth)
+}
+
+// --ladder drives the constructive generator (sizes 8-10) and exits before the
+// prototype generator's 6x6-only path below.
+if var ladderOptions = options.ladder {
+    ladderOptions.seed = options.seed
+    ladderOptions.maxMistakes = options.maxMistakes
+    runLadder(options: ladderOptions)
 }
 
 guard options.size == 6 else {

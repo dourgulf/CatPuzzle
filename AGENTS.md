@@ -24,6 +24,15 @@ xcodebuild -project CatPuzzle.xcodeproj -scheme CatPuzzle \
 
 Builds the iOS app without requiring signing. Run app tests from Xcode or select an available simulator dynamically with `xcrun simctl`, then use `xcodebuild ... -only-testing:CatPuzzleAppTests test`. After changing targets or build settings, run `xcodegen generate --spec project.yml` and review the generated project diff.
 
+```bash
+swift run -c release CatPuzzleGenerator \
+  --ladder Sources/CatPuzzleCore/BuiltInLevels.swift \
+  --cycles 3 --pool 6 --seed 20260914
+```
+
+Regenerates the shipped level ladder. `BuiltInLevels.swift` is generated output —
+never hand-edit it, re-run the command instead. See `Docs/LevelLadder.md`.
+
 ## Coding Style & Naming Conventions
 
 Use four-space indentation and standard Swift API Design Guidelines. Types use `UpperCamelCase`; properties, methods, and enum cases use `lowerCamelCase`. Prefer value types and explicit domain operations in the core. Keep validators and solvers deterministic and side-effect free. UI gestures belong in the app layer and should call `GameViewModel` or `GameEngine` domain APIs. No formatter or linter is currently enforced; match surrounding code and run `git diff --check`.

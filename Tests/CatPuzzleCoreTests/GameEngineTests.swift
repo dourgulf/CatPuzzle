@@ -3,9 +3,9 @@ import XCTest
 
 final class GameEngineTests: XCTestCase {
     func testEngineStartsWithEmptyGameState() throws {
-        let engine = try GameEngine(level: BuiltInLevels.meadow)
+        let engine = try GameEngine(level: SampleLevels.meadow)
 
-        XCTAssertEqual(engine.state.level, BuiltInLevels.meadow)
+        XCTAssertEqual(engine.state.level, SampleLevels.meadow)
         XCTAssertTrue(engine.state.puzzle.states.allSatisfy { $0 == .empty })
         XCTAssertEqual(engine.state.mistakeCount, 0)
         XCTAssertEqual(engine.state.remainingMistakes, 5)
@@ -32,7 +32,7 @@ final class GameEngineTests: XCTestCase {
     }
 
     func testSetStateCanExcludeCellDirectly() throws {
-        var engine = try GameEngine(level: BuiltInLevels.meadow)
+        var engine = try GameEngine(level: SampleLevels.meadow)
 
         try engine.setState(.excluded, atRow: 2, column: 3)
 
@@ -41,7 +41,7 @@ final class GameEngineTests: XCTestCase {
     }
 
     func testSetStateCanPlaceLegalCatDirectly() throws {
-        var engine = try GameEngine(level: BuiltInLevels.meadow)
+        var engine = try GameEngine(level: SampleLevels.meadow)
 
         try engine.setState(.cat, atRow: 2, column: 3)
 
@@ -50,7 +50,7 @@ final class GameEngineTests: XCTestCase {
     }
 
     func testExplorationAcceptsLegalCatOutsideUniqueSolutionAndAllowsUndo() throws {
-        let fixture = BuiltInLevels.meadowFixture
+        let fixture = SampleLevels.meadowFixture
         var engine = try GameEngine(
             fixture: fixture,
             mode: .exploration
@@ -72,7 +72,7 @@ final class GameEngineTests: XCTestCase {
     }
 
     func testChallengeRejectsCatOutsideUniqueSolutionAndCountsMistake() throws {
-        let fixture = BuiltInLevels.meadowFixture
+        let fixture = SampleLevels.meadowFixture
         var engine = try GameEngine(
             fixture: fixture,
             mode: .challenge
@@ -97,7 +97,7 @@ final class GameEngineTests: XCTestCase {
     }
 
     func testChallengeAcceptsSolutionCatButNeverCreatesUndoHistory() throws {
-        let fixture = BuiltInLevels.meadowFixture
+        let fixture = SampleLevels.meadowFixture
         let position = fixture.solution[0]
         var engine = try GameEngine(
             fixture: fixture,
@@ -123,7 +123,7 @@ final class GameEngineTests: XCTestCase {
     }
 
     func testChangingModeClearsHistoryAndAppliesNewPlacementPolicy() throws {
-        let fixture = BuiltInLevels.meadowFixture
+        let fixture = SampleLevels.meadowFixture
         var engine = try GameEngine(
             fixture: fixture,
             mode: .exploration
@@ -152,7 +152,7 @@ final class GameEngineTests: XCTestCase {
     }
 
     func testSettingSameStateIsNoOpWithoutUndoHistory() throws {
-        var engine = try GameEngine(level: BuiltInLevels.meadow)
+        var engine = try GameEngine(level: SampleLevels.meadow)
         try engine.setState(.excluded, atRow: 2, column: 3)
         let puzzleBeforeNoOp = engine.state.puzzle
 
@@ -165,7 +165,7 @@ final class GameEngineTests: XCTestCase {
     }
 
     func testToggleCyclesThroughAllCellStates() throws {
-        var engine = try GameEngine(level: BuiltInLevels.meadow)
+        var engine = try GameEngine(level: SampleLevels.meadow)
 
         XCTAssertEqual(
             try engine.toggleCell(atRow: 0, column: 0),
@@ -178,7 +178,7 @@ final class GameEngineTests: XCTestCase {
     }
 
     func testIllegalCatPlacementIsRejectedWithoutChangingState() throws {
-        var engine = try GameEngine(level: BuiltInLevels.meadow)
+        var engine = try GameEngine(level: SampleLevels.meadow)
         try engine.setState(.cat, atRow: 0, column: 0)
         try engine.setState(.excluded, atRow: 0, column: 4)
         let puzzleBeforeFailure = engine.state.puzzle
@@ -199,7 +199,7 @@ final class GameEngineTests: XCTestCase {
     }
 
     func testUndoRestoresSuccessfulMovesInReverseOrder() throws {
-        var engine = try GameEngine(level: BuiltInLevels.meadow)
+        var engine = try GameEngine(level: SampleLevels.meadow)
         try engine.setState(.excluded, atRow: 0, column: 0)
         try engine.setState(.excluded, atRow: 1, column: 1)
 
@@ -215,7 +215,7 @@ final class GameEngineTests: XCTestCase {
     }
 
     func testRestartRestoresInitialStateAndClearsHistory() throws {
-        var engine = try GameEngine(level: BuiltInLevels.meadow)
+        var engine = try GameEngine(level: SampleLevels.meadow)
         try engine.setState(.cat, atRow: 0, column: 0)
         try engine.setState(.excluded, atRow: 2, column: 2)
 
@@ -229,7 +229,7 @@ final class GameEngineTests: XCTestCase {
     }
 
     func testCompletingValidMovesUpdatesSolvedState() throws {
-        let fixture = BuiltInLevels.meadowFixture
+        let fixture = SampleLevels.meadowFixture
         var engine = try GameEngine(level: fixture.level)
 
         for position in fixture.solution {
@@ -244,7 +244,7 @@ final class GameEngineTests: XCTestCase {
     }
 
     func testInvalidCoordinateDoesNotCreateUndoHistory() throws {
-        var engine = try GameEngine(level: BuiltInLevels.meadow)
+        var engine = try GameEngine(level: SampleLevels.meadow)
         try engine.setState(.excluded, atRow: 1, column: 1)
         let puzzleBeforeFailure = engine.state.puzzle
 
@@ -260,7 +260,7 @@ final class GameEngineTests: XCTestCase {
     }
 
     func testEngineRestoresValidPuzzleWithoutUndoHistory() throws {
-        let level = BuiltInLevels.meadow
+        let level = SampleLevels.meadow
         var savedPuzzle = try level.makePuzzle()
         try savedPuzzle.setState(.excluded, atRow: 0, column: 0)
         try savedPuzzle.setState(.cat, atRow: 0, column: 1)
@@ -278,11 +278,11 @@ final class GameEngineTests: XCTestCase {
     }
 
     func testIllegalPlacementsReachFailureWithoutChangingPuzzle() throws {
-        var engine = try GameEngine(level: BuiltInLevels.meadow)
+        var engine = try GameEngine(level: SampleLevels.meadow)
         try engine.setState(.cat, atRow: 0, column: 0)
         let puzzleBeforeMistakes = engine.state.puzzle
 
-        for expectedCount in 1...BuiltInLevels.meadow.maxMistakes {
+        for expectedCount in 1...SampleLevels.meadow.maxMistakes {
             XCTAssertThrowsError(
                 try engine.setState(.cat, atRow: 0, column: 4)
             ) { error in
@@ -333,7 +333,7 @@ final class GameEngineTests: XCTestCase {
     }
 
     func testRestoredMistakeCountCanRestoreFailedGame() throws {
-        let level = BuiltInLevels.meadow
+        let level = SampleLevels.meadow
         let puzzle = try level.makePuzzle()
 
         let engine = try GameEngine(
@@ -347,7 +347,7 @@ final class GameEngineTests: XCTestCase {
     }
 
     func testNegativeRestoredMistakeCountIsRejected() throws {
-        let level = BuiltInLevels.meadow
+        let level = SampleLevels.meadow
         let puzzle = try level.makePuzzle()
 
         XCTAssertThrowsError(
@@ -358,7 +358,7 @@ final class GameEngineTests: XCTestCase {
     }
 
     func testRestartAfterRestoreUsesFreshEmptyLevel() throws {
-        let level = BuiltInLevels.meadow
+        let level = SampleLevels.meadow
         var savedPuzzle = try level.makePuzzle()
         try savedPuzzle.setState(.excluded, atRow: 2, column: 2)
         var engine = try GameEngine(level: level, puzzle: savedPuzzle)
@@ -370,17 +370,17 @@ final class GameEngineTests: XCTestCase {
     }
 
     func testEngineRejectsRestoredPuzzleFromDifferentLevel() throws {
-        let riverPuzzle = try BuiltInLevels.river.makePuzzle()
+        let riverPuzzle = try SampleLevels.river.makePuzzle()
 
         XCTAssertThrowsError(
-            try GameEngine(level: BuiltInLevels.meadow, puzzle: riverPuzzle)
+            try GameEngine(level: SampleLevels.meadow, puzzle: riverPuzzle)
         ) { error in
             XCTAssertEqual(error as? GameEngineError, .puzzleDoesNotMatchLevel)
         }
     }
 
     func testEngineRejectsRestoredPuzzleWithRuleConflict() throws {
-        let level = BuiltInLevels.meadow
+        let level = SampleLevels.meadow
         var savedPuzzle = try level.makePuzzle()
         try savedPuzzle.setState(.cat, atRow: 0, column: 0)
         try savedPuzzle.setState(.cat, atRow: 0, column: 4)

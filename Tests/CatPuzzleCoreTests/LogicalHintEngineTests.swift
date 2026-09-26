@@ -3,7 +3,7 @@ import XCTest
 
 final class LogicalHintEngineTests: XCTestCase {
     func testNextHintPlacesOnlyTheDirectlyDeducedCat() throws {
-        let level = BuiltInLevels.meadow
+        let level = SampleLevels.meadow
         var puzzle = try level.makePuzzle()
         for column in 0..<level.size where column != 1 {
             try puzzle.setState(.excluded, atRow: 0, column: column)
@@ -23,7 +23,7 @@ final class LogicalHintEngineTests: XCTestCase {
     }
 
     func testHintFromConfirmedCatGroupsOneTrueExclusionReason() throws {
-        let level = BuiltInLevels.meadow
+        let level = SampleLevels.meadow
         var puzzle = try level.makePuzzle()
         try puzzle.setState(.cat, atRow: 0, column: 1)
 
@@ -98,7 +98,7 @@ final class LogicalHintEngineTests: XCTestCase {
     }
 
     func testDeterministicTechniqueWinsOverTheAssumptionFallback() throws {
-        let level = BuiltInLevels.meadow
+        let level = SampleLevels.meadow
         var puzzle = try level.makePuzzle()
         for column in 0..<level.size where column != 1 {
             try puzzle.setState(.excluded, atRow: 0, column: column)
@@ -112,7 +112,7 @@ final class LogicalHintEngineTests: XCTestCase {
     }
 
     func testStarvedConstraintIsReportedInsteadOfSilence() throws {
-        let level = BuiltInLevels.meadow
+        let level = SampleLevels.meadow
         var puzzle = try level.makePuzzle()
         // The player wrongly excludes an entire row.
         for column in 0..<level.size {
@@ -204,7 +204,7 @@ final class LogicalHintEngineTests: XCTestCase {
     }
 
     func testApplyingMultiCellHintIsOneUndoStep() throws {
-        let level = BuiltInLevels.meadow
+        let level = SampleLevels.meadow
         var startingPuzzle = try level.makePuzzle()
         try startingPuzzle.setState(.cat, atRow: 0, column: 1)
         let hint = try XCTUnwrap(

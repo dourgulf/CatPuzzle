@@ -3,7 +3,7 @@ import XCTest
 
 final class PuzzleDifficultyAnalyzerTests: XCTestCase {
     func testDifficultyScoreIsDeterministic() {
-        let report = LogicalPuzzleSolver.solve(level: BuiltInLevels.meadow).report
+        let report = LogicalPuzzleSolver.solve(level: SampleLevels.meadow).report
 
         XCTAssertEqual(
             PuzzleDifficultyAnalyzer.analyze(report),
