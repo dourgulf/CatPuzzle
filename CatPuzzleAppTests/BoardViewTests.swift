@@ -82,6 +82,30 @@ final class BoardViewTests: XCTestCase {
         )
     }
 
+    func testAdaptiveSpacingKeepsCellsAndHitTargetsAlignedAcrossBoardSizes() {
+        for width in [320.0, 393.0, 430.0] {
+            for size in [6, 7, 8, 9, 10, 12] {
+                for scale in [2.0, 3.0] {
+                    let layout = BoardAppearance.compact.layout(side: width - 8, size: size, displayScale: scale)
+                    XCTAssertEqual(layout.spacing, layout.cellSide * 0.08, accuracy: 0.6 / scale)
+                    XCTAssertEqual(layout.spacing * scale, (layout.spacing * scale).rounded(), accuracy: 0.001)
+                    XCTAssertEqual(
+                        CGFloat(size) * layout.cellSide + CGFloat(size - 1) * layout.spacing,
+                        layout.contentSide, accuracy: 0.001
+                    )
+                    let first = layout.padding + layout.cellSide / 2
+                    let last = layout.padding + layout.contentSide - layout.cellSide / 2
+                    XCTAssertEqual(layout.position(at: CGPoint(x: last, y: last)), CellPosition(row: size - 1, column: size - 1))
+                    XCTAssertNil(layout.position(at: CGPoint(x: layout.padding + layout.cellSide + layout.spacing / 2, y: first)))
+                    XCTAssertEqual(
+                        layout.positions(from: CGPoint(x: first, y: first), to: CGPoint(x: last, y: first)),
+                        (0..<size).map { CellPosition(row: 0, column: $0) }
+                    )
+                }
+            }
+        }
+    }
+
     func testDragModeIsDeterminedByStartingCellState() {
         XCTAssertEqual(BoardDragMode(startingFrom: .empty), .exclude)
         XCTAssertEqual(BoardDragMode(startingFrom: .excluded), .clear)
@@ -93,11 +117,9 @@ final class BoardViewTests: XCTestCase {
         let labEightByEight = CellMarkerMetrics(cellSide: 41)
         let labTenByTen = CellMarkerMetrics(cellSide: 32)
 
-        XCTAssertEqual(main.excludedFontSize, 39.6, accuracy: 0.001)
-        XCTAssertEqual(labEightByEight.excludedFontSize, 29.52, accuracy: 0.001)
-        XCTAssertEqual(labTenByTen.excludedFontSize, 23.04, accuracy: 0.001)
-        XCTAssertLessThan(labEightByEight.excludedFontSize, 41)
-        XCTAssertLessThan(labTenByTen.excludedFontSize, 32)
+        XCTAssertEqual(main.excludedFontSize, 63.25, accuracy: 0.001)
+        XCTAssertEqual(labEightByEight.excludedFontSize, 47.15, accuracy: 0.001)
+        XCTAssertEqual(labTenByTen.excludedFontSize, 36.8, accuracy: 0.001)
         XCTAssertLessThan(labEightByEight.catFontSize, main.catFontSize)
         XCTAssertLessThan(labEightByEight.catPadding, main.catPadding)
     }

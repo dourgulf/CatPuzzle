@@ -7,9 +7,9 @@ struct CellMarkerMetrics: Equatable {
     let catPadding: CGFloat
 
     init(cellSide: CGFloat) {
-        excludedFontSize = min(40, cellSide * 0.72)
-        catFontSize = min(23, cellSide * 0.42)
-        catPadding = min(7, cellSide * 0.13)
+        excludedFontSize = cellSide * 1.15
+        catFontSize = cellSide * 0.60
+        catPadding = cellSide * 0.08
     }
 }
 
@@ -26,6 +26,7 @@ struct CellView: View {
     let row: Int
     let column: Int
     let cellSide: CGFloat
+    var cornerRadius: CGFloat = 8
     let showsRegionIcon: Bool
     let isLocked: Bool
     let hintEmphasis: CellHintEmphasis
@@ -44,7 +45,7 @@ struct CellView: View {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .fill(CatPuzzleTheme.regionColor(for: regionID))
 
             if showsRegionIcon {
@@ -58,7 +59,7 @@ struct CellView: View {
             }
 
             marker
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(width: cellSide, height: cellSide)
                 .clipped()
 
             if isLocked {
@@ -73,7 +74,8 @@ struct CellView: View {
             }
 
             if hintEmphasis == .dimmed {
-                Color.black.opacity(0.62)
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(CatPuzzleTheme.textPrimary.opacity(0.24))
                     .accessibilityHidden(true)
             } else if isMasked {
                 Color.black.opacity(0.4)
@@ -86,17 +88,17 @@ struct CellView: View {
             )
             .contentShape(Rectangle())
             .overlay {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(
                         hintEmphasis == .result
-                            ? CatPuzzleTheme.action
+                            ? CatPuzzleTheme.textPrimary
                             : .white.opacity(0.5),
-                        lineWidth: hintEmphasis == .result ? 4 : 1
+                        lineWidth: hintEmphasis == .result ? 3 : 1
                     )
             }
             .overlay {
                 if isNudged {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                         .stroke(CatPuzzleTheme.action, lineWidth: 4)
                         .opacity(reduceMotion || isPulsing ? 1 : 0.2)
                         .animation(pulseAnimation, value: isPulsing)
@@ -144,22 +146,13 @@ struct CellView: View {
                     )
                 )
                 .foregroundStyle(.white)
+                // Center the multiplication glyph's ink, rather than its font line box.
+                .offset(y: -cellSide * 0.09)
                 .transition(.scale.combined(with: .opacity))
         case .cat:
-            ZStack {
-                Circle()
-                    .fill(CatPuzzleTheme.surface.opacity(0.94))
-                Image(systemName: "pawprint.fill")
-                    .font(
-                        .system(
-                            size: markerMetrics.catFontSize,
-                            weight: .semibold
-                        )
-                    )
-                    .foregroundStyle(CatPuzzleTheme.textPrimary)
-            }
-            .padding(markerMetrics.catPadding)
-            .transition(.scale.combined(with: .opacity))
+            CatMarkerView(fontSize: markerMetrics.catFontSize)
+                .padding(markerMetrics.catPadding)
+                .transition(.scale.combined(with: .opacity))
         }
     }
 
@@ -193,4 +186,19 @@ struct CellView: View {
         }
     }
 
+}
+
+/// Shared by board cells and rule diagrams so the cat always has the same appearance.
+struct CatMarkerView: View {
+    let fontSize: CGFloat
+
+    var body: some View {
+        Circle()
+            .fill(CatPuzzleTheme.surface.opacity(0.94))
+            .overlay {
+                Image(systemName: "pawprint.fill")
+                    .font(.system(size: fontSize, weight: .semibold))
+                    .foregroundStyle(CatPuzzleTheme.textPrimary)
+            }
+    }
 }

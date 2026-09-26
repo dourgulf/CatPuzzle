@@ -7,6 +7,8 @@ enum CatPuzzleTheme {
         blue: 243.0 / 255.0
     )
     static let surface = Color.white
+    static let lifeAccent = Color(red: 0.88, green: 0.66, blue: 0.40)
+    static let actionInk = Color(red: 0.10, green: 0.43, blue: 0.29)
     static let textPrimary = Color(
         red: 73.0 / 255.0,
         green: 53.0 / 255.0,

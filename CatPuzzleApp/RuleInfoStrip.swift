@@ -8,13 +8,40 @@ struct RuleInfoStrip: View {
         .noTouchingCats,
     ]
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
-        HStack(spacing: 8) {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: 8))
+        layout {
             ForEach(Self.rules, id: \.self) { rule in
-                RuleInfoCard(rule: rule, compact: true)
-                    .frame(maxWidth: .infinity)
+                HStack(spacing: 5) {
+                    RuleInfoDiagram(
+                        rule: rule,
+                        filledColor: CatPuzzleTheme.textSecondary,
+                        emptyColor: CatPuzzleTheme.divider
+                    )
+                        .frame(width: 32, height: 32)
+                        .fixedSize()
+                        .accessibilityHidden(true)
+                    Text(LocalizedStringKey(rule.tipText))
+                        .font(.caption2.weight(.medium))
+                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 3)
+                        .minimumScaleFactor(dynamicTypeSize.isAccessibilitySize ? 1 : 0.7)
+                        .fixedSize(horizontal: false, vertical: dynamicTypeSize.isAccessibilitySize)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .frame(height: dynamicTypeSize.isAccessibilitySize ? nil : 30)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .foregroundStyle(CatPuzzleTheme.textSecondary)
+                .accessibilityElement(children: .combine)
             }
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(CatPuzzleTheme.surface.opacity(0.6), in: RoundedRectangle(cornerRadius: 16))
     }
 }
 
@@ -60,6 +87,8 @@ extension PuzzleRule {
 /// Miniature board examples use the same paw and × vocabulary as the board.
 private struct RuleInfoDiagram: View {
     let rule: PuzzleRule
+    var filledColor = Color(red: 0.70, green: 0.43, blue: 0.28)
+    var emptyColor = Color(red: 0.87, green: 0.73, blue: 0.65)
 
     var body: some View {
         Grid(horizontalSpacing: 1.5, verticalSpacing: 1.5) {
@@ -68,21 +97,25 @@ private struct RuleInfoDiagram: View {
                     ForEach(0..<3, id: \.self) { column in
                         let isCat = row == (rule == .oneCatPerRowAndColumn ? 0 : 1) && column == 1
                         let isExcluded = excluded(row: row, column: column)
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(isCat || isExcluded
-                                  ? Color(red: 0.70, green: 0.43, blue: 0.28)
-                                  : Color(red: 0.87, green: 0.73, blue: 0.65))
-                            .overlay {
+                        GeometryReader { geometry in
+                            ZStack {
                                 if isCat {
-                                    Image(systemName: "pawprint.fill")
-                                        .font(.system(size: 7, weight: .bold))
-                                        .foregroundStyle(.white)
+                                    CatMarkerView(fontSize: geometry.size.width * (0.60 / 0.84))
                                 } else if isExcluded {
-                                    Image(systemName: "xmark")
-                                        .font(.system(size: 8, weight: .bold))
-                                        .foregroundStyle(.white)
+                                    RoundedRectangle(cornerRadius: 2)
+                                        .fill(filledColor)
+                                        .overlay {
+                                            Image(systemName: "xmark")
+                                                .font(.system(size: 8, weight: .bold))
+                                                .foregroundStyle(.white)
+                                        }
+                                } else {
+                                    RoundedRectangle(cornerRadius: 2)
+                                        .fill(emptyColor)
                                 }
                             }
+                            .frame(width: geometry.size.width, height: geometry.size.height)
+                        }
                     }
                 }
             }

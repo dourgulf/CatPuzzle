@@ -2,7 +2,6 @@ import CatPuzzleCore
 import SwiftUI
 
 struct GameScreen: View {
-    @Environment(\.locale) private var locale
     @ObservedObject var viewModel: GameViewModel
     let presentation: LevelPresentation
     let showsRegionIcons: Bool
@@ -13,80 +12,12 @@ struct GameScreen: View {
     var body: some View {
         ZStack {
             ScrollView {
-                VStack(spacing: 16) {
-                    header
-                    GameStatusBar(
-                        regionIDs: viewModel.regionIDs,
-                        occupiedRegionIDs: viewModel.occupiedRegionIDs,
-                        remainingLives: viewModel.remainingMistakes,
-                        maxLives: viewModel.level.maxMistakes
-                    )
-                    RuleInfoStrip()
-
-                    BoardView(
-                        puzzle: viewModel.puzzle,
-                        previewStates: viewModel.previewStates,
-                        showsRegionIcons: showsRegionIcons,
-                        lockedPositions: viewModel.level.givenPositions,
-                        hint: viewModel.hint,
-                        onTap: viewModel.handleCellTap,
-                        onDragSetExcluded: viewModel.setExcludedDuringDrag,
-                        onToggleCatAccessibility: viewModel.toggleCat
-                    )
-                    .frame(maxWidth: 430)
-                    .aspectRatio(1, contentMode: .fit)
-
-                    if let hint = viewModel.hint {
-                        HintPanel(
-                            description: HintDescription.text(
-                                for: hint,
-                                showsRegionIcons: showsRegionIcons, locale: locale
-                            ),
-                            onApply: viewModel.applyHint,
-                            onCancel: viewModel.dismissHint
-                        )
-                    } else {
-                        Text(LocalizedStringKey(gestureReminder))
-                            .font(.footnote.weight(.medium))
-                            .foregroundStyle(CatPuzzleTheme.textSecondary)
-                            .multilineTextAlignment(.center)
-                            .accessibilityIdentifier("gesture-reminder")
-                    }
-
-                    feedback
-
-                    HStack(spacing: 12) {
-                        Button {
-                            viewModel.requestHint()
-                        } label: {
-                            Label("Hint", systemImage: "lightbulb.fill")
-                                .font(.headline)
-                                .frame(maxWidth: .infinity, minHeight: 50)
-                        }
-                        .buttonBorderShape(.roundedRectangle(radius: 16))
-                        .buttonStyle(.bordered)
-                        .disabled(viewModel.hint != nil)
-                        .accessibilityIdentifier("request-hint")
-
-                        if viewModel.allowsUndo {
-                            Button {
-                                viewModel.undo()
-                            } label: {
-                                Label(
-                                    "Undo",
-                                    systemImage: "arrow.uturn.backward"
-                                )
-                                .font(.headline)
-                                .frame(maxWidth: .infinity, minHeight: 50)
-                            }
-                            .buttonBorderShape(.roundedRectangle(radius: 16))
-                            .buttonStyle(.borderedProminent)
-                            .disabled(!viewModel.canUndo)
-                        }
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 20)
+                GamePlayContent(
+                    viewModel: viewModel, presentation: presentation,
+                    showsRegionIcons: showsRegionIcons,
+                    onBackToLevelStart: onBackToLevelStart,
+                    onOpenSettings: onOpenSettings
+                )
             }
             .scrollBounceBehavior(.basedOnSize)
 
@@ -97,6 +28,158 @@ struct GameScreen: View {
             }
         }
         .sensoryFeedback(.selection, trigger: viewModel.markerFeedbackSequence)
+    }
+
+    private func overlayBackdrop<Content: View>(content: Content) -> some View {
+        ZStack {
+            CatPuzzleTheme.textPrimary.opacity(0.18)
+                .ignoresSafeArea()
+            content
+        }
+    }
+
+    private var solvedOverlay: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 52))
+                .foregroundStyle(CatPuzzleTheme.action)
+            Text("Level Complete")
+                .font(.title.bold())
+                .accessibilityIdentifier("level-complete-message")
+            Text("Every rule is satisfied.")
+                .font(.body)
+                .foregroundStyle(CatPuzzleTheme.textSecondary)
+            Button("Continue", action: onContinue)
+                .buttonStyle(GameActionButtonStyle(prominent: true))
+                .accessibilityIdentifier("continue-after-completion")
+        }
+        .multilineTextAlignment(.center)
+        .padding(24)
+        .frame(maxWidth: 340)
+        .background(
+            CatPuzzleTheme.surface,
+            in: RoundedRectangle(cornerRadius: 24, style: .continuous)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 24).strokeBorder(CatPuzzleTheme.divider, lineWidth: 1)
+        }
+        .shadow(color: CatPuzzleTheme.textPrimary.opacity(0.10), radius: 16, y: 8)
+        .padding(24)
+    }
+
+    private var failedOverlay: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "xmark.circle.fill")
+                .font(.system(size: 52))
+                .foregroundStyle(CatPuzzleTheme.warning)
+            Text("Game Over")
+                .font(.title.bold())
+                .accessibilityIdentifier("game-over-message")
+            Text("Restart for a fresh board.")
+                .font(.body)
+                .foregroundStyle(CatPuzzleTheme.textSecondary)
+            Button("Restart") {
+                viewModel.restart()
+            }
+            .buttonStyle(GameActionButtonStyle(prominent: true))
+            .accessibilityIdentifier("restart-after-failure")
+        }
+        .multilineTextAlignment(.center)
+        .padding(24)
+        .frame(maxWidth: 340)
+        .background(
+            CatPuzzleTheme.surface,
+            in: RoundedRectangle(cornerRadius: 24, style: .continuous)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 24).strokeBorder(CatPuzzleTheme.divider, lineWidth: 1)
+        }
+        .shadow(color: CatPuzzleTheme.textPrimary.opacity(0.10), radius: 16, y: 8)
+        .padding(24)
+    }
+}
+
+/// Formal game content shared by the scrolling screen and visual render scenes.
+struct GamePlayContent: View {
+    @Environment(\.locale) private var locale
+    @ObservedObject var viewModel: GameViewModel
+    let presentation: LevelPresentation
+    let showsRegionIcons: Bool
+    let onBackToLevelStart: () -> Void
+    let onOpenSettings: (() -> Void)?
+
+    var body: some View {
+        VStack(spacing: 14) {
+            header
+                .padding(.horizontal, 12)
+            GameStatusBar(
+                regionIDs: viewModel.regionIDs,
+                occupiedRegionIDs: viewModel.occupiedRegionIDs,
+                remainingLives: viewModel.remainingMistakes,
+                maxLives: viewModel.level.maxMistakes
+            )
+            .padding(.horizontal, 12)
+            RuleInfoStrip()
+                .padding(.horizontal, 12)
+
+            BoardView(
+                puzzle: viewModel.puzzle,
+                previewStates: viewModel.previewStates,
+                showsRegionIcons: showsRegionIcons,
+                lockedPositions: viewModel.level.givenPositions,
+                hint: viewModel.hint,
+                appearance: .compact,
+                onTap: viewModel.handleCellTap,
+                onDragSetExcluded: viewModel.setExcludedDuringDrag,
+                onToggleCatAccessibility: viewModel.toggleCat
+            )
+            .aspectRatio(1, contentMode: .fit)
+
+            HStack(spacing: 12) {
+                Button {
+                    viewModel.requestHint()
+                } label: {
+                    Text("Hint")
+                        .font(.headline)
+                }
+                .buttonStyle(GameActionButtonStyle())
+                .disabled(viewModel.hint != nil)
+                .accessibilityIdentifier("request-hint")
+
+                if viewModel.allowsUndo {
+                    Button {
+                        viewModel.undo()
+                    } label: {
+                        Label(
+                            "Undo",
+                            systemImage: "arrow.uturn.backward"
+                        )
+                        .font(.headline)
+                    }
+                    .buttonStyle(GameActionButtonStyle())
+                    .disabled(!viewModel.canUndo)
+                }
+            }
+            .padding(.horizontal, 12)
+
+            if let hint = viewModel.hint {
+                HintPanel(
+                    description: HintDescription.text(
+                        for: hint,
+                        showsRegionIcons: showsRegionIcons, locale: locale
+                    ),
+                    onApply: viewModel.applyHint,
+                    onCancel: viewModel.dismissHint
+                )
+                .padding(.horizontal, 12)
+            }
+
+            feedback
+                .padding(.horizontal, 12)
+        }
+        .padding(.horizontal, 4)
+        .padding(.vertical, 16)
+        .frame(maxWidth: .infinity)
     }
 
     private var header: some View {
@@ -128,14 +211,14 @@ struct GameScreen: View {
                 .font(.system(size: 16, weight: .semibold))
                 .frame(width: 44, height: 44)
                 .background(CatPuzzleTheme.surface, in: Circle())
-                .shadow(color: CatPuzzleTheme.textPrimary.opacity(0.10), radius: 8, y: 4)
+                .overlay {
+                    Circle().strokeBorder(CatPuzzleTheme.divider, lineWidth: 1)
+                }
         }
+        .buttonStyle(.plain)
+        .foregroundStyle(CatPuzzleTheme.textPrimary)
         .accessibilityLabel(label)
         .accessibilityIdentifier(identifier)
-    }
-
-    private var gestureReminder: String {
-        "Tap to mark ×  ·  Double-tap to place a paw"
     }
 
     /// A broken board is explained here rather than in the hint panel: there
@@ -159,73 +242,9 @@ struct GameScreen: View {
                 .multilineTextAlignment(.center)
                 .frame(minHeight: 36)
                 .accessibilityIdentifier("game-feedback")
-        } else {
-            Text(" ")
-                .frame(minHeight: 36)
-                .accessibilityHidden(true)
         }
     }
 
-    private func overlayBackdrop<Content: View>(content: Content) -> some View {
-        ZStack {
-            CatPuzzleTheme.textPrimary.opacity(0.18)
-                .ignoresSafeArea()
-            content
-        }
-    }
-
-    private var solvedOverlay: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 52))
-                .foregroundStyle(CatPuzzleTheme.action)
-            Text("Level Complete")
-                .font(.title.bold())
-                .accessibilityIdentifier("level-complete-message")
-            Text("Every rule is satisfied.")
-                .font(.body)
-                .foregroundStyle(CatPuzzleTheme.textSecondary)
-            Button("Continue", action: onContinue)
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .buttonBorderShape(.roundedRectangle(radius: 14))
-                .accessibilityIdentifier("continue-after-completion")
-        }
-        .padding(28)
-        .background(
-            CatPuzzleTheme.surface,
-            in: RoundedRectangle(cornerRadius: 24, style: .continuous)
-        )
-        .shadow(color: CatPuzzleTheme.textPrimary.opacity(0.16), radius: 20, y: 10)
-    }
-
-    private var failedOverlay: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "xmark.circle.fill")
-                .font(.system(size: 52))
-                .foregroundStyle(CatPuzzleTheme.warning)
-            Text("Game Over")
-                .font(.title.bold())
-                .accessibilityIdentifier("game-over-message")
-            Text("Restart for a fresh board.")
-                .font(.body)
-                .foregroundStyle(CatPuzzleTheme.textSecondary)
-            Button("Restart") {
-                viewModel.restart()
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(CatPuzzleTheme.warning)
-            .controlSize(.large)
-            .buttonBorderShape(.roundedRectangle(radius: 14))
-            .accessibilityIdentifier("restart-after-failure")
-        }
-        .padding(28)
-        .background(
-            CatPuzzleTheme.surface,
-            in: RoundedRectangle(cornerRadius: 24, style: .continuous)
-        )
-        .shadow(color: CatPuzzleTheme.textPrimary.opacity(0.16), radius: 20, y: 10)
-    }
 }
 
 private struct HintPanel: View {
@@ -237,19 +256,18 @@ private struct HintPanel: View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Logical Hint", systemImage: "lightbulb.fill")
                 .font(.headline)
-                .foregroundStyle(CatPuzzleTheme.action)
+                .foregroundStyle(CatPuzzleTheme.actionInk)
             Text(description)
-                .font(.subheadline)
+                .font(.body)
+                .fixedSize(horizontal: false, vertical: true)
                 .foregroundStyle(CatPuzzleTheme.textSecondary)
 
             HStack(spacing: 12) {
                 Button("Cancel", action: onCancel)
-                    .buttonStyle(.bordered)
-                    .frame(maxWidth: .infinity)
+                    .buttonStyle(GameActionButtonStyle())
                     .accessibilityIdentifier("cancel-hint")
                 Button("Apply", action: onApply)
-                    .buttonStyle(.borderedProminent)
-                    .frame(maxWidth: .infinity)
+                    .buttonStyle(GameActionButtonStyle(prominent: true))
                     .accessibilityIdentifier("apply-hint")
             }
         }
@@ -264,6 +282,31 @@ private struct HintPanel: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("logical-hint-panel")
+    }
+}
+
+/// Shared by the formal game's toolbar, hint card and outcome cards.
+struct GameActionButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+    var prominent = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.headline)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, minHeight: 48)
+            .foregroundStyle(prominent ? CatPuzzleTheme.surface : CatPuzzleTheme.textPrimary)
+            .background(
+                prominent ? CatPuzzleTheme.actionInk : CatPuzzleTheme.surface,
+                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(prominent ? Color.clear : CatPuzzleTheme.divider, lineWidth: 1)
+            }
+            .opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.4)
     }
 }
 

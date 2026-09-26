@@ -68,6 +68,40 @@ Order content vertically:
 
 Do not add score, timer, advertisements, power-ups, or a level list unless product requirements change.
 
+## Formal Game Visual Details
+
+The formal game uses a single quiet rule strip with miniature board diagrams
+and secondary text. Preserve the diagrams' paw and exclusion marks so each rule
+remains visually meaningful. Use the muted theme colors in the formal game;
+excluded marks use white crosses on muted tiles, and cats reuse the board's circular paw marker.
+The tutorial retains its existing diagram colors. Keep the three rules visible,
+place the text to the right of each fixed-size diagram, and keep the strip compact.
+Text may shrink to fit up to three lines while diagrams retain priority. Stack the rules
+and allow full text wrapping at accessibility text sizes.
+
+Lives use flat cat faces; completed Regions use filled paws and unfinished
+Regions use outlined paws. Game actions, hint actions, and outcome actions share
+16 pt rounded buttons, with a white secondary surface and dark green primary
+surface (`actionInk`) for legible white text. Life faces use `lifeAccent`.
+Place the text-only Hint action directly below the board with the same 14 pt
+spacing used between the rule strip and board. Let the stack follow the board's
+actual size; hint details and feedback appear below the actions.
+Formal boards use 4 pt screen margins, 2 pt inner padding, cell gaps equal to
+8% of cell width (rounded to device pixels), and 4 pt cell corners.
+Compute the unrounded cell width as available inner width / (N + 0.08 × (N − 1)),
+then derive the gap and distribute the remaining width equally among cells.
+Rendering and gesture hit testing share these dimensions.
+The board expands with available width; other controls keep
+their 16 pt screen margins. Tutorial boards retain their existing geometry.
+Cell marks scale with the cell without fixed font-size caps: the paw uses a
+60% font size and 8% inset, and the rounded multiplication sign uses a 115%
+font size, with optical centering and visible space around both marks.
+
+Hint previews shade only the rounded cell interior at 24% using `textPrimary`.
+A 3 pt dark inset outline identifies result cells even on green Regions; keep
+the surrounding Region colors readable. Outcome cards share the same surface,
+border, typography, and button style.
+
 ## Cell States & Interaction
 
 - **Empty:** vivid Region fill with no central mark.
