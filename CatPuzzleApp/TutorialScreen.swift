@@ -10,6 +10,11 @@ struct TutorialScreen: View {
     let showsRegionIcons: Bool
     let onContinue: () -> Void
 
+    @Namespace private var ruleFlight
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var flashingRule: PuzzleRule?
+
     var body: some View {
         ZStack {
             TutorialTheme.background.ignoresSafeArea()
@@ -25,17 +30,51 @@ struct TutorialScreen: View {
         .animation(.easeInOut(duration: 0.35), value: viewModel.isSolved)
         .sensoryFeedback(.selection, trigger: viewModel.markerFeedbackSequence)
         .preferredColorScheme(.dark)
+        .animation(reduceMotion ? nil : .spring(duration: 0.65), value: viewModel.learnedRules)
+        .task(id: "\(viewModel.activitySequence)-\(scenePhase)") {
+            viewModel.clearIdleReminder()
+            guard scenePhase == .active else { return }
+            do {
+                try await Task.sleep(for: .seconds(3))
+                while !Task.isCancelled {
+                    viewModel.showIdleReminder()
+                    try await Task.sleep(for: .milliseconds(600))
+                    viewModel.clearIdleReminder()
+                    try await Task.sleep(for: .milliseconds(2400))
+                }
+            } catch { return }
+        }
+
+        .task(id: viewModel.stepNumber) {
+            flashingRule = nil
+            guard let rule = viewModel.activeRule,
+                  viewModel.learnedRules.contains(rule), viewModel.stepNumber >= 5 else { return }
+            do {
+                try await Task.sleep(for: .milliseconds(700))
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) { flashingRule = rule }
+                try await Task.sleep(for: .milliseconds(500))
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) { flashingRule = nil }
+            } catch { flashingRule = nil }
+        }
+        .onDisappear { viewModel.clearIdleReminder() }
     }
 
     private var content: some View {
         ScrollView {
             VStack(spacing: 20) {
-                header
+                Color.clear.frame(height: 32).accessibilityHidden(true)
+                ruleSlots
                 boardWithSpotlight
-                caption
+
+                if let step = viewModel.step {
+                    tip(for: step)
+                        .frame(maxWidth: 300)
+                        .frame(minHeight: 64, alignment: .top)
+                        .allowsHitTesting(false)
+                }
 
                 if let message = viewModel.feedbackMessage {
-                    Text(message)
+                    Text(LocalizedStringKey(message))
                         .font(.footnote.weight(.medium))
                         .foregroundStyle(CatPuzzleTheme.warning)
                         .multilineTextAlignment(.center)
@@ -49,16 +88,27 @@ struct TutorialScreen: View {
         .scrollBounceBehavior(.basedOnSize)
     }
 
-    /// The scrim/finger-guide overlay is scoped to just the board's own
-    /// bounds (not the whole scrollable screen) so the caption card below it
-    /// — and the header above — are never painted over by the spotlight
-    /// mask and stay readable regardless of what the current step spotlights.
+    /// Visual coaching stays on the board; TIPS has its own space below it.
     private var boardWithSpotlight: some View {
         board
             .overlayPreferenceValue(BoardView.CellFrameKey.self) { anchors in
                 GeometryReader { proxy in
                     let cellFrames = anchors.mapValues { proxy[$0] }
                     ZStack {
+                        ForEach(viewModel.reminderPositions.sorted {
+                            $0.row == $1.row ? $0.column < $1.column : $0.row < $1.row
+                        }, id: \.self) { position in
+                            if let frame = cellFrames[position] {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(TutorialTheme.accent.opacity(0.25))
+                                    .overlay {
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(TutorialTheme.accent, lineWidth: 3)
+                                    }
+                                    .frame(width: frame.width, height: frame.height)
+                                    .position(x: frame.midX, y: frame.midY)
+                            }
+                        }
                         if !viewModel.spotlight.isEmpty {
                             TutorialSpotlightMask(
                                 holes: viewModel.spotlight.compactMap { cellFrames[$0] }
@@ -66,42 +116,19 @@ struct TutorialScreen: View {
                             .fill(TutorialTheme.scrim, style: FillStyle(eoFill: true))
                             .allowsHitTesting(false)
                         }
-                        if let step = viewModel.step, step.coaching == .guided {
+                        if let step = viewModel.step, viewModel.showsFingerGuide {
                             TutorialFingerGuide(
                                 task: step.task,
                                 target: viewModel.guidedTarget,
                                 cellFrames: cellFrames,
-                                playbackID: viewModel.guidancePlaybackID
+                                playbackID: viewModel.guidancePlaybackID,
+                                dragEnd: viewModel.guidedDragEnd
                             )
                         }
                     }
                 }
                 .allowsHitTesting(false)
             }
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text("CATPUZZLE")
-                .font(.caption2.bold())
-                .tracking(1.5)
-                .foregroundStyle(TutorialTheme.textSecondary)
-            Text("Tutorial")
-                .font(.title2.bold())
-                .foregroundStyle(TutorialTheme.textPrimary)
-            if let step = viewModel.step {
-                Text(
-                    step.coaching == .guided
-                        ? "LEARN \(viewModel.stepNumber) / \(viewModel.guidedStepCount)"
-                        : "YOUR TURN · \(viewModel.placedCatCount) / \(viewModel.level.catCount) CATS"
-                )
-                    .font(.caption2.bold())
-                    .tracking(1.2)
-                    .foregroundStyle(TutorialTheme.accent)
-                    .accessibilityIdentifier("tutorial-progress")
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var board: some View {
@@ -112,15 +139,13 @@ struct TutorialScreen: View {
             lockedPositions: viewModel.level.givenPositions,
             hint: nil,
             maskedPositions: maskedPositions,
-            nudgedPositions: viewModel.autoMarkedPosition.map { Set([$0]) }
-                ?? viewModel.nudgedPositions,
+            nudgedPositions: viewModel.nudgedPositions,
             onTap: viewModel.handleCellTap,
             onDragSetExcluded: viewModel.setExcludedDuringDrag,
             onToggleCatAccessibility: viewModel.toggleCat
         )
         .frame(maxWidth: 430)
         .aspectRatio(1, contentMode: .fit)
-        .allowsHitTesting(!viewModel.isAutoMarking)
     }
 
     /// VoiceOver has no scrim to look at, so a guided step's masking still has
@@ -135,78 +160,145 @@ struct TutorialScreen: View {
         .subtracting(spotlight)
     }
 
+    private var ruleSlots: some View {
+        HStack(spacing: 8) {
+            ForEach([PuzzleRule.oneCatPerRegion, .oneCatPerRowAndColumn, .noTouchingCats], id: \.self) { rule in
+                ZStack {
+                    Color.clear
+                        .accessibilityHidden(true)
+                    if viewModel.learnedRules.contains(rule) {
+                        ruleCard(rule)
+                            .matchedGeometryEffect(id: rule, in: ruleFlight)
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(TutorialTheme.accent, lineWidth: flashingRule == rule ? 3 : 0)
+                            }
+                            .brightness(flashingRule == rule ? 0.18 : 0)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 64)
+                .accessibilityIdentifier("tutorial-rule-\(ruleNumber(rule))")
+            }
+        }
+    }
+
+    private func ruleNumber(_ rule: PuzzleRule) -> Int {
+        switch rule {
+        case .oneCatPerRegion: 1
+        case .oneCatPerRowAndColumn: 2
+        case .noTouchingCats: 3
+        }
+    }
+
+    private func ruleCard(_ rule: PuzzleRule) -> some View {
+        HStack(spacing: 5) {
+            TutorialRuleDiagram(rule: rule)
+                .frame(width: 32, height: 32)
+                .accessibilityHidden(true)
+            Text(LocalizedStringKey(rule.tipText))
+                .font(.caption2.weight(.semibold))
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .foregroundStyle(Color(red: 0.62, green: 0.34, blue: 0.31))
+        .padding(.horizontal, 6)
+        .frame(maxWidth: .infinity)
+        .frame(height: 64)
+        .background(Color(red: 0.98, green: 0.95, blue: 0.92), in: RoundedRectangle(cornerRadius: 12))
+        .accessibilityElement(children: .combine)
+    }
+
     @ViewBuilder
-    private var caption: some View {
-        if let step = viewModel.step {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(step.lesson.headline)
-                    .font(.headline)
-                    .foregroundStyle(TutorialTheme.accent)
-                Text(
-                    step.lesson.explanation(
-                        coaching: step.coaching,
-                        showsRegionIcons: showsRegionIcons
-                    )
-                )
-                .font(.subheadline)
+    private func tip(for step: TutorialStep) -> some View {
+        if let rule = step.lesson.rule, !viewModel.learnedRules.contains(rule) {
+            tipLabel(rule.tipText)
+                .matchedGeometryEffect(id: rule, in: ruleFlight)
+                .accessibilityHint(LocalizedStringKey(step.actionHint))
+        } else {
+            tipLabel(step.lesson.rule?.tipText ?? "Mark empty cells ×")
+                .accessibilityHint(LocalizedStringKey(step.actionHint))
+        }
+    }
+
+    private func tipLabel(_ text: String) -> some View {
+        HStack(spacing: 7) {
+            Text("TIPS")
+                .font(.caption2.bold())
                 .foregroundStyle(TutorialTheme.textSecondary)
-                if !viewModel.isAutoMarking {
-                    Text(step.actionHint)
-                        .font(.footnote.weight(.medium))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(LocalizedStringKey(text))
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(TutorialTheme.accent)
+                if viewModel.teachesColumnDrag {
+                    Text("Hold & drag down ↓")
+                        .font(.caption.weight(.semibold))
                         .foregroundStyle(TutorialTheme.textPrimary)
                 }
-                if step.coaching == .guided,
-                   case let .exclude(positions) = step.task {
-                    Text("\(positions.count - step.remainingPositions(in: viewModel.puzzle).count) / \(positions.count) marked")
-                        .font(.caption.bold())
-                        .foregroundStyle(TutorialTheme.accent)
-                        .accessibilityIdentifier("tutorial-mark-progress")
-                }
-                if step.coaching == .discovery {
-                    if viewModel.isAutoMarking {
-                        Text("Watch the row, then column, then nearby cells fill in one by one.")
-                            .font(.footnote.weight(.medium))
-                            .foregroundStyle(TutorialTheme.accent)
-                            .padding(.top, 4)
-                            .accessibilityIdentifier("tutorial-auto-marking")
-                    } else if viewModel.nudgedPositions.isEmpty {
-                        Button {
-                            viewModel.revealClue()
-                        } label: {
-                            Label("Show one cell", systemImage: "lightbulb")
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(TutorialTheme.background)
-                                .padding(.horizontal, 12)
-                                .frame(minHeight: 36)
-                                .background(
-                                    TutorialTheme.accent,
-                                    in: RoundedRectangle(cornerRadius: 10)
-                                )
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.top, 4)
-                        .accessibilityIdentifier("tutorial-show-clue")
-                    } else {
-                        Text("One cell is outlined on the board.")
-                            .font(.footnote.weight(.medium))
-                            .foregroundStyle(TutorialTheme.accent)
-                            .padding(.top, 4)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .background(TutorialTheme.surface, in: RoundedRectangle(cornerRadius: 10))
+        .overlay {
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(TutorialTheme.accent.opacity(0.35), lineWidth: 1)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("tutorial-tip")
+    }
+}
+
+private extension PuzzleRule {
+    var tipText: String {
+        switch self {
+        case .oneCatPerRegion: "One color, one cat"
+        case .oneCatPerRowAndColumn: "One cat per row & column"
+        case .noTouchingCats: "Cats cannot touch"
+        }
+    }
+}
+
+/// Miniature board examples: a single color, a filled row/column, and all
+/// eight neighbours. These use the same paw and × vocabulary as the board.
+private struct TutorialRuleDiagram: View {
+    let rule: PuzzleRule
+
+    var body: some View {
+        Grid(horizontalSpacing: 1.5, verticalSpacing: 1.5) {
+            ForEach(0..<3, id: \.self) { row in
+                GridRow {
+                    ForEach(0..<3, id: \.self) { column in
+                        let isCat = row == (rule == .oneCatPerRowAndColumn ? 0 : 1) && column == 1
+                        let isExcluded = excluded(row: row, column: column)
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(isCat || isExcluded
+                                  ? Color(red: 0.70, green: 0.43, blue: 0.28)
+                                  : Color(red: 0.87, green: 0.73, blue: 0.65))
+                            .overlay {
+                                if isCat {
+                                    Image(systemName: "pawprint.fill")
+                                        .font(.system(size: 7, weight: .bold))
+                                        .foregroundStyle(.white)
+                                } else if isExcluded {
+                                    Image(systemName: "xmark")
+                                        .font(.system(size: 8, weight: .bold))
+                                        .foregroundStyle(.white)
+                                }
+                            }
                     }
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(14)
-            .background(
-                TutorialTheme.surface,
-                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(TutorialTheme.spotlightRing.opacity(0.14), lineWidth: 1)
-            }
-            .multilineTextAlignment(.leading)
-            .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("tutorial-step-panel")
+        }
+    }
+
+    private func excluded(row: Int, column: Int) -> Bool {
+        switch rule {
+        case .oneCatPerRegion: row == 0 || column == 0
+        case .oneCatPerRowAndColumn: row == 0 || column == 1
+        case .noTouchingCats: true
         }
     }
 }

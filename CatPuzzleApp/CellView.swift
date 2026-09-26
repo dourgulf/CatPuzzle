@@ -14,6 +14,7 @@ struct CellMarkerMetrics: Equatable {
 }
 
 struct CellView: View {
+    @Environment(\.locale) private var locale
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// Drives the nudge's pulse. Held here rather than animated from
     /// `isNudged` directly so the repeating animation starts and stops with
@@ -108,15 +109,12 @@ struct CellView: View {
             }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(
-                "Row \(row + 1), Column \(column + 1), "
-                    + CatPuzzleTheme.regionName(
-                        for: regionID,
-                        includingShape: showsRegionIcon
-                    )
-                    + (isLocked ? ", Given" : "")
+                L10n.format("Row %@, Column %@, %@", [String(row + 1), String(column + 1),
+                    CatPuzzleTheme.regionName(for: regionID, includingShape: showsRegionIcon, locale: locale)], locale: locale)
+                    + (isLocked ? L10n.text(", Given", locale: locale) : "")
             )
-            .accessibilityValue(accessibilityValue)
-            .accessibilityHint(accessibilityHintText)
+            .accessibilityValue(LocalizedStringKey(accessibilityValue))
+            .accessibilityHint(LocalizedStringKey(accessibilityHintText))
             .accessibilityAddTraits(isLocked || isMasked ? [] : .isButton)
             .accessibilityIdentifier("cell-\(row)-\(column)")
             .accessibilityAction {

@@ -11,6 +11,7 @@ import SwiftUI
 /// imported game is therefore always winnable from where it starts. It is
 /// also a scratch game — it never touches level progress.
 struct ScreenshotImportScreen: View {
+    @Environment(\.locale) private var locale
     @Environment(\.dismiss) private var dismiss
 
     let mode: GameplayMode
@@ -34,9 +35,9 @@ struct ScreenshotImportScreen: View {
                                 .foregroundStyle(CatPuzzleTheme.textSecondary)
                         }
                     }
-                case let .failed(message):
+                case let .failed(error):
                     Section {
-                        Text(message)
+                        Text(ScreenshotImportCopy.message(for: error, locale: locale))
                             .foregroundStyle(CatPuzzleTheme.warning)
                             .accessibilityIdentifier("screenshot-import-error")
                     }
@@ -78,9 +79,7 @@ struct ScreenshotImportScreen: View {
             .accessibilityIdentifier("choose-screenshot")
         } footer: {
             Text(
-                "Pick a screenshot of a puzzle board. Cats and ✕ marks already "
-                    + "on it are carried over, so you can keep going where the "
-                    + "screenshot left off."
+                "Pick a screenshot of a puzzle board. Cats and ✕ marks already on it are carried over, so you can keep going where the screenshot left off."
             )
         }
     }
@@ -112,16 +111,16 @@ struct ScreenshotImportScreen: View {
         Section {
             NavigationLink(value: ImportedGame(imported: imported)) {
                 Label(
-                    imported.isAlreadySolved ? "Open Board" : "Continue Playing",
+                    LocalizedStringKey(imported.isAlreadySolved ? "Open Board" : "Continue Playing"),
                     systemImage: "play.fill"
                 )
             }
             .accessibilityIdentifier("play-screenshot")
         } footer: {
             Text(
-                imported.isAlreadySolved
+                LocalizedStringKey(imported.isAlreadySolved
                     ? "This board is already complete — every cat is placed."
-                    : "This board is a one-off and is not saved to your level progress."
+                    : "This board is a one-off and is not saved to your level progress.")
             )
         }
     }
@@ -129,24 +128,12 @@ struct ScreenshotImportScreen: View {
     private func markSummary(_ imported: ImportedScreenshotLevel) -> String {
         let cats = imported.puzzle.states.count { $0 == .cat }
         let excluded = imported.puzzle.states.count { $0 == .excluded }
-        return "\(cats) cats, \(excluded) ✕"
+        return L10n.format("%@ cats, %@ ✕", [String(cats), String(excluded)], locale: locale)
     }
 
     private func correctionSummary(_ imported: ImportedScreenshotLevel) -> String {
-        var parts: [String] = []
-        if !imported.discardedCats.isEmpty {
-            parts.append(
-                "\(imported.discardedCats.count) cat"
-                    + (imported.discardedCats.count == 1 ? "" : "s")
-                    + " the solution rules out"
-            )
-        }
-        if !imported.discardedExclusions.isEmpty {
-            parts.append(
-                "\(imported.discardedExclusions.count) ✕ on a cell that needs a cat"
-            )
-        }
-        return "Cleared \(parts.joined(separator: " and ")) so the board stays winnable."
+        L10n.format("Cleared %@ incorrect cats and %@ incorrect marks.",
+                    [String(imported.discardedCats.count), String(imported.discardedExclusions.count)], locale: locale)
     }
 
     private func load(_ item: PhotosPickerItem) {
@@ -154,7 +141,7 @@ struct ScreenshotImportScreen: View {
         Task {
             do {
                 guard let data = try await item.loadTransferable(type: Data.self) else {
-                    state = .failed(ScreenshotImportCopy.unreadable)
+                    state = .failed(ScreenshotPixelDecoder.DecodeError.unreadableImage)
                     return
                 }
                 // Decoding and the uniqueness proof are both heavy enough to
@@ -167,7 +154,7 @@ struct ScreenshotImportScreen: View {
                 }.value
                 state = .ready(imported)
             } catch {
-                state = .failed(ScreenshotImportCopy.message(for: error))
+                state = .failed(error)
             }
         }
     }
@@ -176,7 +163,7 @@ struct ScreenshotImportScreen: View {
 private enum ImportState {
     case idle
     case working
-    case failed(String)
+    case failed(any Error)
     case ready(ImportedScreenshotLevel)
 }
 
@@ -195,50 +182,42 @@ enum ScreenshotImportCopy {
     static let unreadable =
         "That image could not be opened. Try picking the screenshot again."
 
-    static func message(for error: any Error) -> String {
+    static func message(for error: any Error, locale: Locale = Locale(identifier: "en")) -> String {
         switch error {
         case let error as ScreenshotImportError:
-            message(for: error)
+            message(for: error, locale: locale)
         case is ScreenshotPixelDecoder.DecodeError:
-            unreadable
+            L10n.text(unreadable, locale: locale)
         default:
-            "Something went wrong reading that screenshot."
+            L10n.text("Something went wrong reading that screenshot.", locale: locale)
         }
     }
 
-    static func message(for error: ScreenshotImportError) -> String {
+    static func message(for error: ScreenshotImportError, locale: Locale = Locale(identifier: "en")) -> String {
         switch error {
         case let .transcription(reason):
-            message(for: reason)
+            message(for: reason, locale: locale)
         case .invalidLevel:
-            "The colors on that board did not come out as one Region per row. "
-                + "A screenshot taken straight from the puzzle, without "
-                + "anything drawn over it, reads best."
+            L10n.text("The colors on that board did not come out as one Region per row. A screenshot taken straight from the puzzle, without anything drawn over it, reads best.", locale: locale)
         case .noSolution:
-            "That board has no solution, so it was probably read wrong. Try a "
-                + "screenshot of the full board with nothing covering it."
+            L10n.text("That board has no solution, so it was probably read wrong. Try a screenshot of the full board with nothing covering it.", locale: locale)
         case .multipleSolutions:
-            "That board has more than one solution, so it cannot be played "
-                + "here. Check that no part of it is cut off."
+            L10n.text("That board has more than one solution, so it cannot be played here. Check that no part of it is cut off.", locale: locale)
         case .searchInconclusive:
-            "That board was too large to check for a single solution."
+            L10n.text("That board was too large to check for a single solution.", locale: locale)
         }
     }
 
-    static func message(for error: ScreenshotTranscriptionError) -> String {
+    static func message(for error: ScreenshotTranscriptionError, locale: Locale = Locale(identifier: "en")) -> String {
         switch error {
         case .boardNotFound:
-            "No puzzle board was found in that screenshot."
+            L10n.text("No puzzle board was found in that screenshot.", locale: locale)
         case .nonSquareGrid:
-            "The board in that screenshot is not square — part of it may be "
-                + "cut off or covered."
+            L10n.text("The board in that screenshot is not square — part of it may be cut off or covered.", locale: locale)
         case let .unsupportedBoardSize(size):
-            "That board is \(size) × \(size). Boards from 4 × 4 to 12 × 12 "
-                + "can be imported."
+            L10n.format("That board is %@ × %@. Boards from 4 × 4 to 12 × 12 can be imported.", [String(size), String(size)], locale: locale)
         case let .regionCountMismatch(regions, size):
-            "That board is \(size) × \(size) but \(regions) colors were read "
-                + "from it. Screenshots taken at full brightness, with no "
-                + "overlay or color filter, read best."
+            L10n.format("That board is %@ × %@ but %@ colors were read from it. Screenshots taken at full brightness, with no overlay or color filter, read best.", [String(size), String(size), String(regions)], locale: locale)
         }
     }
 }

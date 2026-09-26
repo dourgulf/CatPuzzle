@@ -38,8 +38,7 @@ public enum TutorialLesson: Equatable, Sendable {
     /// Every cell the cats on the board rule out, for whatever reason — the
     /// step where the three rules are used together rather than one at a time.
     case everythingTheCatsRuleOut
-    /// The player makes one deduction from the second cat, then watches its
-    /// row, column and remaining neighbours get marked in that order.
+    /// Reinforce the newest cat’s row and column before its neighbours.
     case secondCatRulesOut(CellPosition)
 
     /// The rule this lesson is about, or nil where it is about all three.
@@ -52,7 +51,9 @@ public enum TutorialLesson: Equatable, Sendable {
             .oneCatPerRowAndColumn
         case .catsNeverTouch:
             .noTouchingCats
-        case .everythingTheCatsRuleOut, .secondCatRulesOut:
+        case .secondCatRulesOut:
+            .oneCatPerRowAndColumn
+        case .everythingTheCatsRuleOut:
             nil
         }
     }
@@ -183,10 +184,22 @@ public struct TutorialScript: Equatable, Sendable {
         // 6 onwards. The lesson is over; the loop the game is actually played
         // in begins, and the player is left to run it.
         while board.catCount < fixture.level.catCount {
-            let cleanupLesson: TutorialLesson = board.catCount == 2
-                ? .secondCatRulesOut(second)
-                : .everythingTheCatsRuleOut
-            if let cleanup = board.cleanupStep(lesson: cleanupLesson) {
+            if let newest = board.latestCat {
+                let lines = board.cells(inRow: newest.row) + board.cells(inColumn: newest.column)
+                if let cleanup = board.practiceStep(
+                    lesson: .secondCatRulesOut(newest), candidates: lines
+                ) {
+                    steps.append(cleanup)
+                    board.exclude(cleanup.task.positions)
+                }
+                if let neighbors = board.practiceStep(
+                    lesson: .catsNeverTouch(newest), candidates: board.neighbors(of: newest)
+                ) {
+                    steps.append(neighbors)
+                    board.exclude(neighbors.task.positions)
+                }
+            }
+            if let cleanup = board.cleanupStep(lesson: .everythingTheCatsRuleOut) {
                 steps.append(cleanup)
                 board.exclude(cleanup.task.positions)
             }
@@ -233,6 +246,7 @@ private struct Board {
 
     var size: Int { level.size }
     var catCount: Int { cats.count }
+    var latestCat: CellPosition? { cats.last }
     var placedCats: Set<CellPosition> { Set(cats) }
     var regionIDs: [Int] { Array(0..<level.catCount) }
 
@@ -351,13 +365,20 @@ private struct Board {
         )
     }
 
+    func practiceStep(lesson: TutorialLesson, candidates: [CellPosition]) -> TutorialStep? {
+        var seen: Set<CellPosition> = []
+        let targets = candidates.filter { seen.insert($0).inserted && isEmpty($0) }
+        guard !targets.isEmpty else { return nil }
+        return TutorialStep(lesson: lesson, task: .exclude(targets), coaching: .discovery, spotlight: [])
+    }
+
     /// Everything on the board the cats rule out and the player has not
     /// marked yet, as one unguided step. This is what keeps the next
     /// `forcedPlacements()` honest: a cell left unmarked would still look
     /// open, and the script would point at a deduction the player cannot see.
     func cleanupStep(lesson: TutorialLesson) -> TutorialStep? {
         guard let newestCat = cats.last else { return nil }
-        // A player can follow this sweep with their eyes: left to right on
+        // Keep manual cleanup targets in a predictable order: left to right on
         // the new cat's row, top to bottom on its column, then its remaining
         // neighbours. Other already-ruled-out cells come last.
         let candidates = cells(inRow: newestCat.row)

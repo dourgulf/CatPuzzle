@@ -28,6 +28,12 @@ Builds the iOS app without requiring signing. Run app tests from Xcode or select
 
 Use four-space indentation and standard Swift API Design Guidelines. Types use `UpperCamelCase`; properties, methods, and enum cases use `lowerCamelCase`. Prefer value types and explicit domain operations in the core. Keep validators and solvers deterministic and side-effect free. UI gestures belong in the app layer and should call `GameViewModel` or `GameEngine` domain APIs. No formatter or linter is currently enforced; match surrounding code and run `git diff --check`.
 
+## Localization
+
+- Every new or changed user-facing string must include English and Simplified Chinese translations in `CatPuzzleApp/Localizable.xcstrings`. This includes tutorials, TIPS, buttons, settings, errors, dynamic messages, and accessibility labels.
+- Use the existing locale-aware rendering and preserve the Follow System, 简体中文, and English settings. Check both translations, format arguments, and affected layouts before finishing.
+- Read `Docs/Localization.md` when adding or changing copy or language behavior.
+
 ## Testing Guidelines
 
 Use XCTest and name tests `testExpectedBehavior`, for example `testIllegalCatPlacementPreservesPuzzle`. Add focused regression tests for every rule or interaction change, including failure and no-op paths. Run both `swift test` and `CatPuzzleAppTests` before submitting. Tests must isolate persistence; never use `UserDefaults.standard` directly.

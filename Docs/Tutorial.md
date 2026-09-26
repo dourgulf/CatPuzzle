@@ -29,11 +29,12 @@ then hands over:
 | --- | --- | --- | --- |
 | 1 | guided | Regions | The pink block is a single cell — its cat goes there |
 | 2 | guided | Rows | Mark every other cell of the first cat's row, one by one |
-| 3 | guided | Columns | On the same board, mark every other cell of its column |
+| 3 | guided | Columns | Hold and drag down the same cat’s column to mark the remaining cells |
 | 4 | guided | No touching | The straight neighbours are already crossed out; mark all four diagonal corners around that same cat |
 | 5 | guided | Regions | Those crosses leave the green block exactly one cell |
-| 6 | discovery | all three | The player marks one cell ruled out by the second cat; the rest of its row, column and nearby cells appear in sequence |
-| 7+ | discovery | all three | The player runs the loop themselves |
+| 6 | discovery | Rows and columns | Manually mark every remaining cell in the second cat's row and column |
+| 7 | discovery | No touching | Manually mark its remaining neighbours |
+| 8+ | discovery | all three | Find the next cat, then repeat line and neighbour practice |
 
 Steps 1 and 5 are the same rule on purpose. The first is free — a one-cell
 block needs no deduction to see. The second is the same rule reached by
@@ -53,19 +54,34 @@ column or block the lesson is about, so the player sees the reason and not just
 the answer — and leaves only the cells it is actually asking for tappable. On
 an exclusion step, the player must mark every requested cell. The hand moves
 to the next unmarked cell after each tap and stays there until the player acts.
-Progress is shown after each mark, and previously marked cells remain visible
+For guided cat placement, the hand repeats pairs of taps until the cat is
+placed; advancing the step or leaving the screen cancels the animation.
+The first column demonstrates a held finger sliding from its first open cell
+to its last, with “Hold & drag down ↓” beside the rule tip. The animation
+loops until the player starts dragging, and cancels when the step changes.
+Taps alone keep the demonstration available at the next open cell. Restarting
+restores it; Reduce Motion keeps a static hand.
+Previously marked cells remain visible
 while the spotlight changes from row to column to the cat's neighbourhood. Earlier
 guided moves cannot be undone until discovery begins.
 
-A **discovery** step masks nothing and leaves the board live. The player can
-request a clue with **Show one cell**; only one unfinished answer is outlined,
-and nothing is revealed automatically. The first discovery step asks the
-player to find one cell ruled out by the second cat. Its other ruled-out cells
-then appear one by one: row from left to right, column from top to bottom,
-then remaining neighbours. Later discovery exclusions use the same sequence
-after one correct example. The board pauses input during this brief sweep and
-cancels it if the player restarts. Placement
-steps still require the player to find and place the cat.
+Three invisible reserved slots above the board collect the rules. The TIPS
+text flies into its slot and becomes a miniature board diagram after step 1 (color), step 3 (row and column), and step 4
+(no touching). Collected cards remain visible. Uncollected slots have no label or border.
+The tutorial omits its title and progress counters; Settings stays at the top right. A later placement or exclusion
+step briefly flashes the corresponding card to recall the rule.
+
+A **discovery** step masks nothing and leaves the board live. Every exclusion
+requires a tap or drag; no remaining marks are filled automatically. After
+three idle seconds, a short 600 ms highlight points at the remaining row cells
+(or column once the row is finished), remaining neighbours, or the next cat.
+The reminder repeats every three seconds while idle. Input restarts the wait;
+step changes, backgrounding and leaving the screen cancel stale reminders.
+A single short TIPS bubble occupies its own fixed area below the board; its
+wording matches the miniature rule card. Highlights never move the bubble,
+and the bubble cannot cover or intercept board cells. A single tap on a cat
+target explains that placing a cat requires a double-tap. The long explanation panel is omitted. Reduce Motion removes
+rule flight and brightness interpolation while retaining static visual cues.
 
 ## Where the player is in the script
 

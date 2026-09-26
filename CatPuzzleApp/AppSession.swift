@@ -21,6 +21,7 @@ final class AppSession: ObservableObject {
     @Published private(set) var currentPresentation: LevelPresentation?
     @Published private(set) var gameplayMode: GameplayMode = .challenge
     @Published private(set) var showsRegionIcons = false
+    @Published private(set) var language: AppLanguage = .system
 
     private let progressStore: any GameProgressStore
     private let progression: LevelProgression
@@ -71,6 +72,7 @@ final class AppSession: ObservableObject {
         gameplayMode = progress.activeGame?.mode ?? progress.preferredMode
         progress.preferredMode = gameplayMode
         showsRegionIcons = progress.showsRegionIcons
+        language = progress.language
 
         let knownLevelIDs = Set(fixtures.map(\.level.id))
         progress.completedLevelIDs.formIntersection(knownLevelIDs)
@@ -100,6 +102,13 @@ final class AppSession: ObservableObject {
     func continueAfterCompletion() {
         guard gameViewModel?.isSolved == true || tutorialViewModel?.isSolved == true else { return }
         showNextDestination()
+    }
+
+    func setLanguage(_ language: AppLanguage) {
+        guard self.language != language else { return }
+        self.language = language
+        progress.language = language
+        saveProgress()
     }
 
     func setGameplayMode(_ mode: GameplayMode) {

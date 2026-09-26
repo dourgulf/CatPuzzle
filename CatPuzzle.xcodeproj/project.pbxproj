@@ -11,6 +11,7 @@
 		0DAF4B508994B65025D770AB /* PuzzleSound.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90675660D0ABBC7AA0FBE806 /* PuzzleSound.swift */; };
 		10451F62935AF7116308039E /* CellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4890F6ACF8E2AA15AC1065D2 /* CellView.swift */; };
 		2485DFBFBE7466F57E5BE1B2 /* sfx_cat_unmark.wav in Resources */ = {isa = PBXBuildFile; fileRef = BCBEFC522EA66683ABA7A4CA /* sfx_cat_unmark.wav */; };
+		3371B79ADA4624114B7C6B62 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 887A9DFD01CAB85C7650BE51 /* Localizable.xcstrings */; };
 		33801A431E1843D619D10078 /* ScreenshotImportScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC1044B00357B33D373CBE2E /* ScreenshotImportScreen.swift */; };
 		3512AD04103A8070BAB87B76 /* TutorialFingerGuide.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91B889C16CC3BA1C69439A51 /* TutorialFingerGuide.swift */; };
 		378DDAA4C21235D4BA867AFA /* GameScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C3A14156F40CDC5F819781D /* GameScreen.swift */; };
@@ -30,6 +31,7 @@
 		78BABD65EC8C05801527232E /* README.txt in Resources */ = {isa = PBXBuildFile; fileRef = 54EC177381C04835EF3CE30B /* README.txt */; };
 		88CCB976900590897D6181BF /* PhotosUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 96C21EB18333C75975EB261E /* PhotosUI.framework */; };
 		89F9291107E234DAE666B9D6 /* ScreenshotPixelDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EDC7F27F972AEFBDF77BC8A /* ScreenshotPixelDecoder.swift */; };
+		8AD2DE13AE5BB6C3C24B36C2 /* AppLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65D1E962553C4EC46474EF00 /* AppLanguage.swift */; };
 		9B203FE0002125437D0B22E3 /* PlaytestLabScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B02DCA335B2C6D820408417 /* PlaytestLabScreen.swift */; };
 		A097F82F735D4B81C0BE8CC4 /* TutorialFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9BDD51E794CEBEF41C0F3DA /* TutorialFlowTests.swift */; };
 		A0EF1B794680A30AF9F794F8 /* TutorialScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 479BF02CAEEC031573FE474F /* TutorialScreen.swift */; };
@@ -41,6 +43,7 @@
 		C5D235D20FDA417D154CE5CB /* TutorialViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90DF38482F16C926E275D439 /* TutorialViewModelTests.swift */; };
 		C8C438165427EC33776E1F9F /* GameProgressTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C28896388C93775D820CC30 /* GameProgressTests.swift */; };
 		CCC5E9BA0E4B0C5BEE53BF2B /* TutorialSpotlightMask.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14339A27815773C5A07118D2 /* TutorialSpotlightMask.swift */; };
+		CEF05B116CC21F889867725E /* AppLanguageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22926F01DF8E578AE832D127 /* AppLanguageTests.swift */; };
 		D5495E654DA177826CE80B18 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 40B3C76E7B8ACCAA608B77F1 /* AVFoundation.framework */; };
 		DC155185F312F7C52E07B2B8 /* sfx_heart_broken.wav in Resources */ = {isa = PBXBuildFile; fileRef = 306A304622EE6D2E40C394EE /* sfx_heart_broken.wav */; };
 		DDFAA2F76C4BBD401CA3FE8E /* TutorialCompletionScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE9E4DF3165A6B9A47D1F257 /* TutorialCompletionScreen.swift */; };
@@ -72,6 +75,7 @@
 		13D603E9BF5F7A42215ACA0B /* TutorialCoach.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialCoach.swift; sourceTree = "<group>"; };
 		14339A27815773C5A07118D2 /* TutorialSpotlightMask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialSpotlightMask.swift; sourceTree = "<group>"; };
 		1AAAF173B0537E1A0342F539 /* CatPuzzle.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CatPuzzle.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		22926F01DF8E578AE832D127 /* AppLanguageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLanguageTests.swift; sourceTree = "<group>"; };
 		22DE5BB28A40A7CB51C7F8FF /* CellInputCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CellInputCoordinator.swift; sourceTree = "<group>"; };
 		2D1AA59631DCE4267E282B58 /* sfx_excluded_unmark.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = sfx_excluded_unmark.wav; sourceTree = "<group>"; };
 		306A304622EE6D2E40C394EE /* sfx_heart_broken.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = sfx_heart_broken.wav; sourceTree = "<group>"; };
@@ -87,9 +91,11 @@
 		54EC177381C04835EF3CE30B /* README.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = README.txt; sourceTree = "<group>"; };
 		5736732213168EFBF1569B70 /* GameProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameProgress.swift; sourceTree = "<group>"; };
 		60948E5F6905F7174661F246 /* GameProgressStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameProgressStore.swift; sourceTree = "<group>"; };
+		65D1E962553C4EC46474EF00 /* AppLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLanguage.swift; sourceTree = "<group>"; };
 		6982B25EDA727B5B490F4824 /* TutorialViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialViewModel.swift; sourceTree = "<group>"; };
 		6EDC7F27F972AEFBDF77BC8A /* ScreenshotPixelDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotPixelDecoder.swift; sourceTree = "<group>"; };
 		79E199778440A03E79F13FB5 /* ScreenshotImportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotImportTests.swift; sourceTree = "<group>"; };
+		887A9DFD01CAB85C7650BE51 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		8AF778737EE6B1DBCED4D141 /* NextLevelScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NextLevelScreen.swift; sourceTree = "<group>"; };
 		90675660D0ABBC7AA0FBE806 /* PuzzleSound.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PuzzleSound.swift; sourceTree = "<group>"; };
 		90DF38482F16C926E275D439 /* TutorialViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialViewModelTests.swift; sourceTree = "<group>"; };
@@ -152,6 +158,7 @@
 			isa = PBXGroup;
 			children = (
 				4EBFFBA4747D918EC133276B /* AllLevelsCompleteView.swift */,
+				65D1E962553C4EC46474EF00 /* AppLanguage.swift */,
 				016B8CD49A35E29B173C9E01 /* AppSession.swift */,
 				452AF30018CE7484BA1B7F77 /* BoardView.swift */,
 				545D10397B8681B21E643BCE /* CatPuzzleApp.swift */,
@@ -163,6 +170,7 @@
 				EB97F24DAA1DF2F9D9609A78 /* GameViewModel.swift */,
 				09E2C34088FB985FADD42F8C /* LevelPresentation.swift */,
 				359024E1CF371922D839ACD1 /* LevelProgression.swift */,
+				887A9DFD01CAB85C7650BE51 /* Localizable.xcstrings */,
 				8AF778737EE6B1DBCED4D141 /* NextLevelScreen.swift */,
 				4B02DCA335B2C6D820408417 /* PlaytestLabScreen.swift */,
 				90675660D0ABBC7AA0FBE806 /* PuzzleSound.swift */,
@@ -201,6 +209,7 @@
 		BF1A001F3BA3EF4B37338726 /* CatPuzzleAppTests */ = {
 			isa = PBXGroup;
 			children = (
+				22926F01DF8E578AE832D127 /* AppLanguageTests.swift */,
 				04FE7E0D5FCADE753517028D /* AppSessionTests.swift */,
 				B13CCAF096E9BA9016A32D0B /* BoardViewTests.swift */,
 				3C28896388C93775D820CC30 /* GameProgressTests.swift */,
@@ -281,6 +290,7 @@
 			knownRegions = (
 				Base,
 				en,
+				"zh-Hans",
 			);
 			mainGroup = CD9DF8ED8B0C7FC57C1C47EC;
 			minimizedProjectReferenceProxies = 1;
@@ -303,6 +313,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3371B79ADA4624114B7C6B62 /* Localizable.xcstrings in Resources */,
 				78BABD65EC8C05801527232E /* README.txt in Resources */,
 				C0077BCAB3FED66B42D26353 /* sfx_cat_failed.wav in Resources */,
 				5B623BA8CA971F9AC320478D /* sfx_cat_mark.wav in Resources */,
@@ -321,6 +332,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CEF05B116CC21F889867725E /* AppLanguageTests.swift in Sources */,
 				B26AF74766674968CFF1C460 /* AppSessionTests.swift in Sources */,
 				DE03D18DD205B82448E1A961 /* BoardViewTests.swift in Sources */,
 				C8C438165427EC33776E1F9F /* GameProgressTests.swift in Sources */,
@@ -336,6 +348,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A466CD12878B729A7A555E91 /* AllLevelsCompleteView.swift in Sources */,
+				8AD2DE13AE5BB6C3C24B36C2 /* AppLanguage.swift in Sources */,
 				7843EADFD8218B9A0D4E791E /* AppSession.swift in Sources */,
 				7194BF384CAA2A41AB4B6405 /* BoardView.swift in Sources */,
 				A94CB5D90C5FC0056CE052F5 /* CatPuzzleApp.swift in Sources */,

@@ -59,7 +59,7 @@ struct TutorialCompletionScreen: View {
             Image(systemName: icon)
                 .font(.system(size: 20, weight: .semibold))
                 .foregroundStyle(TutorialTheme.accent)
-            Text(text)
+            Text(LocalizedStringKey(text))
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
                 .multilineTextAlignment(.center)
                 .foregroundStyle(TutorialTheme.textPrimary)

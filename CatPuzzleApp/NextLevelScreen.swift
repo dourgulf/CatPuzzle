@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct NextLevelScreen: View {
+    @Environment(\.locale) private var locale
     let presentation: LevelPresentation
     let boardSize: Int
     let onStart: () -> Void
@@ -23,11 +24,11 @@ struct NextLevelScreen: View {
             }
 
             VStack(spacing: 8) {
-                Text(presentation.isTutorial ? "LEARN THE RULES" : "NEXT LEVEL")
+                Text(LocalizedStringKey(presentation.isTutorial ? "LEARN THE RULES" : "NEXT LEVEL"))
                     .font(.caption.weight(.bold))
                     .tracking(1.6)
                     .foregroundStyle(CatPuzzleTheme.textSecondary)
-                Text(presentation.title)
+                Text(presentation.localizedTitle(locale: locale))
                     .font(.largeTitle.bold())
 
                 if presentation.isTutorial {
@@ -46,7 +47,7 @@ struct NextLevelScreen: View {
             .multilineTextAlignment(.center)
 
             Button(action: onStart) {
-                Label(presentation.isTutorial ? "Start Tutorial" : "Start", systemImage: "play.fill")
+                Label(LocalizedStringKey(presentation.isTutorial ? "Start Tutorial" : "Start"), systemImage: "play.fill")
                     .font(.headline)
                     .frame(maxWidth: .infinity, minHeight: 52)
             }
